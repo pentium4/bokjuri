@@ -1,0 +1,329 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://www.ibatis.com/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="lionsclubs.com.MM2.MM2_5.MM2_29">
+
+	<typeAlias alias="MM2_29VO" type="lionsclubs.com.MM2.MM2_5.MM2_29.MM2_29VO" />
+	
+	<sql id="lionsclubs.com.MM2.MM2_5.MM2_29.eventDeclareQuery">
+		DECLARE @sessionYear NVARCHAR(4);	/* 현회선택 */
+		DECLARE @organCode NVARCHAR(6);	/* 조직코드 */
+		DECLARE @eventNameCode NVARCHAR(4);	/* 행사명 코드 */
+		
+		SET @sessionYear = #sessionYear#;
+		SET @organCode = REPLACE(#organCode#, '-', '');
+		SET @eventNameCode = #eventNameCode#;
+	</sql>
+	
+	<sql id="lionsclubs.com.MM2.MM2_5.MM2_29.eventQuery">
+		SELECT  MIN(ES.IDN_NO) AS idnNo
+			   ,MIN(ES.EVENT_START_DATE) AS eventStartDate	/* 행사시작기간 */
+			   ,MIN(ES.EVENT_END_DATE) AS eventEndDate	/* 행사종료기간 */
+			   ,MIN(ES.EVENT_START_TIME) AS eventStartTime	/* 행사시작시간 */
+			   ,MIN(ES.EVENT_END_TIME) AS eventEndTime	/* 행사종료시간 */
+			   ,CASE WHEN MIN(EC.KIND_CODE) IS NULL OR (SELECT COUNT(*) FROM LIONS_EVENT_CLUB WHERE IDN_NO = ES.IDN_NO AND CLUB_CODE = @organCode) = 0
+			         THEN '주최'
+			         WHEN ES.ORGAN_CODE = @organCode
+			         THEN '주최 및 ' + dbo.FN_LIONS_CODE_NAME('4000', MIN(EC.KIND_CODE))
+			         ELSE dbo.FN_LIONS_CODE_NAME('4000', MIN(EC.KIND_CODE)) END AS kindName	/* 행사주관명 */
+			   ,SUBSTRING(ES.ORGAN_CODE, 1, 3) + '-' + SUBSTRING(ES.ORGAN_CODE, 4, 3) + ' ' + dbo.FN_LIONS_ORGAN_NAME(ES.ORGAN_CODE) + '(주최)' +
+			    ISNULL(
+				   STUFF((
+						 SELECT CHAR(10) + SUBSTRING(CLUB_CODE, 1, 3) + '-' + SUBSTRING(CLUB_CODE, 4, 3) + ' ' + dbo.FN_LIONS_ORGAN_NAME(CLUB_CODE) + '(' + dbo.FN_LIONS_CODE_NAME('4000', KIND_CODE) + ')'
+						   FROM LIONS_EVENT_CLUB
+						  WHERE IDN_NO = ES.IDN_NO
+						  ORDER BY CLUB_CODE
+							FOR XML PATH('')
+					), 1, 0, '')
+				, '') AS eventOrganNames	/* 행사 주최/주관/참석 조직 */
+			   ,dbo.FN_LIONS_CODE_NAME(('36' + CAST(SUBSTRING(ES.ORGAN_CODE,2,2) AS NVARCHAR(2))), MIN(ES.EVENT_NAME_CODE)) AS eventName	/* 행사명 */
+			   ,MIN(ES.EVENT_DESC) AS eventDesc	/* 행사내용 및 장소 */
+			   ,COUNT(EM.MEMBER_NO) AS memberNoCnt	/* 인원수 */
+			   ,SUM(CAST(EM.TIME AS FLOAT)) AS time /* 시간 */
+			   ,SUM(CAST(EM.SCORE AS FLOAT)) AS score /* 점수(M) */
+			   ,(SELECT TOP 1 FILE_ID FROM J_ATTACHFILE WHERE FILE_ID = MIN(ES.FILE_ID)) AS fileId	/* 사진 */
+			   ,(SELECT COUNT(*) FROM J_ATTACHFILE WHERE FILE_ID = MIN(ES.FILE_ID)) AS fileCnt	/* 사진갯수 */
+			   ,ISNULL(MIN(ES.FINISH_YN), 'N') AS finishYn	/* 마감여부 */
+		  FROM LIONS_EVENT_SPONSOR ES
+		  LEFT OUTER JOIN LIONS_EVENT_CLUB EC
+		    ON ES.IDN_NO = EC.IDN_NO
+		  LEFT OUTER JOIN LIONS_EVENT_MEMBER EM
+		    ON EC.EVENT_CLUB_IDN_NO = EM.EVENT_CLUB_IDN_NO
+		 WHERE EC.CLUB_CODE = @organCode
+		    OR ES.ORGAN_CODE = @organCode
+		    <isNotEmpty prepend="AND" property="eventNameCode">
+		    	ES.EVENT_NAME_CODE = @eventNameCode
+		    </isNotEmpty>
+		    <isNotEmpty prepend="AND" property="sessionYear">
+				<![CDATA[    
+			    (
+					   (ES.EVENT_START_DATE >= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701' AND ES.EVENT_START_DATE <= CAST(@sessionYear AS NVARCHAR(4)) + '0630')
+					OR (ES.EVENT_END_DATE >= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701' AND ES.EVENT_END_DATE <= CAST(@sessionYear AS NVARCHAR(4)) + '0630')
+					OR (ES.EVENT_START_DATE <= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701' AND ES.EVENT_END_DATE >= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701') /* '20120701' >= START_DATE AND '20120701' <= END_DATE */
+					OR (ES.EVENT_START_DATE <= CAST(@sessionYear AS NVARCHAR(4)) + '0630' AND ES.EVENT_END_DATE >= CAST(@sessionYear AS NVARCHAR(4)) + '0630')
+				)
+				]]>	
+			</isNotEmpty>
+		 GROUP BY  ES.ORGAN_CODE
+				  ,ES.IDN_NO
+	</sql>
+		
+	<select id="lionsclubs.com.MM2.MM2_5.MM2_29.list" resultClass="MM2_29VO">
+		<include refid="lionsclubs.com.MM2.MM2_5.MM2_29.eventDeclareQuery"/>
+		<include refid="lionsclubs.com.MM2.MM2_5.MM2_29.eventQuery"/>
+		<isEqual prepend="ORDER BY" property="searchKind" compareValue="s1">
+			 MIN(ES.EVENT_START_DATE) DESC
+			,MIN(ES.EVENT_START_TIME) DESC
+		</isEqual>
+		<isEqual prepend="ORDER BY" property="searchKind" compareValue="s2">
+			dbo.FN_LIONS_CODE_ORD('4020', MIN(ES.EVENT_NAME_CODE))
+		</isEqual>
+	</select>
+	
+	<select id="lionsclubs.com.MM2.MM2_5.MM2_29.total" resultClass="MM2_29VO">
+		<include refid="lionsclubs.com.MM2.MM2_5.MM2_29.eventDeclareQuery"/>
+		SELECT  SUM(CAST(time AS FLOAT)) AS time	/* 총봉사시간 */
+			   ,SUM(CAST(score AS FLOAT)) AS score	/* 총봉사점수 */
+			   ,SUM(memberNoCnt) AS memberNoCnt	/* 총참가인원 */
+	  	  FROM(
+			<include refid="lionsclubs.com.MM2.MM2_5.MM2_29.eventQuery"/>
+		) EVENT_TOTAL
+	</select>
+	
+	<select id="lionsclubs.com.MM2.MM2_5.MM2_29.detail" resultClass="MM2_29VO">
+		SELECT  ES.IDN_NO AS idnNo
+			   ,ES.ORGAN_CODE AS organCode	/* 행사주최 조직코드 */
+			   ,dbo.FN_LIONS_ORGAN_NAME(ES.ORGAN_CODE) AS organName	/* 행사주최 조직명 */
+			   ,ES.EVENT_START_DATE AS eventStartDate	/* 행사시작일자 */
+			   ,ES.EVENT_END_DATE AS eventEndDate	/* 행사종료일자 */
+			   ,ES.EVENT_START_TIME AS eventStartTime	/* 행사시작시간 */
+			   ,ES.EVENT_END_TIME AS eventEndTime	/* 행사종료시간 */
+			   ,ES.EVENT_NAME_CODE AS eventNameCode	/* 행사명코드 */
+			   ,dbo.FN_LIONS_CODE_NAME(('36' + CAST(SUBSTRING(ES.ORGAN_CODE,2,2) AS NVARCHAR(2))), ES.EVENT_NAME_CODE) AS eventName	/* 행사명 */
+			   ,ES.EVENT_DESC AS eventDesc	/* 행사내용 */
+			   ,ES.FILE_ID AS fileId	/* 첨부파일ID */
+			   ,ISNULL(ES.FINISH_YN, 'N') AS finishYn	/* 마감여부 */
+		  FROM LIONS_EVENT_SPONSOR ES
+		 WHERE ES.IDN_NO = #idnNo#
+	</select>
+	
+	<select id="lionsclubs.com.MM2.MM2_5.MM2_29.subTreeYearClubCodeList" resultClass="MM2_29VO">
+		SELECT  TREE.ORGAN_CODE AS clubCode
+			   ,OC.KO_NAME AS clubName
+		  FROM dbo.FN_LIONS_SUB_TREE_YEAR_ORGAN(#sessionYear#, #organCode#) TREE
+		 INNER JOIN LIONS_ORGAN_CODE OC
+		    ON TREE.ORGAN_CODE = OC.ORGAN_CODE
+		 WHERE LVL = (
+			SELECT TOP 1 LVL
+			  FROM dbo.FN_LIONS_SUB_TREE_YEAR_ORGAN(#sessionYear#, #organCode#)
+			 ORDER BY LVL DESC
+		 )
+	</select>
+	 
+	<insert id="lionsclubs.com.MM2.MM2_5.MM2_29.insertEventSponsor">
+		INSERT INTO LIONS_EVENT_SPONSOR(
+			 ORGAN_CODE	/* 행사주관 조직코드 */
+			,EVENT_START_DATE	/* 행사시작일자 */
+			,EVENT_END_DATE	/* 행사종료일자 */
+			,EVENT_START_TIME	/* 행사시작시간 */
+			,EVENT_END_TIME	/* 행사종료시간 */
+			,EVENT_NAME_CODE	/* 행사명코드 */
+			,EVENT_DESC	/* 행사내용 */
+			,FILE_ID	/* 첨부파일ID */
+			,FINISH_YN	/* 마감여부 */
+			,INSERT_DATE	/* 생성일자 */
+			,INSERT_NAME	/* 생성자 */
+			,UPDATE_DATE	/* 수정일자 */
+			,UPDATE_NAME	/* 수정자 */
+		) VALUES (
+			 #organCode#	/* 행사주관 조직코드 */
+			,REPLACE(#eventStartDate#, '.', '')	/* 행사시작일자 */
+			,REPLACE(#eventEndDate#, '.', '')	/* 행사종료일자 */
+			,#eventStartTime#	/* 행사시작시간 */
+			,#eventEndTime#	/* 행사종료시간 */
+			,#eventNameCode#	/* 행사명코드 */
+			,#eventDesc#	/* 행사내용 */
+			,#fileId#	/* 첨부파일ID */
+			,#finishYn#	/* 마감여부 */
+			,GETDATE()	/* 생성일자 */
+			,#insertName#	/* 생성자 */
+			,GETDATE()	/* 수정일자 */
+			,#updateName#	/* 수정자 */
+		)
+	</insert>
+	
+	<update id="lionsclubs.com.MM2.MM2_5.MM2_29.updateEventSponsor">
+		UPDATE LIONS_EVENT_SPONSOR
+ 		   SET  ORGAN_CODE = #organCode#	/* 행사주관 조직코드 */
+			   ,EVENT_START_DATE = REPLACE(#eventStartDate#, '.', '')	/* 행사시작일자 */
+			   ,EVENT_END_DATE = REPLACE(#eventEndDate#, '.', '')	/* 행사종료일자 */
+			   ,EVENT_START_TIME = #eventStartTime#	/* 행사시작시간 */
+			   ,EVENT_END_TIME = #eventEndTime#	/* 행사종료시간 */
+			   ,EVENT_NAME_CODE = #eventNameCode#	/* 행사명코드 */
+			   ,EVENT_DESC = #eventDesc#	/* 행사내용 */
+			   ,FILE_ID = #fileId#	/* 첨부파일ID */
+			   ,FINISH_YN = #finishYn#	/* 마감여부 */
+			   ,UPDATE_DATE = GETDATE()	/* 수정일자 */
+			   ,UPDATE_NAME =#updateName#	/* 수정자 */
+		 WHERE IDN_NO = #idnNo#
+	</update>
+	
+	<insert id="lionsclubs.com.MM2.MM2_5.MM2_29.insertEventClub">
+		<selectKey resultClass="string" keyProperty="eventClubIdnNo">
+			INSERT INTO LIONS_EVENT_CLUB(
+				 IDN_NO	/* 행사 번호 */
+				,CLUB_CODE	/* 클럽코드 */
+				,KIND_CODE	/* 구분코드 */
+				,INSERT_DATE	/* 생성일자 */
+				,INSERT_NAME	/* 생성자 */
+				,UPDATE_DATE	/* 수정일자 */
+				,UPDATE_NAME	/* 수정자 */
+			) VALUES (
+				 #idnNo#	/* 행사 번호 */
+				,#clubCode#	/* 클럽코드 */
+				,#kindCode#	/* 구분코드 */
+				,GETDATE()	/* 생성일자 */
+				,#insertName#	/* 생성자 */
+				,GETDATE()	/* 수정일자 */
+				,#updateName#	/* 수정자 */		
+			)
+			
+			SELECT SCOPE_IDENTITY() AS eventClubIdnNo
+		</selectKey>
+	</insert>
+	
+	<update id="lionsclubs.com.MM2.MM2_5.MM2_29.updateEventClub">
+		UPDATE LIONS_EVENT_CLUB 
+		   SET KIND_CODE = #kindCode#	/* 구분코드 */
+		 WHERE EVENT_CLUB_IDN_NO = #eventClubIdnNo#
+	</update>
+	
+	<insert id="lionsclubs.com.MM2.MM2_5.MM2_29.insertEventMember">
+		INSERT INTO LIONS_EVENT_MEMBER(
+			 EVENT_CLUB_IDN_NO	/* 클럽행사 번호 */
+			,MEMBER_NO	/* 회원번호 */
+			,TIME	/* 봉사시간 */
+			,SCORE	/* 점수 */
+			,MERIT	/* 공적 */
+			,INSERT_DATE	/* 생성일자 */
+			,INSERT_NAME	/* 생성자 */
+			,UPDATE_DATE	/* 수정일자 */
+			,UPDATE_NAME	/* 수정자 */
+		) VALUES (
+			 #eventClubIdnNo#	/* 클럽/지구행사입력 번호 */
+			,#memberNo#	/* 회원번호 */
+			,#time#	/* 봉사시간 */
+			,#score#	/* 점수 */
+			,#merit#	/* 공적 */
+			,GETDATE()	/* 생성일자 */
+			,#insertName#	/* 생성자 */
+			,GETDATE()	/* 수정일자 */
+			,#updateName#	/* 수정자 */		
+		)
+	</insert>
+	
+	<select id="lionsclubs.com.MM2.MM2_5.MM2_29.eventClubMemberList" resultClass="MM2_29VO">
+	<![CDATA[	
+		SELECT  INFO.MEMBER_NO AS memberNo	/* 회원번호 */
+			   ,INFO.NAME AS name	/* 이름 */
+			   ,ISNULL(EM.MEMBER_NO, '') AS eventMemberNo	/* 행사인원 회원번호 */
+			   ,ISNULL(EM.TIME, '') AS time	/* 시간 */
+			   ,ISNULL(EM.SCORE, '') AS score	/* 점수 */
+			   ,ISNULL(EM.MERIT, 'N') AS merit	/* 공적여부 */
+		  FROM LIONS_MEMBER_CLUB_HIST HIST
+		 INNER JOIN LIONS_MEMBER_INFO INFO
+		    ON HIST.MEMBER_NO = INFO.MEMBER_NO
+		  LEFT OUTER JOIN LIONS_EVENT_MEMBER EM
+		    ON HIST.MEMBER_NO = EM.MEMBER_NO
+		   AND EM.EVENT_CLUB_IDN_NO = #eventClubIdnNo#
+		 WHERE HIST.START_DATE <= REPLACE(#eventStartDate#, '.', '')	/* 행사시작일자 */
+		   AND HIST.END_DATE >= REPLACE(#eventStartDate#, '.', '')	/* 행사시작일자 */
+		   AND HIST.ORGAN_CODE = #clubCode#	/* 클럽코드 */
+		 ORDER BY  INFO.NAME
+		 		  ,INFO.MEMBER_NO 
+	]]>		   	
+	</select>
+
+	<sql id="lionsclubs.com.MM2.MM2_5.MM2_29.eventClubQuery">
+		SELECT  EVENT_CLUB_IDN_NO AS eventClubIdnNo
+			   ,CLUB_CODE AS clubCode
+			   ,dbo.FN_LIONS_ORGAN_NAME(CLUB_CODE) AS clubName
+			   ,KIND_CODE AS kindCode
+			   ,dbo.FN_LIONS_CODE_NAME('4000', KIND_CODE) AS kindName
+		  FROM LIONS_EVENT_CLUB
+		 WHERE IDN_NO = #idnNo#
+	</sql>
+	
+	<select id="lionsclubs.com.MM2.MM2_5.MM2_29.eventClubObject" resultClass="MM2_29VO">
+		<include refid="lionsclubs.com.MM2.MM2_5.MM2_29.eventClubQuery"/>
+		AND CLUB_CODE = #clubCode#
+	</select>
+		
+	<select id="lionsclubs.com.MM2.MM2_5.MM2_29.eventClubList" resultClass="MM2_29VO">
+		<include refid="lionsclubs.com.MM2.MM2_5.MM2_29.eventClubQuery"/>
+	</select>
+	
+	<sql id="lionsclubs.com.MM2.MM2_5.MM2_29.eventMemberQuery">
+		SELECT  EC.CLUB_CODE AS clubCode
+			   ,dbo.FN_LIONS_ORGAN_NAME(EC.CLUB_CODE) AS clubName	/* 클럽명 */
+			   ,dbo.FN_LIONS_CODE_NAME('4000', EC.KIND_CODE) AS kindName
+			   ,EM.MEMBER_NO AS memberNo	/* 회원번호 */
+			   ,INFO.NAME AS name	/* 이름 */
+			   ,EM.TIME AS time	/* 시간 */
+			   ,EM.SCORE AS score	/* 점수 */
+		  FROM LIONS_EVENT_SPONSOR ES
+		 INNER JOIN LIONS_EVENT_CLUB EC
+		    ON ES.IDN_NO = EC.IDN_NO
+		 INNER JOIN LIONS_EVENT_MEMBER EM
+		    ON EC.EVENT_CLUB_IDN_NO = EM.EVENT_CLUB_IDN_NO
+		 INNER JOIN LIONS_MEMBER_INFO INFO
+		    ON EM.MEMBER_NO = INFO.MEMBER_NO
+		 WHERE ES.IDN_NO = #idnNo#
+	</sql>
+	
+	<select id="lionsclubs.com.MM2.MM2_5.MM2_29.eventMemberList" resultClass="MM2_29VO">
+		<include refid="lionsclubs.com.MM2.MM2_5.MM2_29.eventMemberQuery"/>
+		 ORDER BY EC.CLUB_CODE
+	</select>	
+	
+	<select id="lionsclubs.com.MM2.MM2_5.MM2_29.eventMemberTotal" resultClass="MM2_29VO">
+		SELECT  SUM(CAST(time AS FLOAT)) AS time	/* 총봉사시간 */
+		   ,SUM(CAST(score AS FLOAT)) AS score	/* 총봉사점수 */
+		   ,COUNT(*) AS memberNoCnt	/* 총참가인원 */
+	  	  FROM(
+			<include refid="lionsclubs.com.MM2.MM2_5.MM2_29.eventMemberQuery"/>
+		) MEMBER_TOTAL 
+	</select>
+
+	<select id="lionsclubs.com.MM2.MM2_5.MM2_29.eventPhotoList" resultClass="MM2_29VO">
+		SELECT  FILE_ID AS fileId
+			   ,FILE_SEQ AS fileSeq
+		  FROM J_ATTACHFILE
+		 WHERE FILE_ID = #fileId#
+	</select>
+
+	<delete id="lionsclubs.com.MM2.MM2_5.MM2_29.deleteEventSponsor">
+		DELETE FROM LIONS_EVENT_SPONSOR
+		 WHERE IDN_NO = #idnNo#
+	</delete>
+		
+	<delete id="lionsclubs.com.MM2.MM2_5.MM2_29.deleteEventClub">
+		DELETE FROM LIONS_EVENT_CLUB
+		 WHERE EVENT_CLUB_IDN_NO = #eventClubIdnNo#
+	</delete>
+	
+	<delete id="lionsclubs.com.MM2.MM2_5.MM2_29.deleteEventMember">
+		DELETE FROM LIONS_EVENT_MEMBER
+		 WHERE EVENT_MEMBER_IDN_NO = #eventMemberIdnNo#
+	</delete>
+	
+	<delete id="lionsclubs.com.MM2.MM2_5.MM2_29.deleteEventClubAll">
+		DELETE FROM LIONS_EVENT_CLUB
+		 WHERE IDN_NO = #idnNo#
+	</delete>
+	
+	<delete id="lionsclubs.com.MM2.MM2_5.MM2_29.deleteEventMemberAll">
+		DELETE FROM LIONS_EVENT_MEMBER
+		 WHERE EVENT_CLUB_IDN_NO = #eventClubIdnNo#
+	</delete>
+</sqlMap>

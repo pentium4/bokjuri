@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://www.ibatis.com/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="lionsclubs.com.SM1.SM1_2.SM1_11">
+
+	<typeAlias alias="SM1_11VO" type="lionsclubs.com.SM1.SM1_2.SM1_11.SM1_11VO"/>
+	<typeAlias alias="SM1_11VO_DATA" type="lionsclubs.com.SM1.SM1_2.SM1_11.SM1_11VO_DATA"/>
+	
+	<select id="lionsclubs.com.SM1.SM1_2.SM1_11.selectList"  resultClass="SM1_11VO_DATA" parameterClass="SM1_11VO">
+	<![CDATA[
+		SELECT
+			  A.IDN_NO as idnNO
+			, A.AGE_CODE as ageCode
+			, A.ORGAN_CODE as organCode
+			, A.APP_KIND_CODE as appKindCode
+			, A.APP_DESC_CODE as appDescCode
+			, A.MEMBER_NO as memberNo
+			, A.MEMBER_NAME as memberName
+			, A.ORD as ord
+			, A.S_POS1 as sPos1
+			, A.S_ORGAN_CODE as sOrganCode
+			, A.S_POS2 as sPos2
+			, A.S_CLUB_NAME as sClubName
+		FROM dbo.LIONS_DUMMY_MEMBER_INFO A
+		WHERE 1 = 1
+]]>
+<isNotEmpty prepend="AND" property="paramYearCode">
+<![CDATA[
+		    A.AGE_CODE = CAST(CAST(#paramYearCode# as INT)-1 as NVARCHAR(10)) + '-' + #paramYearCode#
+]]>
+</isNotEmpty>
+<isNotEmpty prepend="AND" property="paramOrgCode">
+<![CDATA[
+		    A.ORGAN_CODE = #paramOrgCode#
+]]>
+</isNotEmpty>
+<![CDATA[
+		AND A.APP_KIND_CODE = '9010'
+		AND A.APP_DESC_CODE = #paramAppDescCode#
+		ORDER BY A.AGE_CODE, A.ORGAN_CODE, A.APP_KIND_CODE, A.APP_DESC_CODE, ORD
+	]]>
+	</select>
+
+	<insert id="lionsclubs.com.SM1.SM1_2.SM1_11.insert" parameterClass="SM1_11VO_DATA">
+	<![CDATA[
+		INSERT INTO dbo.LIONS_DUMMY_MEMBER_INFO (
+			  AGE_CODE 
+			, ORGAN_CODE 
+			, APP_KIND_CODE 
+			, APP_DESC_CODE 
+			, MEMBER_NO 
+			, MEMBER_NAME 
+			, ORD 
+			, S_POS1 
+			, S_ORGAN_CODE 
+			, S_POS2 
+			, S_CLUB_NAME
+		)
+		VALUES (
+			  #ageCode#
+			, REPLACE(UPPER(#organCode#),'-','')
+			, '9010'
+			, #appDescCode#
+			, #memberNo#
+			, #memberName#
+			, #ord#
+			, #sPos1#
+			, #sOrganCode#
+			, #sPos2#
+			, #sClubName#
+		)
+	]]>
+	</insert>
+	
+	<update id="lionsclubs.com.SM1.SM1_2.SM1_11.update" parameterClass="SM1_11VO_DATA">
+	<![CDATA[
+		UPDATE dbo.LIONS_DUMMY_MEMBER_INFO SET
+			   
+			  AGE_CODE 				= #ageCode#
+			, ORGAN_CODE 			= REPLACE(UPPER(#organCode#),'-','')
+			, APP_KIND_CODE 		= '9010'
+			, APP_DESC_CODE 		= #appDescCode#
+			, MEMBER_NO 			= #memberNo#
+			, MEMBER_NAME 			= #memberName#
+			, ORD 					= #ord#
+			, S_POS1 				= #sPos1#
+			, S_ORGAN_CODE 			= #sOrganCode#
+			, S_POS2 				= #sPos2#
+			, S_CLUB_NAME			= #sClubName#
+		WHERE IDN_NO = #idnNo#
+	]]>
+	</update>	
+	<delete id="lionsclubs.com.SM1.SM1_2.SM1_11.delete" parameterClass="SM1_11VO_DATA">
+	<![CDATA[
+		DELETE FROM dbo.LIONS_DUMMY_MEMBER_INFO
+		WHERE IDN_NO = #idnNo#
+	]]>
+	</delete>
+	
+	<update id="lionsclubs.com.SM1.SM1_2.SM1_11.reorderList" parameterClass="SM1_11VO">
+	<![CDATA[
+		UPDATE LIONS_DUMMY_MEMBER_INFO
+		SET ORD = B.ORD
+		FROM LIONS_DUMMY_MEMBER_INFO A
+		JOIN (
+		SELECT
+			 IDN_NO
+			,((ROW_NUMBER() OVER(ORDER BY ORD) - 1) * 10) + 1000 as ORD
+		FROM LIONS_DUMMY_MEMBER_INFO
+		WHERE
+		    AGE_CODE = CAST(CAST(#paramYearCode# as INT)-1 as NVARCHAR(10)) + '-' + #paramYearCode#
+		AND ORGAN_CODE = #paramOrgCode#	
+		AND APP_KIND_CODE = '9010'
+		AND APP_DESC_CODE = #paramAppDescCode#
+		) B ON B.IDN_NO = A.IDN_NO
+	]]>
+	</update>
+</sqlMap>

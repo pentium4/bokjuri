@@ -1,0 +1,289 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://www.ibatis.com/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="lionsclubs.com.MM3.MM3_5.MM3_29">
+
+	<typeAlias alias="MM3_29VO" type="lionsclubs.com.MM3.MM3_5.MM3_29.MM3_29VO"/>
+	
+	<sql id="lionsclubs.com.MM3.MM3_5.MM3_29.queryList">  	
+  	 <![CDATA[	    SELECT organName,organCode,sum(totalScore) as totalScore,sum(memIn) as memIn,sum(totMem) as totMem,sum(subjectScore) as subjectScore ,sum(birthScore) as birthScore,sum(amountScore) as amountScore  from TOTALSC total 
+					GROUP BY organName,organCode
+				]]>
+	</sql>
+	
+	<select id = "lionsclubs.com.MM3.MM3_5.MM3_29.List" resultClass="MM3_29VO">
+	<![CDATA[
+	WITH 
+	
+	ORG_TREE AS ( /* 조직트리 */
+
+			SELECT
+				 A.ORGAN_CODE
+				,A.UPPER_ORGAN_CODE
+			FROM dbo.LIONS_ORGAN_CODE_HISTORY A
+			INNER JOIN (
+				SELECT
+					 MAX(B.IDN_NO) as IDN_NO
+					,B.ORGAN_CODE
+				FROM ( 
+					SELECT
+						 A.ORGAN_CODE
+						,A.IDN_NO
+						,MAX(A.CHANGE_DATE) OVER(PARTITION BY A.ORGAN_CODE) as CHANGE_DATE
+					FROM dbo.LIONS_ORGAN_CODE_HISTORY A
+					WHERE A.CHANGE_DATE BETWEEN #prevYear# + '0701' AND #thisYear# + '0630'
+				) B
+				GROUP BY B.ORGAN_CODE,B.CHANGE_DATE
+			) C ON C.IDN_NO = A.IDN_NO
+			INNER JOIN dbo.LIONS_ORGAN_CODE D
+			ON D.ORGAN_CODE = A.ORGAN_CODE
+			AND (
+						D.ORGAN_ABOLISH_DATE IS NULL 
+					OR	D.ORGAN_ABOLISH_DATE = '' 
+					OR	D.ORGAN_ABOLISH_DATE >= #prevYear# + '0701'
+			)
+	),	
+	
+	TOTALSC AS (SELECT DISTINCT
+					  ISNULL((
+					  ISNULL((
+					  CASE
+					    WHEN
+					      ISNULL(CAST(a.SUBJECT_MOD AS int), 0) <= 0 THEN (ISNULL(CAST(a.SUBJECT_MEMBER AS int), 0) * ISNULL(CAST(a.SUBJECT_SCORE AS int), 0))
+					    WHEN
+					      ISNULL(CAST(a.SUBJECT_MOD AS int), 0) > 0 THEN (ISNULL(CAST(a.SUBJECT_MOD AS int), 0) * ISNULL(CAST(a.SUBJECT_SCORE AS int), 0))
+					  END), '') +
+					  ISNULL((CASE
+					    WHEN CAST(a.SERVE_AMOUNT_STAND AS int) = 0 THEN 0
+					    ELSE CAST(a.serve_amount AS int) / CAST(a.SERVE_AMOUNT_STAND AS int)
+					  END) * CAST(a.SERVE_AMOUNT_SCORE AS int), '') +
+					  ISNULL(c.cnt * CAST((SELECT
+					    CODE3
+					  FROM LIONS_CODE
+					  WHERE GROUP_CODE = '3700'
+					  AND ord = SUBSTRING(#upperCode#, 2, 4))
+					  AS int), 0) + (CASE
+					    WHEN (mem.regCnt - mem.outCnt) > 0 THEN (mem.regCnt - mem.outCnt) * CAST((SELECT
+					        CODE2
+					      FROM LIONS_CODE
+					      WHERE GROUP_CODE = '3700'
+					      AND ord = SUBSTRING(#upperCode#, 2, 4))
+					      AS int)
+					    ELSE 0
+					  END)), '') AS totalScore,
+					  (CASE
+					    WHEN (mem.regCnt - mem.outCnt) > 0 THEN (mem.regCnt - mem.outCnt) * CAST((SELECT
+					        CODE2
+					      FROM LIONS_CODE
+					      WHERE GROUP_CODE = '3700'
+					      AND ord = SUBSTRING(#upperCode#, 2, 4))
+					      AS int)
+					    ELSE 0
+					  END) AS memIn,
+					  ISNULL(mem.totCnt, 0) AS totCnt,
+					  ISNULL(mem.resultCnt, 0) AS totMem,
+					  mem.regCnt,
+					  ISNULL(c.cnt * CAST((SELECT
+					    CODE3
+					  FROM LIONS_CODE
+					  WHERE GROUP_CODE = '3700'
+					  AND ord = SUBSTRING(#upperCode#, 2, 4))
+					  AS int), 0) AS birthScore,
+					  dbo.FN_LIONS_ORGAN_NAME(b.ORGAN_CODE) AS organName,
+					  b.ORGAN_CODE AS organCode,
+					  ISNULL((
+					  CASE
+					    WHEN
+					      ISNULL(CAST(a.SUBJECT_MOD AS int), 0) <= 0 THEN (ISNULL(CAST(a.SUBJECT_MEMBER AS int), 0) * ISNULL(CAST(a.SUBJECT_SCORE AS int), 0))
+					    WHEN
+					      ISNULL(CAST(a.SUBJECT_MOD AS int), 0) > 0 THEN (ISNULL(CAST(a.SUBJECT_MOD AS int), 0) * ISNULL(CAST(a.SUBJECT_SCORE AS int), 0))
+					  END), '') AS subjectScore,
+					  ISNULL((CASE
+					    WHEN CAST(a.SERVE_AMOUNT_STAND AS int) = 0 THEN 0
+					    ELSE CAST(a.serve_amount AS int) / CAST(a.SERVE_AMOUNT_STAND AS int)
+					  END) * CAST(a.SERVE_AMOUNT_SCORE AS int), '') AS amountScore
+					FROM LIONS_CLUB_DISTRICT_EVENT_SCORE score
+					LEFT OUTER JOIN LIONS_CLUB_EVENT_SCORE a
+					  ON score.IDN_NO = a.IDN_NO
+					  AND score.TAKE_DATE BETWEEN #prevYear# + '0701' AND #thisYear# + '0630'
+					LEFT OUTER JOIN ORG_TREE b
+					  ON a.ORGAN_CODE = b.ORGAN_CODE
+					LEFT OUTER JOIN (SELECT
+					  b.CHANGE_DATE,
+					  c.ORGAN_CODE,
+					  COUNT(c.ORGAN_CODE) AS cnt
+					FROM dbo.LIONS_ORGAN_CODE A
+					INNER JOIN dbo.LIONS_ORGAN_CODE_HISTORY B
+					  ON B.ORGAN_CODE = A.ORGAN_CODE
+					  AND B.CHANGE_CODE = '1000'
+					INNER JOIN dbo.LIONS_MEMBER_CLUB_HIST C
+					  ON C.MEMBER_NO = A.GUIDING_MEMBER_NO
+					  AND (C.END_DATE > B.CHANGE_DATE
+					  AND (C.END_DATE < B.CHANGE_DATE
+					  OR C.START_DATE <= B.CHANGE_DATE))
+					INNER JOIN dbo.LIONS_ORGAN_CODE D
+					  ON D.ORGAN_CODE = A.ORGAN_CODE
+					WHERE b.CHANGE_DATE BETWEEN #prevYear# + '0701' AND #thisYear# + '0630'
+					GROUP BY c.ORGAN_CODE,
+					         b.CHANGE_DATE) c
+					  ON b.ORGAN_CODE = c.ORGAN_CODE
+					LEFT OUTER JOIN (SELECT
+					  *
+					FROM (SELECT
+					  ORGAN_CODE_DST AS organCodeDst,
+					  ORGAN_CODE AS organCodeClub,
+					  TOT_COUNT AS totCnt,
+					  REG_COUNT AS regCnt,
+					  OUT_COUNT AS outCnt,
+					  TOT_COUNT + REG_COUNT - OUT_COUNT AS resultCnt
+					FROM (SELECT
+					  TABLE1.ORGAN_CODE_DST,
+					  TABLE1.ORGAN_CODE,
+					  DBO.FN_LIONS_ORGAN_NAME(TABLE1.ORGAN_CODE) AS ORGAN_NM_CLUB,
+					  CASE
+					    WHEN TABLE2.REG_COUNT IS NULL THEN TABLE1.TOT_COUNT
+					    ELSE (TABLE1.TOT_COUNT - TABLE2.REG_COUNT)
+					  END TOT_COUNT,
+					  ISNULL(TABLE2.REG_COUNT, 0) REG_COUNT,
+					  ISNULL(TABLE3.OUT_COUNT, 0) OUT_COUNT,
+					  TABLE4.ORGAN_MEETING,
+					  TABLE4.ORGAN_ABOLISH_DATE,
+					  TABLE5.MEMBER_NO,
+					  (SELECT
+					    NAME
+					  FROM LIONS_MEMBER_INFO
+					  WHERE MEMBER_NO = TABLE5.MEMBER_NO)
+					  MEMBER_NM
+					FROM (SELECT
+					  T1.ORGAN_CODE_DST,
+					  T1.ORGAN_CODE,
+					  COUNT(*) TOT_COUNT
+					FROM (SELECT (SELECT TOP 1
+					               UPPER_ORGAN_CODE
+					             FROM LIONS_ORGAN_CODE_HISTORY
+					             WHERE ORGAN_CODE = A.ORGAN_CODE
+					             ORDER BY CHANGE_DATE DESC)
+					             ORGAN_CODE_DST,
+					             A.ORGAN_CODE,
+					             A.MEMBER_NO,
+					             RANK() OVER (PARTITION BY A.MEMBER_NO ORDER BY A.IDN_NO) TMP_NO
+					FROM LIONS_APPOINTMENT A
+					WHERE A.APP_KIND_CODE IN ('1040')
+					AND (A.END_DATE > #prevYear# + '0701'
+					AND (A.END_DATE < #thisYear# + '0630'
+					OR A.START_DATE <= #thisYear# + '0630'))) T1
+					WHERE T1.TMP_NO = 1
+					GROUP BY T1.ORGAN_CODE_DST,
+					         T1.ORGAN_CODE) TABLE1
+					LEFT OUTER JOIN (SELECT
+					  T1.ORGAN_CODE_DST,
+					  T1.ORGAN_CODE,
+					  COUNT(*) REG_COUNT
+					FROM (SELECT (SELECT TOP 1
+					               UPPER_ORGAN_CODE
+					             FROM LIONS_ORGAN_CODE_HISTORY
+					             WHERE ORGAN_CODE = A.ORGAN_CODE
+					             ORDER BY CHANGE_DATE DESC)
+					             ORGAN_CODE_DST,
+					             A.ORGAN_CODE,
+					             A.MEMBER_NO,
+					             RANK() OVER (PARTITION BY A.MEMBER_NO ORDER BY A.IDN_NO) TMP_NO
+					FROM LIONS_APPOINTMENT A
+					WHERE A.APP_KIND_CODE = '1040'
+					AND START_DATE BETWEEN #prevYear# + '0701' AND #thisYear# + '0630') T1
+					WHERE T1.TMP_NO = 1
+					GROUP BY T1.ORGAN_CODE_DST,
+					         T1.ORGAN_CODE) TABLE2
+					  ON TABLE1.ORGAN_CODE_DST = TABLE2.ORGAN_CODE_DST
+					  AND TABLE1.ORGAN_CODE = TABLE2.ORGAN_CODE
+					LEFT OUTER JOIN (SELECT
+					  T1.ORGAN_CODE_DST,
+					  T1.ORGAN_CODE,
+					  COUNT(*) OUT_COUNT
+					FROM (SELECT (SELECT TOP 1
+					               UPPER_ORGAN_CODE
+					             FROM LIONS_ORGAN_CODE_HISTORY
+					             WHERE ORGAN_CODE = A.ORGAN_CODE
+					             ORDER BY CHANGE_DATE DESC)
+					             ORGAN_CODE_DST,
+					             A.ORGAN_CODE,
+					             A.MEMBER_NO,
+					             RANK() OVER (PARTITION BY A.MEMBER_NO ORDER BY A.IDN_NO) TMP_NO
+					FROM LIONS_APPOINTMENT A
+					WHERE A.APP_KIND_CODE = '1050'
+					AND END_DATE BETWEEN #prevYear# + '0701' AND #thisYear# + '0630') T1
+					WHERE T1.TMP_NO = 1
+					GROUP BY T1.ORGAN_CODE_DST,
+					         T1.ORGAN_CODE) TABLE3
+					  ON TABLE1.ORGAN_CODE_DST = TABLE3.ORGAN_CODE_DST
+					  AND TABLE1.ORGAN_CODE = TABLE3.ORGAN_CODE
+					LEFT OUTER JOIN (SELECT
+					  ORGAN_CODE,
+					  MIN(ORGAN_MEETING) ORGAN_MEETING,
+					  MAX(ORGAN_ABOLISH_DATE) ORGAN_ABOLISH_DATE
+					FROM LIONS_ORGAN_CODE
+					GROUP BY ORGAN_CODE) TABLE4
+					  ON TABLE1.ORGAN_CODE = TABLE4.ORGAN_CODE
+					LEFT OUTER JOIN (SELECT
+					  T1.ORGAN_CODE_DST,
+					  T1.ORGAN_CODE,
+					  T1.MEMBER_NO
+					FROM (SELECT (SELECT TOP 1
+					               UPPER_ORGAN_CODE
+					             FROM LIONS_ORGAN_CODE_HISTORY
+					             WHERE ORGAN_CODE = A.ORGAN_CODE
+					             ORDER BY CHANGE_DATE DESC)
+					             ORGAN_CODE_DST,
+					             A.ORGAN_CODE,
+					             A.MEMBER_NO,
+					             RANK() OVER (PARTITION BY A.ORGAN_CODE ORDER BY IDN_NO DESC) TMP_NO
+					FROM LIONS_APPOINTMENT A
+					WHERE A.APP_KIND_CODE = '1000'
+					AND A.APP_DESC_CODE = '1000'
+					AND (
+					A.START_DATE BETWEEN #prevYear# + '0701' AND #thisYear# + '0630'
+					OR A.END_DATE BETWEEN #prevYear# + '0701' AND #thisYear# + '0630'
+					)) T1
+					WHERE T1.TMP_NO = 1
+					GROUP BY T1.ORGAN_CODE_DST,
+					         T1.ORGAN_CODE,
+					         T1.MEMBER_NO) TABLE5
+					  ON TABLE1.ORGAN_CODE = TABLE5.ORGAN_CODE) RESULT_TB) LAST) mem
+					  ON b.ORGAN_CODE = mem.organCodeClub
+					WHERE b.UPPER_ORGAN_CODE = #upperCode#) ]]>	
+	SELECT * FROM(
+			SELECT  ROW_NUMBER() OVER(
+				<dynamic prepend="ORDER BY ">
+	   	 		    <isEqual property="order" compareValue="1">
+			 			organCode
+			 		</isEqual>
+			 		
+			 		<isEqual property="order" compareValue="2">
+			 			totalScore desc
+			 		</isEqual>
+			 		
+			 		<isEqual  property="order" compareValue="3">
+			 			memIn desc
+			 		</isEqual>
+			 		 <isEqual property="order" compareValue="4">
+			 			birthScore desc
+			 		</isEqual>
+			 		
+			 		<isEqual property="order" compareValue="5">
+			 			subjectScore desc
+			 		</isEqual>
+			 		
+			 		<isEqual  property="order" compareValue="6">
+			 			amountScore desc
+			 		</isEqual>
+		 		</dynamic>
+			) AS rnum
+				   ,COUNT(1)  OVER() AS totalRecordCount
+				   ,PAGING_WARP.*
+			  FROM(		
+ 				<include refid="lionsclubs.com.MM3.MM3_5.MM3_29.queryList"/>
+			) PAGING_WARP
+		) PAGING		
+	</select>
+	
+</sqlMap>

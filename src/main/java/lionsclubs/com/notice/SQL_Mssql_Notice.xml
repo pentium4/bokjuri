@@ -1,0 +1,377 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://www.ibatis.com/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="lionsclubs.com.notice">
+
+	<typeAlias alias="noticeVO" type="lionsclubs.com.notice.NoticeVO"/>
+	
+	<select id="lionsclubs.com.notice.listNotice" resultClass="noticeVO">
+		SELECT  (PAGING.totalRecordCount + 1) - PAGING.rnum AS rnum
+			   ,PAGING.totalRecordCount
+			   ,PAGING.idnNo
+			   ,PAGING.noticeCode
+			   ,PAGING.organCode
+			   ,PAGING.title
+			   ,PAGING.upperIdnNo
+			   ,PAGING.name
+			   ,PAGING.hit
+			   ,PAGING.fileId
+			   ,PAGING.replyCnt
+			   ,PAGING.fileCnt
+			   ,PAGING.insertDate
+			   ,PAGING.insertName
+			   ,PAGING.updateDate
+			   ,PAGING.updateName
+		  FROM(
+			SELECT  ROW_NUMBER() OVER(ORDER BY idnNo DESC) AS rnum
+				   ,COUNT(1) OVER() AS totalRecordCount
+				   ,PAGING_WARP.*
+			  FROM(
+				SELECT  N.IDN_NO AS idnNo
+					   ,N.NOTICE_CODE AS noticeCode
+					   ,N.ORGAN_CODE AS organCode
+					   ,N.TITLE AS title
+					   ,N.UPPER_IDN_NO AS upperIdnNo
+					   ,(SELECT NAME FROM LIONS_MEMBER_INFO WHERE MEMBER_NO = N.INSERT_NAME) AS name
+					   ,ISNULL(N.HIT, 0) AS hit
+					   ,N.FILE_ID AS fileId
+					   ,(SELECT COUNT(*) FROM LIONS_NOTICE_REPLY WHERE IDN_NO = N.IDN_NO AND DEL_REPLY_YN = 'N') AS replyCnt
+					   ,(SELECT COUNT(*) FROM J_ATTACHFILE WHERE FILE_ID = N.FILE_ID) AS fileCnt
+					   ,N.INSERT_DATE AS insertDate
+					   ,N.INSERT_NAME AS insertName
+					   ,N.UPDATE_DATE AS updateDate
+					   ,N.UPDATE_NAME AS updateName
+				  FROM LIONS_NOTICE N
+				 WHERE NOTICE_CODE = #noticeCode#
+				 <isEqual prepend="AND" property="searchType" compareValue="1">
+				 	(
+					 	   N.CONTENT LIKE '%' + #searchContent# + '%'
+					 	OR N.TITLE LIKE '%' + #searchContent# + '%'
+				 	)
+				 </isEqual>
+				 <isEqual prepend="AND" property="searchType" compareValue="2">
+				 	N.TITLE LIKE '%' + #searchContent# + '%'
+				 </isEqual>
+				 <isEqual prepend="AND" property="searchType" compareValue="3">
+				 	(
+					 	   (SELECT NAME FROM LIONS_MEMBER_INFO WHERE MEMBER_NO = N.INSERT_NAME) LIKE '%' + #searchContent# + '%'
+					 	OR N.INSERT_NAME LIKE '%' + #searchContent# + '%'
+				 	)
+				 </isEqual>
+				 <isNotEmpty prepend="AND" property="organCode">
+				 	N.ORGAN_CODE = #organCode#
+				 </isNotEmpty>
+			) PAGING_WARP
+		) PAGING
+		 WHERE RNUM BETWEEN #firstIndex# + 1 AND #firstIndex# + #recordCountPerPage#	
+	</select>
+
+	<select id="lionsclubs.com.notice.objectNotice" resultClass="noticeVO">
+		SELECT  N.IDN_NO AS idnNo
+			   ,N.NOTICE_CODE AS noticeCode
+			   ,N.ORGAN_CODE AS organCode
+			   ,N.TITLE AS title
+			   ,N.CONTENT AS content
+			   ,N.UPPER_IDN_NO AS upperIdnNo
+			   ,(SELECT NAME FROM LIONS_MEMBER_INFO WHERE MEMBER_NO = N.INSERT_NAME) AS name
+			   ,ISNULL(N.HIT, 0) AS hit
+			   ,N.FILE_ID AS fileId
+			   ,(SELECT COUNT(*) FROM LIONS_NOTICE_REPLY WHERE IDN_NO = N.IDN_NO AND DEL_REPLY_YN = 'N') AS replyCnt
+			   ,(SELECT COUNT(*) FROM J_ATTACHFILE WHERE FILE_ID = N.FILE_ID) AS fileCnt
+			   ,N.INSERT_DATE AS insertDate
+			   ,N.INSERT_NAME AS insertName
+			   ,N.UPDATE_DATE AS updateDate
+			   ,N.UPDATE_NAME AS updateName
+		  FROM LIONS_NOTICE N
+		 WHERE IDN_NO = #idnNo#
+	</select>
+	
+	<insert id="lionsclubs.com.notice.noticeInsert">
+		<selectKey resultClass="String" keyProperty="idnNo" >
+			INSERT INTO LIONS_NOTICE(
+				   NOTICE_CODE
+				  ,ORGAN_CODE
+				  ,TITLE
+				  ,CONTENT
+				  ,UPPER_IDN_NO
+				  ,FILE_ID
+				  ,HIT
+				  ,INSERT_DATE
+				  ,INSERT_NAME
+				  ,UPDATE_DATE
+				  ,UPDATE_NAME
+			) VALUES (
+				   #noticeCode#
+				  ,#organCode#	/* 조직코드 */
+				  ,#title#	/* 제목 */
+				  ,#content#	/* 내용 */
+				  ,#upperIdnNo#	/* 상위게시번호 */
+				  ,#fileId#
+				  ,#hit#	/* 조회수 */
+				  ,GETDATE()	/* 생성일자 */
+				  ,#insertName#	/* 생성자 */
+				  ,GETDATE()	/* 수정일자 */
+				  ,#updateName#	/* 수정자 */
+			)
+			SELECT SCOPE_IDENTITY() AS idnNo
+        </selectKey>			
+	</insert>
+	
+	<update id="lionsclubs.com.notice.noticeUpdate">
+		UPDATE LIONS_NOTICE 
+		   SET  TITLE = #title#	/* 제목 */
+		   	   ,ORGAN_CODE = #organCode#	/* 조직코드 */
+			   ,CONTENT = #content#	/* 내용 */
+			   ,UPPER_IDN_NO = #upperIdnNo#	/* 상위게시번호 */
+			   ,HIT = #hit#	/* 조회수 */
+			   ,UPDATE_DATE = GETDATE()	/* 수정일자 */
+			   ,UPDATE_NAME = #updateName#	/* 수정자 */
+		 WHERE IDN_NO = #idnNo#		
+	</update>
+	
+	<delete id="lionsclubs.com.notice.noticeDelete">
+		DELETE FROM LIONS_NOTICE
+		 WHERE IDN_NO = #idnNo#
+	</delete>
+	
+	<update id="lionsclubs.com.notice.updateNoticeHit">
+		UPDATE LIONS_NOTICE
+		   SET HIT = ISNULL(HIT, 0) + 1	/* 조회수 */
+		 WHERE IDN_NO = #idnNo#
+	</update>
+	
+	<select id="lionsclubs.com.notice.prenextPaging" resultClass="noticeVO">
+		WITH PAGING_RNUM AS(
+			SELECT PAGING.* FROM(
+				SELECT  ROW_NUMBER() OVER (ORDER BY IDN_NO DESC) AS rnum
+					   ,PAGING_WARP.IDN_NO
+				FROM(
+					SELECT  IDN_NO
+						   ,TITLE
+					  FROM LIONS_NOTICE
+					 WHERE NOTICE_CODE = #noticeCode#
+					<isNotEmpty prepend="AND" property="organCode">
+						ORGAN_CODE = #organCode#
+					</isNotEmpty>
+				) PAGING_WARP
+			) PAGING	
+		),THIS_RNUM AS(
+			SELECT rnum FROM PAGING_RNUM WHERE IDN_NO = #idnNo#
+		),NOTICE_IDN_NO AS(
+			SELECT	(SELECT IDN_NO FROM PAGING_RNUM WHERE rnum = TR.rnum - 1) AS prevIdnNo
+				   ,(SELECT IDN_NO FROM PAGING_RNUM WHERE rnum = TR.rnum + 1) AS nextIdnNo
+			  FROM THIS_RNUM TR
+		)
+		
+		SELECT  prevIdnNo
+			   ,(SELECT TITLE FROM LIONS_NOTICE WHERE IDN_NO = prevIdnNo) AS prevTitle
+			   ,nextIdnNo
+			   ,(SELECT TITLE FROM LIONS_NOTICE WHERE IDN_NO = nextIdnNo) AS nextTitle
+		  FROM NOTICE_IDN_NO
+	</select>
+	
+	<sql id="lionsclubs.com.notice.replyQurey">
+		WITH NOTICE_REPLY AS(
+			SELECT  IDN_NO
+				   ,REPLY_IDN_NO
+				   ,CONTENT
+				   ,UPPER_REPLY_IDN_NO	
+				   ,UPDATE_NAME
+				   ,UPDATE_DATE
+			  FROM LIONS_NOTICE_REPLY
+		), NOTICE_REPLY_TREE AS (
+			SELECT  1 AS LVL 
+				   ,IDN_NO
+				   ,REPLY_IDN_NO
+				   ,CONTENT
+				   ,UPPER_REPLY_IDN_NO
+				   ,UPDATE_NAME
+				   ,UPDATE_DATE
+				   ,CAST(REPLY_IDN_NO AS NVARCHAR) AS groupIndex
+			  FROM LIONS_NOTICE_REPLY
+			 WHERE (
+			 	   UPPER_REPLY_IDN_NO IS NULL
+			 	OR UPPER_REPLY_IDN_NO = ''
+			 )
+			 
+			 UNION ALL
+			 
+			SELECT  NRT.LVL + 1 AS LVL
+				   ,NR.IDN_NO
+				   ,NR.REPLY_IDN_NO
+				   ,NR.CONTENT
+				   ,NR.UPPER_REPLY_IDN_NO
+	   			   ,NR.UPDATE_NAME
+				   ,NR.UPDATE_DATE
+				   ,CAST(NRT.groupIndex AS NVARCHAR) AS groupIndex
+			  FROM NOTICE_REPLY_TREE NRT
+			 INNER JOIN NOTICE_REPLY NR
+			    ON NR.UPPER_REPLY_IDN_NO = NRT.REPLY_IDN_NO
+		)	
+	</sql>
+	
+	<select id="lionsclubs.com.notice.listReply" resultClass="noticeVO">
+		WITH NOTICE_REPLY AS(
+			SELECT  IDN_NO
+				   ,REPLY_IDN_NO
+				   ,CONTENT
+				   ,UPPER_REPLY_IDN_NO
+				   ,DEL_REPLY_YN
+				   ,UPDATE_NAME
+				   ,UPDATE_DATE
+			  FROM LIONS_NOTICE_REPLY
+		), NOTICE_REPLY_TREE AS (
+			SELECT  1 AS LVL 
+				   ,IDN_NO
+				   ,REPLY_IDN_NO
+				   ,CONTENT
+				   ,UPPER_REPLY_IDN_NO
+				   ,DEL_REPLY_YN
+				   ,UPDATE_NAME
+				   ,UPDATE_DATE
+				   ,CAST(REPLY_IDN_NO AS NVARCHAR) AS groupIndex
+			  FROM LIONS_NOTICE_REPLY
+			 WHERE UPPER_REPLY_IDN_NO = 0
+			 
+			 UNION ALL
+			 
+			SELECT  NRT.LVL + 1 AS LVL
+				   ,NR.IDN_NO
+				   ,NR.REPLY_IDN_NO
+				   ,NR.CONTENT
+				   ,NR.UPPER_REPLY_IDN_NO
+				   ,NR.DEL_REPLY_YN
+	   			   ,NR.UPDATE_NAME
+				   ,NR.UPDATE_DATE
+				   ,CAST(NRT.groupIndex AS NVARCHAR) AS groupIndex
+			  FROM NOTICE_REPLY_TREE NRT
+			 INNER JOIN NOTICE_REPLY NR
+			    ON NR.UPPER_REPLY_IDN_NO = NRT.REPLY_IDN_NO
+		)
+		
+		SELECT  R.replyIdnNo
+			   ,R.lvl
+			   ,R.content
+			   ,R.replyMemberNo
+			   ,(SELECT NAME FROM LIONS_MEMBER_INFO WHERE MEMBER_NO = R.replyMemberNo) AS replyMemberName
+			   ,R.updateName
+			   ,R.name
+			   ,R.updateDate
+			   ,R.groupIndex
+			   ,R.upperReplyIdnNo
+			   ,R.groupCount
+			   ,R.delReplyYn
+		  FROM(
+			SELECT  NRT.REPLY_IDN_NO AS replyIdnNo
+				   ,NRT.LVL AS lvl
+				   ,NRT.CONTENT AS content
+				   ,CASE WHEN LVL >= 3
+						 THEN (SELECT UPDATE_NAME FROM LIONS_NOTICE_REPLY WHERE REPLY_IDN_NO = NRT.UPPER_REPLY_IDN_NO)
+						  END AS replyMemberNo
+				   ,NRT.UPDATE_NAME AS updateName
+				   ,(SELECT NAME FROM LIONS_MEMBER_INFO WHERE MEMBER_NO = NRT.UPDATE_NAME) AS name
+				   ,NRT.UPDATE_DATE AS updateDate
+				   ,NRT.groupIndex	
+				   ,NRT.UPPER_REPLY_IDN_NO AS upperReplyIdnNo		   
+				   ,(SELECT COUNT(*) FROM NOTICE_REPLY_TREE WHERE groupIndex = NRT.groupIndex AND DEL_REPLY_YN = 'N') AS groupCount
+				   ,NRT.DEL_REPLY_YN AS delReplyYn
+			  FROM NOTICE_REPLY_TREE NRT
+			 WHERE IDN_NO = #idnNo#
+		  )	R
+		 WHERE (delReplyYn = 'N' OR (lvl = 1 AND groupCount >= 1))
+		 ORDER BY  CAST(R.groupIndex AS BIGINT)
+				  ,R.replyIdnNo
+				  ,r.lvl
+	</select>
+	
+	<sql id="lionsclubs.com.notice.objectReplyQuery">
+		SELECT  IDN_NO AS idnNo	/* 게시번호 */
+			   ,REPLY_IDN_NO AS replyIdnNo	/* 게시판댓글번호 */
+			   ,CONTENT AS content	/* 내용 */
+			   ,UPPER_REPLY_IDN_NO AS upperReplyIdnNo	/* 상위게시판댓글번호 */
+			   ,INSERT_DATE AS insertDate	/* 생성일자 */
+			   ,INSERT_NAME AS insertName	/* 생성자 */
+			   ,UPDATE_DATE AS updateDate	/* 수정일자 */
+			   ,UPDATE_NAME AS updateName	/* 수정자 */
+		  FROM LIONS_NOTICE_REPLY
+		 WHERE REPLY_IDN_NO = #replyIdnNo#
+	</sql>
+	
+	<select id="lionsclubs.com.notice.objectReply" resultClass="noticeVO">
+		<include refid="lionsclubs.com.notice.objectReplyQuery" />
+	</select>
+
+	<select id="lionsclubs.com.notice.objectReplyCount" resultClass="Integer">
+		SELECT COUNT(*) FROM(
+			<include refid="lionsclubs.com.notice.objectReplyQuery" />
+		) CNT
+	</select>
+	
+	<insert id="lionsclubs.com.notice.insertReply">
+		INSERT INTO LIONS_NOTICE_REPLY(
+			 IDN_NO	/* 게시번호 */
+			,CONTENT	/* 내용 */
+			,UPPER_REPLY_IDN_NO	/* 상위덧글번호 */
+			,DEL_REPLY_YN	/* 덧글삭제여부 */
+			,INSERT_DATE	/* 생성일자 */
+			,INSERT_NAME	/* 생성자 */
+			,UPDATE_DATE	/* 수정일자 */
+			,UPDATE_NAME	/* 수정자 */
+		) VALUES (
+			   #idnNo#	/* 게시번호 */
+			  ,#content#	/* 내용 */
+			  ,#upperReplyIdnNo#	/* 상위덧글번호 */
+			  ,'N'	/* 덧글삭제여부 */
+			  ,GETDATE()	/* 생성일자 */
+			  ,#insertName#	/* 생성자 */
+			  ,GETDATE()	/* 수정일자 */
+			  ,#updateName#	/* 수정자 */
+		)
+	</insert>
+	
+	<update id="lionsclubs.com.notice.updateReply">
+		UPDATE LIONS_NOTICE_REPLY
+		   SET  CONTENT = #content#	/* 내용 */
+			   ,UPDATE_DATE = GETDATE()	/* 수정일자 */
+			   ,UPDATE_NAME = #updateName#	/* 수정자 */
+		 WHERE REPLY_IDN_NO = #replyIdnNo#
+	</update>
+	
+	<update id="lionsclubs.com.notice.updateDelReply">
+		UPDATE LIONS_NOTICE_REPLY
+		   SET DEL_REPLY_YN = 'Y'	/* 덧글삭제여부 */
+		 WHERE REPLY_IDN_NO = #replyIdnNo#
+	</update>
+	
+	<select id="lionsclubs.com.notice.replyTotalCnt" resultClass="Integer">
+		SELECT COUNT(*) FROM LIONS_NOTICE_REPLY
+		 WHERE DEL_REPLY_YN = 'N'
+		   AND IDN_NO = #idnNo#
+	</select>
+	
+	<delete id="lionsclubs.com.notice.deleteReply">
+		DELETE FROM LIONS_NOTICE_REPLY
+		 WHERE IDN_NO = #idnNo#
+	</delete>
+	
+	<select id="lionsclubs.com.notice.objectNoticeKindCode" resultClass="String">
+		SELECT NOTICE_KIND_CODE AS noticeKindCode
+		  FROM LIONS_MENU
+		 WHERE UI_NO = #noticeCode#
+	</select>
+	
+	
+	<delete id="lionsclubs.com.notice.deleteNoticeScheduling">
+ 		<![CDATA[	
+		DELETE FROM LIONS_NOTICE
+		 WHERE IDN_NO IN(
+			SELECT N.IDN_NO
+			  FROM LIONS_NOTICE N
+			 INNER JOIN LIONS_MENU M
+				ON N.NOTICE_CODE = M.UI_NO
+			 WHERE M.NOTICE_KIND_CODE = '1040'	/* 지구공개자료 코드 */
+			   AND N.UPDATE_DATE < DATEADD(MM, -6, GETDATE())
+		 )
+ 		]]>
+	</delete>
+</sqlMap>

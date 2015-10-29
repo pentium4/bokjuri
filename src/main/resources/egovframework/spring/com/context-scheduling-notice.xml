@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.0.xsd">
+
+	<!-- 최종 FLAG -->
+	<bean id="notice" class="org.springframework.scheduling.quartz.MethodInvokingJobDetailFactoryBean">
+		<property name="targetObject" ref="scheduling" />
+		<property name="targetMethod" value="deleteNoticeScheduling" />
+		<property name="concurrent" value="false" />
+	</bean>
+	
+	<!-- 최종 FLAG 트리거 정의-->
+	<bean id="noticeTrigger" class="org.springframework.scheduling.quartz.CronTriggerBean">
+		<property name="jobDetail" ref="notice" />
+		<property name="cronExpression" value="0 0 1 * * ?"/>
+	</bean>
+
+	<!-- 최종 FLAG, 스케줄러 적용 -->
+	<bean id="noticeScheduler" class="org.springframework.scheduling.quartz.SchedulerFactoryBean">
+		<property name="triggers">
+			<list>
+				<ref bean="noticeTrigger" />
+			</list>
+		</property>
+	</bean>
+</beans>

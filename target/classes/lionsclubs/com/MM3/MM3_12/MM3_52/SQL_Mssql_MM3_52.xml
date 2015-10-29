@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://www.ibatis.com/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="lionsclubs.com.MM3.MM3_12.MM3_52">
+	<typeAlias alias="MM3_52VO" type="lionsclubs.com.MM3.MM3_12.MM3_52.MM3_52VO"/>
+
+	<sql id="lionsclubs.com.MM3.MM3_12.MM3_52.declare">
+		DECLARE @organCode NVARCHAR(6);
+		DECLARE @sessionYear INT;
+		DECLARE @startDate NVARCHAR(8);
+		DECLARE @endDate NVARCHAR(8);
+		
+		SET @organCode = #organCode#;
+		SET @sessionYear = #sessionYear#;
+		SET @startDate = CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701';	
+		SET @endDate = CAST(@sessionYear AS NVARCHAR(4)) + '0630';
+	</sql>
+	
+	<sql id="lionsclubs.com.MM3.MM3_12.MM3_52.selectQuery">
+		<![CDATA[
+		SELECT  S.clubCode	/* 조직코드 */
+			   ,dbo.FN_LIONS_ORGAN_NAME(S.clubCode) AS clubName	/* 조직명 */
+			   ,COUNT(S.impost) AS impostCnt	/* 부과수 */
+			   ,SUM(S.impost) AS impost	/* 부과금액 */
+			   ,SUM(S.payment) AS payment	/* 납부금액 */
+			   ,SUM(S.paymentDefect) AS paymentDefect	/* 결손금 */
+			   ,SUM(S.paymentBal) AS paymentBal	/* 미납액 */
+			   ,SUM(S.exchangeLoss) AS exchangeLoss	/* 환차손 */
+			   ,CONVERT(FLOAT, (CONVERT(FLOAT, SUM(S.paymentBal)) / CONVERT(FLOAT, SUM(S.impost)) * 100)) AS paymentRate	/* 미납율 */
+			   ,RANK() OVER(ORDER BY SUM(S.paymentBal)) AS clubRank	/* 순위 */
+		  FROM(
+			SELECT  R2.clubCode
+				   ,R2.impost
+				   ,R2.payment
+				   ,R2.paymentDefect
+				   ,CASE WHEN R2.paymentDollarBal = 0 AND R2.dollarKind = '$$'
+						 THEN 0
+						 ELSE R2.paymentBal
+						  END AS paymentBal
+				   ,CASE WHEN R2.paymentDollarBal = 0 AND R2.dollarKind = '$$'
+						 THEN R2.paymentBal
+						  END AS exchangeLoss	/* 환차손 */						  
+			  FROM(
+				SELECT  MIN(R.clubCode) AS clubCode
+					   ,MIN(R.impost) AS impost
+					   ,SUM(R.payment) AS payment
+					   ,SUM(R.paymentDefect) AS paymentDefect
+					   ,ISNULL(MIN(R.impost), 0) - 
+						(
+							SELECT ISNULL(SUM(PAYMENT), 0)
+							  FROM(
+								SELECT ROW_NUMBER() OVER (
+											PARTITION BY IDN_NO
+												ORDER BY  PAYMENT_DATE
+														 ,PAYMENT_IDN_NO
+										) AS rnum
+									   ,ISNULL(PAYMENT, 0) AS PAYMENT
+								  FROM LIONS_DISTRICT_MONEY_PAYMENT 
+								 WHERE IDN_NO = MIN(R.idnNo)
+							  ) DMP
+						) AS paymentBal	/* 납부 잔액 */
+					   ,ISNULL(MIN(R.impostDollar), 0) - 
+						(
+							SELECT ISNULL(SUM(PAYMENT_DOLLAR), 0)
+							  FROM(
+								SELECT ROW_NUMBER() OVER (
+											PARTITION BY IDN_NO
+												ORDER BY  PAYMENT_DATE
+														 ,PAYMENT_IDN_NO
+										) AS rnum
+									   ,ISNULL(PAYMENT_DOLLAR, 0) AS PAYMENT_DOLLAR
+								  FROM LIONS_DISTRICT_MONEY_PAYMENT 
+								 WHERE IDN_NO = MIN(R.idnNo) 
+							  ) DMP
+						) AS paymentDollarBal	/* 납부 잔액 */
+					   ,MIN(R.dollarKind) AS dollarKind
+				  FROM (
+					SELECT  DMI.IDN_NO AS idnNo
+						   ,DMI.CLUB_CODE AS clubCode
+						   ,ISNULL(DMI.IMPOST, 0) AS impost	/* 부과금 */
+						   ,ISNULL(DMI.IMPOST_DOLLAR, 0) AS impostDollar	/* 달러부과금 */
+						   ,CASE WHEN (PAYMENT_DEFECT IS NULL OR PAYMENT_DEFECT = '')
+								 THEN ISNULL(DMP.PAYMENT, 0)
+								 ELSE 0 END payment
+						   ,CASE WHEN PAYMENT_DEFECT = 'Y'
+								 THEN ISNULL(DMP.PAYMENT, 0)
+								 ELSE 0 END paymentDefect						   
+						   ,(SELECT CODE1 FROM LIONS_CODE WHERE GROUP_CODE = (SELECT CODE1 FROM LIONS_CODE WHERE GROUP_CODE = '7000' AND CODE = DMI.CLASS_ITEM_CODE) AND CODE = DMI.DETAIL_ITEM_CODE) AS dollarKind
+					  FROM LIONS_DISTRICT_MONEY_IMPOST DMI
+					  LEFT OUTER JOIN LIONS_DISTRICT_MONEY_PAYMENT DMP
+						ON DMI.IDN_NO = DMP.IDN_NO
+					 WHERE DMI.ORGAN_CODE = @organCode
+			    	   AND DMI.GEN_DATE >= @startDate
+			    	   AND DMI.GEN_DATE <= @endDate
+				  ) R
+				  GROUP BY R.idnNo
+			  ) R2
+		  ) S
+		  GROUP BY S.clubCode
+		]]>
+	</sql>
+	
+	<select id="lionsclubs.com.MM3.MM3_12.MM3_52.MM3_52" resultClass="MM3_52VO">
+		<include refid="lionsclubs.com.MM3.MM3_12.MM3_52.declare"/>
+ 		<include refid="lionsclubs.com.MM3.MM3_12.MM3_52.selectQuery"/>
+		<dynamic prepend="ORDER BY">
+			<isEqual property="order" compareValue="1">
+				 S.clubCode
+				,clubRank
+			</isEqual>
+			<isEqual property="order" compareValue="2">
+				 clubRank
+				,S.clubCode
+			</isEqual>
+		</dynamic> 		
+ 	</select>
+	
+	<select id="lionsclubs.com.MM3.MM3_12.MM3_52.sum" resultClass="MM3_52VO">
+		<include refid="lionsclubs.com.MM3.MM3_12.MM3_52.declare"/>
+		SELECT  SUM(S2.impostCnt) AS impostCnt	/* 부과수 */
+			   ,SUM(S2.impost) AS impost	/* 부과금액 */
+			   ,SUM(S2.payment) AS payment	/* 납부금액 */
+			   ,SUM(S2.paymentDefect) AS paymentDefect	/* 결손금 */
+			   ,SUM(S2.paymentBal) AS paymentBal	/* 미납액 */
+			   ,SUM(S2.exchangeLoss) AS exchangeLoss	/* 환차손 */
+			   ,CONVERT(FLOAT, (CONVERT(FLOAT, SUM(S.paymentBal)) / NULLIF(CONVERT(FLOAT, SUM(S.impost)) * 100, 0))) AS paymentRate /* 미납율 */
+			   ,RANK() OVER(ORDER BY SUM(S2.paymentBal)) AS clubRank	/* 순위 */
+		  FROM(
+		  	<include refid="lionsclubs.com.MM3.MM3_12.MM3_52.selectQuery"/>
+		  ) S2
+ 	</select>
+</sqlMap>

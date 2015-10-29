@@ -1,0 +1,474 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://www.ibatis.com/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="lionsclubs.com.MM1.MM1_1.MM1_03">
+
+	<typeAlias alias="MM1_03VO" type="lionsclubs.com.MM1.MM1_1.MM1_03.MM1_03VO"/>
+	
+	<sql id="lionsclubs.com.MM1.MM1_1.MM1_03.queryList">
+ 		<![CDATA[
+		SELECT  IDN_NO AS idnNo
+			   ,MEMBER_NO AS memberNo
+			   ,START_DATE AS startDate
+			   ,END_DATE AS endDate
+			   ,APP_KIND_CODE AS appKindCode
+			   ,dbo.FN_LIONS_CODE_NAME('2700', APP_KIND_CODE) AS appKindName
+			   ,ORGAN_CODE AS organCode
+			   ,APP_SECTOR_CODE AS appSectorCode
+			   ,APP_DESC_CODE AS appDescCode
+			   ,APP_DESC AS appDesc
+			   ,dbo.FN_LIONS_DETAILCODE_NAME('2700', APP_KIND_CODE, APP_DESC_CODE) AS appDescName
+			   ,EXPULSION_FLAG AS expulsionFlag
+			   ,UPDATE_DATE AS updateDate
+			   ,dbo.FN_LIONS_ORGAN_NAME(ORGAN_CODE) AS organName
+			   ,dbo.FN_LIONS_ORGAN_NAME(APP_SECTOR_CODE) AS appSectorName
+		  FROM LIONS_APPOINTMENT
+		 WHERE MEMBER_NO = #memberNo# 
+		 ORDER BY  START_DATE DESC
+				  ,IDN_NO DESC
+ 		]]>
+	</sql>
+	
+	<select id="lionsclubs.com.MM1.MM1_1.MM1_03.List" resultClass="MM1_03VO">
+		<include refid="lionsclubs.com.MM1.MM1_1.MM1_03.queryList"/>
+ 	</select>
+ 	
+ 	<select id="lionsclubs.com.MM1.MM1_1.MM1_03.Select" resultClass="MM1_03VO">
+		SELECT  IDN_NO AS idnNo
+			   ,MEMBER_NO AS memberNo
+			   ,START_DATE AS startDate
+			   ,END_DATE AS endDate
+			   ,APP_KIND_CODE AS appKindCode
+			   ,ORGAN_CODE AS organCode
+			   ,dbo.FN_LIONS_ORGAN_NAME(ORGAN_CODE) AS organName
+			   ,APP_SECTOR_CODE AS appSectorCode
+			   ,dbo.FN_LIONS_ORGAN_NAME(APP_SECTOR_CODE) AS appSectorName
+			   ,APP_DESC_CODE AS appDescCode
+			   ,APP_DESC AS appDesc
+			   ,EXPULSION_FLAG AS expulsionFlag
+			   ,UPDATE_DATE AS updateDate
+		  FROM LIONS_APPOINTMENT
+		 WHERE IDN_NO = #idnNo#
+ 	</select>
+ 	
+ 	<insert id="lionsclubs.com.MM1.MM1_1.MM1_03.Insert">
+        <selectKey resultClass="String" keyProperty="idnNo" >
+			INSERT INTO LIONS_APPOINTMENT (
+				 MEMBER_NO
+				,START_DATE
+				,END_DATE
+				,APP_KIND_CODE
+				,ORGAN_CODE
+				,APP_SECTOR_CODE
+				,APP_DESC_CODE
+				,APP_DESC
+				,EXPULSION_FLAG
+				,INSERT_DATE
+				,INSERT_NAME
+				,UPDATE_DATE
+				,UPDATE_NAME
+			) VALUES (
+				 #memberNo#
+				,REPLACE(#startDate#, '.', '')
+				,REPLACE(#endDate#, '.', '')
+				,#appKindCode#
+				,REPLACE(#organCode#, '-', '')
+				,REPLACE(#appSectorCode#, '-', '')
+				,#appDescCode#
+				,#appDesc#
+				,#expulsionFlag#
+				,GETDATE()
+				,#insertName#
+				,GETDATE()
+				,#updateName#
+			) 
+			SELECT SCOPE_IDENTITY() AS idnNo
+        </selectKey>
+    </insert>
+    
+ 	<update id="lionsclubs.com.MM1.MM1_1.MM1_03.Update">
+        <![CDATA[
+		UPDATE LIONS_APPOINTMENT 
+		   SET  START_DATE = REPLACE(#startDate#, '.', '')
+			   ,END_DATE = REPLACE(#endDate#, '.', '')
+			   ,APP_KIND_CODE = #appKindCode#
+			   ,ORGAN_CODE = REPLACE(#organCode#, '-', '')
+			   ,APP_SECTOR_CODE = REPLACE(#appSectorCode#, '-', '')
+			   ,APP_DESC_CODE = #appDescCode#
+			   ,APP_DESC = #appDesc#
+			   ,EXPULSION_FLAG = #expulsionFlag#
+			   ,UPDATE_DATE =  GETDATE()
+			   ,UPDATE_NAME = #updateName#
+		 WHERE IDN_NO = #idnNo#
+        ]]>
+    </update>
+    
+    <delete id="lionsclubs.com.MM1.MM1_1.MM1_03.Delete">
+        <![CDATA[
+            DELETE FROM LIONS_APPOINTMENT 
+             WHERE IDN_NO = #idnNo#
+        ]]>
+    </delete>
+    
+    <select id="lionsclubs.com.MM1.MM1_1.MM1_03.autoList" resultClass="MM1_03VO">
+		SELECT  ORGAN_CODE AS organCode
+			   ,KO_ABBR2 AS koAbbr2 
+		  FROM LIONS_ORGAN_CODE 
+		 WHERE ORGAN_CODE LIKE #autoCode# + '%'
+ 	</select>
+
+	<select id="lionsclubs.com.MM1.MM1_1.MM1_03.memberNoList" resultClass="String">
+		SELECT DISTINCT MEMBER_NO 
+		  FROM LIONS_APPOINTMENT
+	</select>
+	
+	<!-- 클럽직책 Flag 초기화 -->
+	<update id="lionsclubs.com.MM1.MM1_1.MM1_03.lastClubTitleClear">
+		UPDATE LIONS_APPOINTMENT 
+		   SET  KIND_FLAG = NULL
+		   	   ,UPDATE_DATE = GETDATE()	
+		 WHERE IDN_NO IN (
+			 SELECT IDN_NO 
+			   FROM dbo.LIONS_APPOINTMENT APP
+			  WHERE APP_KIND_CODE = '1000'	/* 선임구분(2700) : 선임-클럽임원선임*/
+				AND MEMBER_NO = #memberNo#
+		)
+	</update>
+	
+	<!-- 지구직책 Flag 초기화 -->
+	<update id="lionsclubs.com.MM1.MM1_1.MM1_03.lastDistrictTitleClear">
+		UPDATE LIONS_APPOINTMENT 
+		   SET  KIND_FLAG = NULL
+		       ,UPDATE_DATE = GETDATE()
+		 WHERE IDN_NO IN (
+			 SELECT IDN_NO
+			   FROM dbo.LIONS_APPOINTMENT APP
+				WHERE APP_KIND_CODE = '1010'
+				AND MEMBER_NO = #memberNo#
+		)
+	</update>
+	
+	<!-- 복합지구직책 Flag 초기화 -->
+	<update id="lionsclubs.com.MM1.MM1_1.MM1_03.lastComplexTitleClear">
+		UPDATE LIONS_APPOINTMENT 
+		   SET  KIND_FLAG = NULL
+		       ,UPDATE_DATE = GETDATE()
+		 WHERE IDN_NO IN (
+			 SELECT IDN_NO
+			   FROM dbo.LIONS_APPOINTMENT APP
+				WHERE APP_KIND_CODE = '1020'
+				AND MEMBER_NO = #memberNo# 
+		)
+	</update>
+	
+	<!-- 연합회직책 Flag 초기화 -->
+	<update id="lionsclubs.com.MM1.MM1_1.MM1_03.lastAssociationTitleClear">
+		UPDATE LIONS_APPOINTMENT 
+		   SET  KIND_FLAG = NULL
+		       ,UPDATE_DATE = GETDATE()
+		 WHERE IDN_NO IN (
+			 SELECT IDN_NO
+			   FROM dbo.LIONS_APPOINTMENT APP
+				WHERE APP_KIND_CODE = '1030'
+				AND MEMBER_NO = #memberNo# 
+		)
+	</update>
+	
+	<!-- 재입회원 상태 초기화 -->
+	<update id="lionsclubs.com.MM1.MM1_1.MM1_03.lastSingDivisionDateClear">
+		UPDATE LIONS_APPOINTMENT 
+		   SET  KIND_FLAG = NULL
+		       ,UPDATE_DATE = GETDATE()
+		 WHERE IDN_NO IN (
+			 SELECT IDN_NO
+			   FROM dbo.LIONS_APPOINTMENT APP
+			  WHERE APP.APP_KIND_CODE = '1040'	/* 선임구분(2700) : 선임-입회 재입회 */
+				AND APP.APP_DESC_CODE IN('1020', '1030')	/* 선임-입회 재입회(2820) : 재입회원(1020), 전입회원(1030) */
+				AND MEMBER_NO = #memberNo# 
+		)
+	</update>
+	
+	<!-- 퇴회상태 초기화 -->
+	<update id="lionsclubs.com.MM1.MM1_1.MM1_03.lastQuitDateClear">
+		UPDATE LIONS_APPOINTMENT 
+		   SET  KIND_FLAG = NULL
+		       ,UPDATE_DATE = GETDATE()
+		 WHERE IDN_NO IN (
+			 SELECT IDN_NO
+			   FROM dbo.LIONS_APPOINTMENT APP
+			  WHERE APP_KIND_CODE = '1050'	/* 선임구분(2700) : 선임-퇴회 */
+				AND MEMBER_NO = #memberNo#
+		)
+	</update>				
+	
+	<!-- 소속클럽상태 초기화 -->
+	<update id="lionsclubs.com.MM1.MM1_1.MM1_03.lastSectorClubClear">
+		UPDATE LIONS_APPOINTMENT 
+		   SET  LAST_YN = NULL
+		       ,UPDATE_DATE = GETDATE()
+		 WHERE IDN_NO IN (
+			 SELECT IDN_NO
+			   FROM dbo.LIONS_APPOINTMENT APP
+			  WHERE MEMBER_NO = #memberNo#
+		)
+	</update>	
+	
+	<!-- 최신 클럽직책으로 업데이트 -->
+	<update id="lionsclubs.com.MM1.MM1_1.MM1_03.lastClubTitle">
+		UPDATE LIONS_APPOINTMENT 
+		   SET  KIND_FLAG = 'C'
+		       ,UPDATE_DATE = GETDATE()
+		 WHERE IDN_NO IN (
+				 SELECT IDN_NO 
+				   FROM dbo.LIONS_APPOINTMENT APP
+				  WHERE APP_KIND_CODE = '1000'	/* 선임구분(2700) : 선임-클럽임원선임*/
+					AND CONVERT(VARCHAR(10),GETDATE(),112) BETWEEN START_DATE AND END_DATE	
+					AND MEMBER_NO = #memberNo#
+		)
+	</update>
+	
+	<!-- 최신 지구직책으로 업데이트 -->
+	<update id="lionsclubs.com.MM1.MM1_1.MM1_03.lastDistrictTitle">
+		UPDATE LIONS_APPOINTMENT 
+		   SET  KIND_FLAG = 'D'
+		       ,UPDATE_DATE = GETDATE()
+		 WHERE IDN_NO IN (
+			 SELECT IDN_NO 
+			   FROM dbo.LIONS_APPOINTMENT APP
+				WHERE APP_KIND_CODE = '1010'
+				AND CONVERT(VARCHAR(10),GETDATE(),112) BETWEEN START_DATE AND END_DATE
+				AND MEMBER_NO = #memberNo# 
+		)
+	</update>
+	
+	<!-- 최신 복합지구직책으로 업데이트 -->
+	<update id="lionsclubs.com.MM1.MM1_1.MM1_03.lastComplexTitle">
+		UPDATE LIONS_APPOINTMENT 
+		   SET  KIND_FLAG = 'M'
+		       ,UPDATE_DATE = GETDATE()
+		 WHERE IDN_NO IN (
+			 SELECT IDN_NO 
+			   FROM dbo.LIONS_APPOINTMENT APP
+				WHERE APP_KIND_CODE = '1020'
+				AND CONVERT(VARCHAR(10),GETDATE(),112) BETWEEN START_DATE AND END_DATE
+				AND MEMBER_NO = #memberNo# 
+		)
+	</update>
+	
+	<!-- 최신 연합회직책으로 업데이트 -->
+	<update id="lionsclubs.com.MM1.MM1_1.MM1_03.lastAssociationTitle">
+		UPDATE LIONS_APPOINTMENT 
+		   SET  KIND_FLAG = 'A'
+		       ,UPDATE_DATE = GETDATE()
+		 WHERE IDN_NO IN (
+			 SELECT IDN_NO 
+			   FROM dbo.LIONS_APPOINTMENT APP
+				WHERE APP_KIND_CODE = '1030'
+				AND CONVERT(VARCHAR(10),GETDATE(),112) BETWEEN START_DATE AND END_DATE
+				AND MEMBER_NO = #memberNo# 
+		)
+	</update>
+	
+	<!-- 최신 재입회원 상태로 업데이트 -->
+	<update id="lionsclubs.com.MM1.MM1_1.MM1_03.lastSingDivisionDate">
+		UPDATE LIONS_APPOINTMENT 
+		   SET  KIND_FLAG = 'R'
+		       ,UPDATE_DATE = GETDATE()
+		 WHERE IDN_NO = (
+			 SELECT TOP 1 IDN_NO
+			   FROM dbo.LIONS_APPOINTMENT
+			  WHERE APP_KIND_CODE = '1040'	/* 선임구분(2700) : 선임-입회 재입회 */
+				AND APP_DESC_CODE IN('1020', '1030')	/* 선임-입회 재입회(2820) : 재입회원(1020), 전입회원(1030) */
+				AND CONVERT(VARCHAR(10),GETDATE(),112) BETWEEN START_DATE AND END_DATE
+				AND MEMBER_NO = #memberNo#
+			  ORDER BY  START_DATE DESC
+					   ,IDN_NO DESC
+		)
+	</update>
+	
+	<!-- 최신 퇴회상태로 업데이트 -->
+	<update id="lionsclubs.com.MM1.MM1_1.MM1_03.lastQuitDate">
+		UPDATE LIONS_APPOINTMENT 
+		   SET  KIND_FLAG = 'O'
+		       ,UPDATE_DATE = GETDATE()
+		WHERE IDN_NO = (
+			 SELECT TOP 1 IDN_NO
+			   FROM dbo.LIONS_APPOINTMENT APP
+			  WHERE APP_KIND_CODE = '1050'	/* 선임구분(2700) : 선임-퇴회 */
+				AND CONVERT(VARCHAR(10),GETDATE(),112) >= END_DATE
+				AND MEMBER_NO = #memberNo#
+			  ORDER BY  END_DATE DESC
+					   ,IDN_NO DESC	
+		)
+	</update>
+	
+	<!-- 최신 소속클럽으로 업데이트 -->
+	<update id="lionsclubs.com.MM1.MM1_1.MM1_03.lastSectorClub">
+		UPDATE LIONS_APPOINTMENT 
+		   SET  LAST_YN = 'Y'
+		       ,UPDATE_DATE = GETDATE()
+		 WHERE IDN_NO = (
+			 SELECT TOP 1 IDN_NO
+			   FROM dbo.LIONS_APPOINTMENT APP
+			  WHERE MEMBER_NO = #memberNo#
+			  ORDER BY  START_DATE DESC
+					   ,IDN_NO DESC
+		)
+	</update>
+	
+	<select id="lionsclubs.com.MM1.MM1_1.MM1_03.memberCount" resultClass="Integer">
+		SELECT COUNT(*) 
+		  FROM LIONS_APPOINTMENT
+		 WHERE MEMBER_NO = #memberNo#	
+	</select>
+	
+	<select id="lionsclubs.com.MM1.MM1_1.MM1_03.singCount" resultClass="Integer">
+		SELECT COUNT(*) FROM LIONS_APPOINTMENT
+		 WHERE APP_KIND_CODE = '1040'	/* 선임구분(2700) : 선임-입회 재입회 */
+		   AND APP_DESC_CODE = '1000'	/* 선임-입회 재입회(2820) : 입회 */
+		   AND MEMBER_NO = #memberNo#
+	</select>
+	
+	<select id="lionsclubs.com.MM1.MM1_1.MM1_03.lastStat" resultClass="MM1_03VO">
+		SELECT  ORGAN_CODE AS organCode
+			   ,dbo.FN_LIONS_ORGAN_NAME(ORGAN_CODE) as organName
+			   ,KIND_FLAG AS kindFlag
+			   ,APP_KIND_CODE AS appKindCode
+			   ,APP_SECTOR_CODE AS appSectorCode
+			   ,APP_DESC_CODE AS appDescCode
+		  FROM LIONS_APPOINTMENT
+		 WHERE LAST_YN = 'Y'
+		   AND MEMBER_NO = #memberNo#
+	</select>
+	
+	<select id="lionsclubs.com.MM1.MM1_1.MM1_03.lastQuitDateStat" resultClass="String">
+		SELECT END_DATE	AS endDate
+		  FROM LIONS_APPOINTMENT
+		 WHERE KIND_FLAG = 'O'	/* 최신퇴회상태 */
+		   AND MEMBER_NO = #memberNo#
+	</select>
+	
+	<update id="lionsclubs.com.MM1.MM1_1.MM1_03.appDateUpdate">
+		UPDATE LIONS_APPOINTMENT 
+		   SET END_DATE = REPLACE(#startDate#, '.', '')
+		 WHERE IDN_NO IN (
+			 SELECT IDN_NO
+			   FROM dbo.LIONS_APPOINTMENT
+			  WHERE REPLACE(#startDate#, '.', '') BETWEEN START_DATE AND END_DATE
+				AND MEMBER_NO = #memberNo#
+		)
+		   AND IDN_NO != #idnNo#
+	</update>
+	
+	<update id="lionsclubs.com.MM1.MM1_1.MM1_03.batchAppointmentClear">
+		UPDATE LIONS_APPOINTMENT 
+		   SET  KIND_FLAG = NULL
+		   	   ,LAST_YN = NULL
+		   	   ,UPDATE_DATE = GETDATE()	
+	</update>
+	
+	<!-- 최신 클럽직책으로 업데이트 -->
+	<update id="lionsclubs.com.MM1.MM1_1.MM1_03.batchLastClubTitle">
+		UPDATE LIONS_APPOINTMENT 
+		   SET  KIND_FLAG = 'C'
+		       ,UPDATE_DATE = GETDATE()
+		 WHERE IDN_NO IN (
+				 SELECT IDN_NO 
+				   FROM dbo.LIONS_APPOINTMENT APP
+				  WHERE APP_KIND_CODE = '1000'	/* 선임구분(2700) : 선임-클럽임원선임*/
+					AND CONVERT(VARCHAR(10),GETDATE(),112) BETWEEN START_DATE AND END_DATE	
+		)
+	</update>
+	
+	<!-- 최신 지구직책으로 업데이트 -->
+	<update id="lionsclubs.com.MM1.MM1_1.MM1_03.batchLastDistrictTitle">
+		UPDATE LIONS_APPOINTMENT 
+		   SET  KIND_FLAG = 'D'
+		       ,UPDATE_DATE = GETDATE()
+		 WHERE IDN_NO IN (
+			 SELECT IDN_NO 
+			   FROM dbo.LIONS_APPOINTMENT APP
+				WHERE APP_KIND_CODE = '1010'
+				AND CONVERT(VARCHAR(10),GETDATE(),112) BETWEEN START_DATE AND END_DATE
+		)
+	</update>
+	
+	<!-- 최신 복합지구직책으로 업데이트 -->
+	<update id="lionsclubs.com.MM1.MM1_1.MM1_03.batchLastComplexTitle">
+		UPDATE LIONS_APPOINTMENT 
+		   SET  KIND_FLAG = 'M'
+		       ,UPDATE_DATE = GETDATE()
+		 WHERE IDN_NO IN (
+			 SELECT IDN_NO 
+			   FROM dbo.LIONS_APPOINTMENT APP
+				WHERE APP_KIND_CODE = '1020'
+				AND CONVERT(VARCHAR(10),GETDATE(),112) BETWEEN START_DATE AND END_DATE
+		)
+	</update>
+	
+	<!-- 최신 연합회직책으로 업데이트 -->
+	<update id="lionsclubs.com.MM1.MM1_1.MM1_03.batchLastAssociationTitle">
+		UPDATE LIONS_APPOINTMENT 
+		   SET  KIND_FLAG = 'A'
+		       ,UPDATE_DATE = GETDATE()
+		 WHERE IDN_NO IN (
+			 SELECT IDN_NO 
+			   FROM dbo.LIONS_APPOINTMENT APP
+				WHERE APP_KIND_CODE = '1030'
+				AND CONVERT(VARCHAR(10),GETDATE(),112) BETWEEN START_DATE AND END_DATE
+		)
+	</update>
+	
+	<!-- 최신 재입회원 상태로 업데이트 -->
+	<update id="lionsclubs.com.MM1.MM1_1.MM1_03.batchLastSingDivisionDate">
+		UPDATE LIONS_APPOINTMENT 
+		   SET  KIND_FLAG = 'R'
+		       ,UPDATE_DATE = GETDATE()
+		 WHERE IDN_NO IN (
+			SELECT R.IDN_NO
+			  FROM(  
+				SELECT  ROW_NUMBER() OVER (PARTITION BY MEMBER_NO ORDER BY START_DATE DESC, IDN_NO DESC) AS rnum
+					   ,IDN_NO
+				  FROM dbo.LIONS_APPOINTMENT
+				 WHERE APP_KIND_CODE = '1040'	/* 선임구분(2700) : 선임-입회 재입회 */
+				   AND APP_DESC_CODE IN('1020', '1030')	/* 선임-입회 재입회(2820) : 재입회원(1020), 전입회원(1030) */
+				   AND CONVERT(VARCHAR(10),GETDATE(),112) BETWEEN START_DATE AND END_DATE
+			  ) R
+			 WHERE R.rnum = 1
+		)
+	</update>
+	
+	<!-- 최신 퇴회상태로 업데이트 -->
+	<update id="lionsclubs.com.MM1.MM1_1.MM1_03.batchLastQuitDate">
+		UPDATE LIONS_APPOINTMENT 
+		   SET  KIND_FLAG = 'O'
+		       ,UPDATE_DATE = GETDATE()
+		 WHERE IDN_NO IN (
+			SELECT R.IDN_NO
+			  FROM(  
+				SELECT  ROW_NUMBER() OVER (PARTITION BY MEMBER_NO ORDER BY END_DATE DESC, IDN_NO DESC) AS rnum
+					   ,IDN_NO
+				  FROM dbo.LIONS_APPOINTMENT
+				 WHERE APP_KIND_CODE = '1050'	/* 선임구분(2700) : 선임-퇴회 */
+				   AND CONVERT(VARCHAR(10),GETDATE(),112) >= END_DATE
+			  ) R
+			 WHERE R.rnum = 1
+		)
+	</update>
+	
+	<!-- 최신 소속클럽으로 업데이트 -->
+	<update id="lionsclubs.com.MM1.MM1_1.MM1_03.batchLastSectorClub">
+		UPDATE LIONS_APPOINTMENT 
+		   SET  LAST_YN = 'Y'
+		       ,UPDATE_DATE = GETDATE()
+		 WHERE IDN_NO IN (
+			SELECT R.IDN_NO
+			  FROM(
+				SELECT  ROW_NUMBER() OVER (PARTITION BY MEMBER_NO ORDER BY START_DATE DESC, IDN_NO DESC) AS rnum
+					   ,IDN_NO
+				  FROM dbo.LIONS_APPOINTMENT APP
+			  ) R
+			 WHERE R.rnum = 1
+		)
+	</update>	
+</sqlMap>

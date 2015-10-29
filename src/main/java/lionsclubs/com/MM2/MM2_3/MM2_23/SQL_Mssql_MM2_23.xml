@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://www.ibatis.com/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="lionsclubs.com.MM2.MM2_3.MM2_23">
+
+	<typeAlias alias="MM2_23VO" type="lionsclubs.com.MM2.MM2_3.MM2_23.MM2_23VO"/>
+	<typeAlias alias="MM2_23VO_DATA" type="lionsclubs.com.MM2.MM2_3.MM2_23.MM2_23VO_DATA"/>
+		
+	<sql id="lionsclubs.com.MM2.MM2_3.MM2_23.declare">
+		DECLARE @organCode NVARCHAR(10)
+		DECLARE @thisYear INT
+		DECLARE @startDate NVARCHAR(10)
+		DECLARE @endDate NVARCHAR(10)
+		
+		SET @organCode = #organCode#;
+		SET @thisYear = #thisYear#;
+		SET @startDate = CAST(@thisYear - 1 AS NVARCHAR(4)) + '0701';	
+		SET @endDate = CAST(@thisYear AS NVARCHAR(4)) + '0630';	
+	</sql>
+		
+	<sql id="lionsclubs.com.MM2.MM2_3.MM2_23.selectQuery">
+		<![CDATA[
+		SELECT  A.classItemCode
+			   ,A.detailItemCode
+			   ,SUM(A.budgetAmount) AS budgetAmount
+			   ,SUM(A.realAmount) AS realAmount
+			   ,CD.CODE_NAME AS classItemName
+			   ,CD2.CODE_NAME AS detailItemName
+			   ,SUM(A.budgetAmount - A.realAmount) AS subtractAmount
+			   ,MIN(A.moneyIdnNo) AS moneyIdnNo
+		FROM (
+			SELECT  INFO.ORGAN_CODE AS organCode		
+				   ,INFO.CLASS_ITEM_CODE AS classItemCode		
+				   ,INFO.DETAIL_ITEM_CODE AS detailItemCode	
+				   ,CASE WHEN INEX_CODE = '1030' 
+						 THEN ISNULL(INFO.AMOUNT,0) 
+						 ELSE 0 
+						  END AS budgetAmount
+				   ,CASE WHEN INEX_CODE = '1010' 
+						 THEN ISNULL(INFO.AMOUNT,0) 
+						 ELSE 0 
+						  END AS realAmount
+				   ,INFO.MONEY_IDN_NO AS moneyIdnNo
+			  FROM LIONS_INCOME_EXPEND INFO
+			 WHERE INFO.INEX_CODE IN ('1010','1030')	/*지출/지출예산*/
+			   AND INFO.ORGAN_CODE = @organCode
+			   AND INFO.INEX_DATE BETWEEN @startDate AND @endDate
+		) A
+		 INNER JOIN LIONS_CODE CD 
+		    ON CD.GROUP_CODE = '6000'
+		   AND CD.CODE = A.classItemCode 
+		 INNER JOIN LIONS_CODE CD2 
+		    ON CD2.GROUP_CODE = CD.CODE1 
+		   AND CD2.CODE = A.detailItemCode 
+		 GROUP BY  A.organCode
+				  ,A.classItemCode
+				  ,A.detailItemCode
+				  ,CD.CODE_NAME
+				  ,CD2.CODE_NAME
+				  ,CD.CODE2
+				  ,CD2.ORD
+		]]>
+	</sql>
+
+	<select id="lionsclubs.com.MM2.MM2_3.MM2_23.selectList" resultClass="MM2_23VO_DATA">
+		<include refid="lionsclubs.com.MM2.MM2_3.MM2_23.declare"/>
+		<include refid="lionsclubs.com.MM2.MM2_3.MM2_23.selectQuery"/>
+		<dynamic prepend="ORDER BY">
+			<isEqual property="s1" compareValue="1">
+	 			 CAST(CD.CODE2 AS INT)
+	 			,CD2.ORD
+	 		</isEqual>
+			<isEqual property="s1" compareValue="2">
+	 			 subtractAmount desc
+	 			,CAST(CD.CODE2 AS INT)
+	 			,CD2.ORD
+	 		</isEqual>
+		</dynamic>
+ 	</select>
+
+	<select id="lionsclubs.com.MM2.MM2_3.MM2_23.selectSum" resultClass="MM2_23VO_DATA">
+		<include refid="lionsclubs.com.MM2.MM2_3.MM2_23.declare"/>
+		SELECT  SUM(budgetAmount) as budgetAmount
+			   ,SUM(realAmount) as realAmount
+			   ,SUM(subtractAmount) as subtractAmount
+		FROM (
+			<include refid="lionsclubs.com.MM2.MM2_3.MM2_23.selectQuery"/>
+		) A
+	</select>
+</sqlMap>
+

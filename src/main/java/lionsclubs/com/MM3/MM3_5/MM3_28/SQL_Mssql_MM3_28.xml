@@ -1,0 +1,257 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://www.ibatis.com/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="lionsclubs.com.MM3.MM3_5.MM3_28">
+
+	<typeAlias alias="MM3_28VO_PARAM" type="lionsclubs.com.MM3.MM3_5.MM3_28.MM3_28VO_PARAM"/>
+	<typeAlias alias="MM3_28VO_DATA" type="lionsclubs.com.MM3.MM3_5.MM3_28.MM3_28VO_DATA"/>
+
+	<sql id="lionsclubs.com.MM3.MM3_5.MM3_28.queryList">
+
+	</sql>
+	
+		<!-- AND a.SESSION_YEAR = #thisYear# -->
+	<select id="lionsclubs.com.MM3.MM3_5.MM3_28.selectList" resultClass="MM3_28VO_DATA" parameterClass="MM3_28VO_PARAM">
+		<![CDATA[
+		DECLARE @orgCode NVARCHAR(10)
+		DECLARE @yearCode NVARCHAR(4)
+		DECLARE @month NVARCHAR(2)
+		DECLARE @toDate NVARCHAR(8)
+		DECLARE @fromDate NVARCHAR(8)
+		DECLARE @score as INT
+		
+		SET @orgCode = #upperCode#;
+		SET @yearCode = #thisYear#;
+		SET @toDate = CAST(@yearCode as NVARCHAR(4)) + '0630';
+		SET @fromDate = CAST(CAST(@yearCode as INT) - 1 as NVARCHAR(4)) + '0701';
+		SET @score = (SELECT CAST(CODE2 as INT) FROM dbo.LIONS_CODE WHERE GROUP_CODE = '8030' AND  CODE1 = SUBSTRING(@orgCode,1,3) + '-' + SUBSTRING(@orgCode,4,3));
+		WITH
+		ORG_TREE AS ( /* 전체 조직트리  기간동안의 연합,복합정보 조회용 */
+			SELECT
+				 A.ORGAN_CODE
+				,A.UPPER_ORGAN_CODE
+			FROM dbo.LIONS_ORGAN_CODE_HISTORY A
+			INNER JOIN (
+				SELECT
+					 MAX(B.IDN_NO) as IDN_NO
+					,B.ORGAN_CODE
+				FROM ( 
+					SELECT
+						 A.ORGAN_CODE
+						,A.IDN_NO
+						,MAX(A.CHANGE_DATE) OVER(PARTITION BY A.ORGAN_CODE) as CHANGE_DATE
+					FROM dbo.LIONS_ORGAN_CODE_HISTORY A
+					WHERE A.CHANGE_DATE BETWEEN @fromDate AND @toDate
+				) B
+				GROUP BY B.ORGAN_CODE,B.CHANGE_DATE
+			) C ON C.IDN_NO = A.IDN_NO
+			INNER JOIN dbo.LIONS_ORGAN_CODE D
+			ON D.ORGAN_CODE = A.ORGAN_CODE
+			AND (
+						D.ORGAN_ABOLISH_DATE IS NULL 
+					OR	D.ORGAN_ABOLISH_DATE = '' 
+					OR	D.ORGAN_ABOLISH_DATE >= @fromDate
+			)
+			WHERE A.UPPER_ORGAN_CODE = @orgCode
+		)
+		
+		SELECT
+			 X.DISTRICT_CODE as inputDistrictCode
+			,X.SESSION_YEAR  as inputSessionYear
+			,X.CLUB_CODE	 as inputClubCode
+			,X.KO_NAME		 as inputOrganName
+			,X.CODE2		 as inputStandScore
+			, [1ST]			 as inputFirst
+			, [2ST]			 as inputSecond
+			, [3ST]			 as inputThird
+			, [4ST]			 as inputFourth
+			, [5ST]			 as inputFifth
+			, [6ST]			 as inputSixth
+			, [7ST]			 as inputSeventh
+			, [8ST]			 as inputEighth
+			, [9ST]			 as inputNineth
+			,[10ST]			 as inputTenth
+			,[11ST]			 as inputEleventh
+			,[12ST]			 as inputTwelveth
+			, (
+			    CASE WHEN  [1ST] > '' THEN 1 ELSE 0 END
+			  + CASE WHEN  [2ST] > '' THEN 1 ELSE 0 END
+			  + CASE WHEN  [3ST] > '' THEN 1 ELSE 0 END
+			  + CASE WHEN  [4ST] > '' THEN 1 ELSE 0 END
+			  + CASE WHEN  [5ST] > '' THEN 1 ELSE 0 END
+			  + CASE WHEN  [6ST] > '' THEN 1 ELSE 0 END
+			  + CASE WHEN  [7ST] > '' THEN 1 ELSE 0 END
+			  + CASE WHEN  [8ST] > '' THEN 1 ELSE 0 END
+			  + CASE WHEN  [9ST] > '' THEN 1 ELSE 0 END
+			  + CASE WHEN [10ST] > '' THEN 1 ELSE 0 END
+			  + CASE WHEN [11ST] > '' THEN 1 ELSE 0 END
+			  + CASE WHEN [12ST] > '' THEN 1 ELSE 0 END
+			  ) * CODE2 as inputTotalScore
+		FROM (
+		SELECT
+			 A.UPPER_ORGAN_CODE as DISTRICT_CODE
+			,@yearCode as SESSION_YEAR
+			,A.ORGAN_CODE as CLUB_CODE
+			,B.KO_NAME
+			,@score CODE2
+			,RTRIM(ISNULL(C.[1ST], '')) as  [1ST]
+			,RTRIM(ISNULL(C.[2ST], '')) as  [2ST]
+			,RTRIM(ISNULL(C.[3ST], '')) as  [3ST]
+			,RTRIM(ISNULL(C.[4ST], '')) as  [4ST]
+			,RTRIM(ISNULL(C.[5ST], '')) as  [5ST]
+			,RTRIM(ISNULL(C.[6ST], '')) as  [6ST]
+			,RTRIM(ISNULL(C.[7ST], '')) as  [7ST]
+			,RTRIM(ISNULL(C.[8ST], '')) as  [8ST]
+			,RTRIM(ISNULL(C.[9ST], '')) as  [9ST]
+			,RTRIM(ISNULL(C.[10ST],'')) as [10ST]
+			,RTRIM(ISNULL(C.[11ST],'')) as [11ST]
+			,RTRIM(ISNULL(C.[12ST],'')) as [12ST]
+		FROM ORG_TREE A
+		INNER JOIN dbo.LIONS_ORGAN_CODE B
+		ON B.ORGAN_CODE = A.ORGAN_CODE
+		LEFT OUTER JOIN dbo.LIONS_CLUB_RESEARCH_RESULT C
+		ON C.CLUB_CODE = A.ORGAN_CODE AND C.DISTRICT_CODE = @orgCode AND C.SESSION_YEAR = @yearCode
+		) X
+		]]>
+		<dynamic prepend="WHERE">
+	 		<isEqual  property="order" compareValue="3">
+	 		<![CDATA[
+			(
+			    CASE WHEN  [1ST] > '' THEN 1 ELSE 0 END
+			  + CASE WHEN  [2ST] > '' THEN 1 ELSE 0 END
+			  + CASE WHEN  [3ST] > '' THEN 1 ELSE 0 END
+			  + CASE WHEN  [4ST] > '' THEN 1 ELSE 0 END
+			  + CASE WHEN  [5ST] > '' THEN 1 ELSE 0 END
+			  + CASE WHEN  [6ST] > '' THEN 1 ELSE 0 END
+			  + CASE WHEN  [7ST] > '' THEN 1 ELSE 0 END
+			  + CASE WHEN  [8ST] > '' THEN 1 ELSE 0 END
+			  + CASE WHEN  [9ST] > '' THEN 1 ELSE 0 END
+			  + CASE WHEN [10ST] > '' THEN 1 ELSE 0 END
+			  + CASE WHEN [11ST] > '' THEN 1 ELSE 0 END
+			  + CASE WHEN [12ST] > '' THEN 1 ELSE 0 END
+			  ) * CODE2 > 0
+	 		]]>
+	 		</isEqual>
+ 		</dynamic>
+		<dynamic prepend="ORDER BY">
+ 		    <isEqual property="order" compareValue="1">
+	 			inputClubCode
+	 		</isEqual>
+	 		<isEqual property="order" compareValue="2">
+	 			inputOrganName
+	 		</isEqual>
+	 		<isEqual  property="order" compareValue="3">
+	 			inputTotalScore
+	 		</isEqual>
+ 		</dynamic>
+ 	</select>
+
+	
+	<update id="lionsclubs.com.MM3.MM3_5.MM3_28.mergeData"  parameterClass="MM3_28VO_DATA">
+DECLARE @districtCode NVARCHAR(10)
+DECLARE @sessionYear NVARCHAR(4)
+DECLARE @clubCode NVARCHAR(10)
+DECLARE @score as INT
+DECLARE @memberNo as NVARCHAR(100)
+DECLARE @inputFirst as NVARCHAR(8)
+DECLARE @inputSecond as NVARCHAR(8)
+DECLARE @inputThird as NVARCHAR(8)
+DECLARE @inputFourth as NVARCHAR(8)
+DECLARE @inputFifth as NVARCHAR(8)
+DECLARE @inputSixth as NVARCHAR(8)
+DECLARE @inputSeventh as NVARCHAR(8)
+DECLARE @inputEighth as NVARCHAR(8)
+DECLARE @inputNineth as NVARCHAR(8)
+DECLARE @inputTenth as NVARCHAR(8)
+DECLARE @inputEleventh as NVARCHAR(8)
+DECLARE @inputTwelveth as NVARCHAR(8)
+
+SET @districtCode	= #inputDistrictCode#;
+SET @sessionYear	= #inputSessionYear#;
+SET @clubCode		= #inputClubCode#;
+SET @score			= (SELECT CAST(CODE2 as INT) FROM dbo.LIONS_CODE WHERE GROUP_CODE = '8030' AND  CODE1 = SUBSTRING(@districtCode,1,3) + '-' + SUBSTRING(@districtCode,4,3));
+SET @memberNo		= #memberNo#; 
+SET @inputFirst		= #inputFirst#;
+SET @inputSecond	= #inputSecond#;
+SET @inputThird		= #inputThird#;
+SET @inputFourth	= #inputFourth#;
+SET @inputFifth		= #inputFifth#;
+SET @inputSixth		= #inputSixth#;
+SET @inputSeventh	= #inputSeventh#;
+SET @inputEighth	= #inputEighth#;
+SET @inputNineth	= #inputNineth#;
+SET @inputTenth		= #inputTenth#;
+SET @inputEleventh	= #inputEleventh#;
+SET @inputTwelveth	= #inputTwelveth#;
+
+ MERGE LIONS_CLUB_RESEARCH_RESULT AS T
+     	USING (SELECT @districtCode, @sessionYear, @clubCode) 
+     		AS S (DISTRICT_CODE, SESSION_YEAR, CLUB_CODE)
+     ON		T.DISTRICT_CODE	= S.DISTRICT_CODE
+		AND T.SESSION_YEAR	= S.SESSION_YEAR
+		AND T.CLUB_CODE		= S.CLUB_CODE
+     WHEN NOT MATCHED BY TARGET THEN
+			INSERT (
+					DISTRICT_CODE
+				   ,SESSION_YEAR
+				   ,CLUB_CODE
+				   ,STAND_SCORE
+				   ,[1ST]
+				   ,[2ST]
+				   ,[3ST]
+				   ,[4ST]
+				   ,[5ST]
+				   ,[6ST]
+				   ,[7ST]
+				   ,[8ST]
+				   ,[9ST]
+				   ,[10ST]
+				   ,[11ST]
+				   ,[12ST]
+				   ,INSERT_DATE
+				   ,INSERT_NAME
+				   ,UPDATE_DATE
+				   ,UPDATE_NAME
+			) VALUES (
+				 S.DISTRICT_CODE
+				,S.SESSION_YEAR
+				,S.CLUB_CODE
+				,@score
+				,@inputFirst
+				,@inputSecond
+				,@inputThird
+				,@inputFourth
+				,@inputFifth
+				,@inputSixth
+				,@inputSeventh
+				,@inputEighth
+				,@inputNineth
+				,@inputTenth
+				,@inputEleventh
+				,@inputTwelveth
+				,GETDATE()	/* 생성일자 */
+				,@memberNo	/* 생성자 */
+				,GETDATE()	/* 수정일자 */
+				,@memberNo	/* 수정자 */
+			)
+     WHEN MATCHED 
+     		THEN UPDATE SET
+     				STAND_SCORE = @score 
+				   ,T.[1ST]		= @inputFirst
+				   ,T.[2ST]		= @inputSecond
+				   ,T.[3ST]		= @inputThird
+				   ,T.[4ST]		= @inputFourth
+				   ,T.[5ST]		= @inputFifth
+				   ,T.[6ST]		= @inputSixth
+				   ,T.[7ST]		= @inputSeventh
+				   ,T.[8ST]		= @inputEighth
+				   ,T.[9ST]		= @inputNineth
+				   ,T.[10ST]	= @inputTenth
+				   ,T.[11ST]	= @inputEleventh
+				   ,T.[12ST]	= @inputTwelveth
+				   ,T.UPDATE_DATE = GETDATE()
+				   ,T.UPDATE_NAME = @memberNo 
+				   ;
+	</update>
+
+</sqlMap>

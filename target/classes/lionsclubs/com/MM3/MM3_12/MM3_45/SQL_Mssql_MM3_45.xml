@@ -1,0 +1,242 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://www.ibatis.com/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="lionsclubs.com.MM3.MM3_12.MM3_45">
+
+	<typeAlias alias="MM3_45VO" type="lionsclubs.com.MM3.MM3_12.MM3_45.MM3_45VO" />
+	
+	<sql id="lionsclubs.com.MM3.MM3_12.MM3_45.declare">
+		<![CDATA[
+		DECLARE @organCode NVARCHAR(6);
+		DECLARE @sessionYear INT;
+		DECLARE @startDate NVARCHAR(8);
+		DECLARE @endDate NVARCHAR(8);
+		
+		SET @organCode = #organCode#;
+		SET @sessionYear = #sessionYear#;		
+		SET @startDate = CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701';	
+		SET @endDate = CAST(@sessionYear AS NVARCHAR(4)) + '0630';
+		]]>
+	</sql>
+	
+	<sql id="lionsclubs.com.MM3.MM3_12.MM3_45.query">
+		<![CDATA[
+		SELECT  DMI.IDN_NO AS idnNo
+			   ,DMI.CLUB_CODE AS clubCode
+			   ,DMI.CLUB_CODE + ' ' + dbo.FN_LIONS_ORGAN_NAME(DMI.CLUB_CODE) AS clubName /* 클럽명 */
+			   ,DMI.GEN_DATE AS genDate	/* 발생일자 */
+			   ,DMI.CLASS_ITEM_CODE AS classItemCode	/* 수입분류항목 코드 */
+			   ,dbo.FN_LIONS_CODE_NAME('7000', DMI.CLASS_ITEM_CODE) AS classItemName
+			   ,DMI.DETAIL_ITEM_CODE AS detailItemCode	/* 수입세부항목 코드 */
+			   ,dbo.FN_LIONS_DETAILCODE_NAME('7000', DMI.CLASS_ITEM_CODE, DMI.DETAIL_ITEM_CODE) AS detailItemName
+			   ,DMI.IMPOST AS impost	/* 부과금 */
+			   ,DMI.IMPOST_DOLLAR AS impostDollar	/* 달러부과금 */
+			   ,DMI.REFERENCE AS reference	/* 참고사항 */
+			   ,(SELECT CODE1 FROM LIONS_CODE WHERE GROUP_CODE = (SELECT CODE1 FROM LIONS_CODE WHERE GROUP_CODE = '7000' AND CODE = DMI.CLASS_ITEM_CODE) AND CODE = DMI.DETAIL_ITEM_CODE) AS dollarKind	/* 달러구분 */
+			   ,DMI.INSERT_DATE AS insertDate	/* 생성일자 */
+			   ,DMI.INSERT_NAME AS insertName	/* 생성자 */
+			   ,DMI.UPDATE_DATE AS updateDate	/* 수정일자 */
+			   ,DMI.UPDATE_NAME AS updateName	/* 수정자 */
+		  FROM LIONS_DISTRICT_MONEY_IMPOST DMI
+		 WHERE DMI.ORGAN_CODE = @organCode
+		   AND DMI.GEN_DATE >= @startDate
+		   AND DMI.GEN_DATE <= @endDate
+		 ]]>
+		<isNotEmpty prepend="AND" property="clubCode">
+			DMI.CLUB_CODE = #clubCode#
+		</isNotEmpty>
+	</sql>
+		
+	<select id="lionsclubs.com.MM3.MM3_12.MM3_45.MM3_45" resultClass="MM3_45VO">
+		<include refid="lionsclubs.com.MM3.MM3_12.MM3_45.declare"/>
+		SELECT * FROM(
+			SELECT  COUNT(1)  OVER() AS totalRecordCount
+				   ,ROW_NUMBER() OVER(ORDER BY PAGING_WARP.clubCode, classItemCode, detailItemCode, genDate) AS rnum
+				   ,PAGING_WARP.*
+			  FROM(
+				<include refid="lionsclubs.com.MM3.MM3_12.MM3_45.query"/>
+			) PAGING_WARP
+		) PAGING
+		 WHERE RNUM BETWEEN #firstIndex# + 1 AND #firstIndex# + #recordCountPerPage#		
+    </select>
+    
+	<select id="lionsclubs.com.MM3.MM3_12.MM3_45.sum" resultClass="MM3_45VO">
+		<include refid="lionsclubs.com.MM3.MM3_12.MM3_45.declare" />
+		
+		SELECT  ISNULL(SUM(TOT.impost), 0) AS impost
+			   ,ISNULL(SUM(TOT.impostDollar), 0) AS impostDollar
+		  FROM(
+			<include refid="lionsclubs.com.MM3.MM3_12.MM3_45.query" />
+		  ) TOT
+    </select>    
+    
+    <select id="lionsclubs.com.MM3.MM3_12.MM3_45.objectImpost" resultClass="MM3_45VO">
+    	SELECT  DMI.IDN_NO AS idnNo
+    		   ,DMI.ORGAN_CODE AS organCode	/* 조직코드 */
+    		   ,DMI.CLUB_CODE AS clubCode	/* 클럽코드 */
+			   ,DMI.GEN_DATE AS genDate	/* 발생일자 */
+    		   ,DMI.CLASS_ITEM_CODE AS classItemCode	/* 수입분류항목 코드 */
+			   ,dbo.FN_LIONS_CODE_NAME('7000', DMI.CLASS_ITEM_CODE) AS classItemName
+			   ,DMI.DETAIL_ITEM_CODE AS detailItemCode	/* 수입세부항목 코드 */
+			   ,dbo.FN_LIONS_DETAILCODE_NAME('7000', DMI.CLASS_ITEM_CODE, DMI.DETAIL_ITEM_CODE) AS detailItemName
+			   ,DMI.IMPOST AS impost	/* 부과금 */
+			   ,DMI.IMPOST_DOLLAR AS impostDollar	/* 달러부과금 */
+			   ,DMI.REFERENCE AS reference	/* 참고사항 */
+			   ,(SELECT CODE1 FROM LIONS_CODE WHERE GROUP_CODE = (SELECT CODE1 FROM LIONS_CODE WHERE GROUP_CODE = '7000' AND CODE = DMI.CLASS_ITEM_CODE) AND CODE = DMI.DETAIL_ITEM_CODE) AS dollarKind	/* 달러구분 */
+			   ,DMI.INSERT_DATE AS insertDate	/* 생성일자 */
+			   ,DMI.INSERT_NAME AS insertName	/* 생성자 */
+			   ,DMI.UPDATE_DATE AS updateDate	/* 수정일자 */
+			   ,DMI.UPDATE_NAME AS updateName	/* 수정자 */
+		  FROM LIONS_DISTRICT_MONEY_IMPOST DMI
+		 WHERE DMI.IDN_NO = #idnNo#
+    </select>
+    
+    <insert id="lionsclubs.com.MM3.MM3_12.MM3_45.insertImpost">
+    	INSERT INTO LIONS_DISTRICT_MONEY_IMPOST(
+			 ORGAN_CODE	/* 지구코드 */
+			,CLUB_CODE	/* 클럽코드 */
+			,GEN_DATE	/* 발생일자 */
+			,CLASS_ITEM_CODE	/* 분류항목코드 */
+			,DETAIL_ITEM_CODE	/* 세부항목코드 */
+			,IMPOST	/* 부과금 */
+			,IMPOST_DOLLAR	/* 달러부과금 */
+			,REFERENCE	/* 참고사항 */
+			,INSERT_DATE	/* 생성일자 */
+			,INSERT_NAME	/* 생성자 */
+			,UPDATE_DATE	/* 수정일자 */
+			,UPDATE_NAME	/* 수정자 */  		
+    	) VALUES (
+    		 #organCode#
+    		,#clubCode#
+    		,REPLACE(#genDate#, '.', '')
+    		,#classItemCode#
+    		,#detailItemCode#
+    		,REPLACE(#impost#, ',', '')
+    		,REPLACE(#impostDollar#, ',', '')
+    		,#reference#
+    		,GETDATE()
+    		,#insertName#
+    		,GETDATE()
+    		,#updateName#
+    	)
+    </insert>
+
+    <update id="lionsclubs.com.MM3.MM3_12.MM3_45.updateImpost">
+		UPDATE LIONS_DISTRICT_MONEY_IMPOST
+		   SET  CLUB_CODE = #clubCode#
+		   	   ,GEN_DATE = REPLACE(#genDate#, '.', '')
+		   	   ,CLASS_ITEM_CODE = #classItemCode#
+		   	   ,DETAIL_ITEM_CODE = #detailItemCode#
+		   	   ,IMPOST = REPLACE(#impost#, ',', '')
+		   	   ,IMPOST_DOLLAR = REPLACE(#impostDollar#, ',', '')
+		   	   ,REFERENCE = #reference#
+		 WHERE IDN_NO = #idnNo#
+    </update>
+    
+    <delete id="lionsclubs.com.MM3.MM3_12.MM3_45.deletePayment">
+		DELETE FROM LIONS_DISTRICT_MONEY_PAYMENT
+		 WHERE IDN_NO = #idnNo#
+    </delete>
+        
+    <delete id="lionsclubs.com.MM3.MM3_12.MM3_45.deleteImpost">
+		DELETE FROM LIONS_DISTRICT_MONEY_IMPOST
+		 WHERE IDN_NO = #idnNo#
+    </delete>
+    
+    <select id="lionsclubs.com.MM3.MM3_12.MM3_45.dollarKind" resultClass="String">
+		SELECT C2.CODE1 AS dollarKind
+		  FROM LIONS_CODE C1
+		 INNER JOIN LIONS_CODE C2
+		    ON C1.CODE1 = C2.GROUP_CODE
+		 WHERE C1.GROUP_CODE = '7000'
+		   AND C1.CODE = #classItemCode#
+		   AND C2.CODE = #detailItemCode#
+    </select>
+    
+	<select id="lionsclubs.com.MM3.MM3_12.MM3_45.listExcelImpost" resultClass="MM3_45VO">
+		DECLARE @organCode NVARCHAR(6);
+		DECLARE @sessionYear INT;
+		DECLARE @startDate NVARCHAR(8);
+		DECLARE @endDate NVARCHAR(8);
+		
+		SET @organCode = #organCode#;
+		SET @sessionYear = #sessionYear#;
+		SET @startDate = CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701';	
+		SET @endDate = CAST(@sessionYear AS NVARCHAR(4)) + '0630';
+		
+		<![CDATA[
+		/* 템플릿 기본 조회 */
+		WITH ORG_TREE AS ( /* 조직트리 */
+			SELECT  HISTORY.ORGAN_CODE
+				   ,HISTORY.UPPER_ORGAN_CODE 
+			  FROM(
+				SELECT  ROW_NUMBER() OVER (PARTITION BY ORGAN_CODE ORDER BY CHANGE_DATE DESC, IDN_NO DESC) AS rnum
+					   ,ORGAN_CODE
+					   ,UPPER_ORGAN_CODE
+				FROM LIONS_ORGAN_CODE_HISTORY
+			   WHERE CHANGE_DATE >= @startDate
+			     AND CHANGE_DATE <= @endDate
+			) HISTORY
+			 INNER JOIN dbo.LIONS_ORGAN_CODE D
+			    ON D.ORGAN_CODE = HISTORY.ORGAN_CODE
+			   AND (
+					   D.ORGAN_ABOLISH_DATE IS NULL 
+					OR D.ORGAN_ABOLISH_DATE = '' 
+					OR (D.ORGAN_ABOLISH_DATE >= @startDate
+				   AND D.ORGAN_ABOLISH_DATE <= @endDate)
+				)
+			 WHERE HISTORY.rnum = 1
+			   AND HISTORY.UPPER_ORGAN_CODE = @organCode
+		), CODE AS(
+			SELECT  C1.CODE AS classItemCode
+				   ,C1.CODE_NAME AS classItemName
+				   ,C2.CODE AS detailItemCode
+				   ,C2.CODE_NAME AS detailItemName
+				   ,C2.CODE1 AS dollarKind
+			  FROM LIONS_CODE C1
+			 INNER JOIN LIONS_CODE C2
+				ON C1.CODE1 = C2.GROUP_CODE
+			 WHERE C1.GROUP_CODE = '7000'
+		)
+		
+		 SELECT  OT.ORGAN_CODE AS clubCode
+				,dbo.FN_LIONS_ORGAN_NAME(OT.ORGAN_CODE) AS clubName
+				,C.classItemCode + ' ' + C.classItemName AS classItemName
+				,C.detailItemCode + ' ' + C.detailItemName AS detailItemName
+				,C.dollarKind
+		   FROM ORG_TREE OT
+		  CROSS JOIN CODE C
+		  ORDER BY  OT.ORGAN_CODE
+				   ,C.classItemCode
+				   ,C.detailItemCode 
+		]]>
+	</select>
+	
+	<delete id="lionsclubs.com.MM3.MM3_12.MM3_45.deleteOrganCodeImpost">
+		<include refid="lionsclubs.com.MM3.MM3_12.MM3_45.declare"/>
+		<![CDATA[
+	 	DELETE FROM LIONS_DISTRICT_MONEY_IMPOST
+	 	 WHERE ORGAN_CODE = #organCode#
+	 	   AND CLUB_CODE = #clubCode#
+	 	   AND CLASS_ITEM_CODE = #classItemCode#
+	 	   AND DETAIL_ITEM_CODE = #detailItemCode#
+	 	   AND GEN_DATE = #genDate#
+		]]>
+	</delete>
+	
+	<delete id="lionsclubs.com.MM3.MM3_12.MM3_45.deleteOrganCodePaymnet">
+		<include refid="lionsclubs.com.MM3.MM3_12.MM3_45.declare"/>
+		<![CDATA[
+		DELETE FROM LIONS_DISTRICT_MONEY_PAYMENT
+		 WHERE IDN_NO IN(
+		 	SELECT IDN_NO
+		 	  FROM LIONS_DISTRICT_MONEY_IMPOST
+		 	 WHERE ORGAN_CODE = #organCode#
+		 	   AND CLUB_CODE = #clubCode#
+		 	   AND CLASS_ITEM_CODE = #classItemCode#
+		 	   AND DETAIL_ITEM_CODE = #detailItemCode#
+		 	   AND GEN_DATE = #genDate#
+		 )
+		 ]]>
+	</delete>
+</sqlMap>

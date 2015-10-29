@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://www.ibatis.com/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="lionsclubs.com.SM1.SM1_1.SM1_02_A">
+
+	<typeAlias alias="SM1_02_AVO" type="lionsclubs.com.SM1.SM1_1.SM1_02_A.SM1_02_AVO"/>
+
+	<sql id="lionsclubs.com.SM1.SM1_1.SM1_02_A.selectQuery">
+		SELECT  MANAGE.MEMBER_NO AS memberNo
+			   ,dbo.FN_GetIdxDataLikeSplit(INFO.PATH_ABBR2,2,'/') AS complexName
+			   ,dbo.FN_GetIdxDataLikeSplit(INFO.PATH_ABBR2,3,'/') AS districtName
+			   ,dbo.FN_GetIdxDataLikeSplit(INFO.PATH_ABBR2,4,'/') AS sectorClubName
+			   ,INFO.CLUB_TITLE AS clubTitle
+			   ,MANAGE.AUTH_START_DATE AS authStartDate
+			   ,MANAGE.AUTH_END_DATE AS authEndDate
+			   ,INFO.NAME AS name
+			   ,MANAGE.AUTH_DESC AS authDesc
+		FROM LIONS_MORE_AUTH_MANAGE MANAGE
+		LEFT OUTER JOIN LIONS_MEMBER_INFO_VIEW INFO
+		ON MANAGE.MEMBER_NO = INFO.MEMBER_NO
+	</sql>
+	
+	<select id="lionsclubs.com.SM1.SM1_1.SM1_02_A.selectList" resultClass="SM1_02_AVO">
+		SELECT * FROM(
+			SELECT  ROW_NUMBER() OVER(ORDER BY memberNo) AS rnum
+				   ,COUNT(1)  OVER() AS totalRecordCount
+				   ,PAGING_WARP.*
+			  FROM(	
+					<include refid="lionsclubs.com.SM1.SM1_1.SM1_02_A.selectQuery"/>
+			) PAGING_WARP
+		) PAGING
+		 WHERE RNUM BETWEEN #firstIndex# + 1 AND #firstIndex# + #recordCountPerPage#					
+	</select>
+
+	<sql id="lionsclubs.com.SM1.SM1_1.SM1_02_A.memerSearchQuery">
+		SELECT * FROM(
+			SELECT  MEMBER_NO AS memberNo
+				   ,dbo.FN_GetIdxDataLikeSplit(PATH_ABBR2,2,'/') AS complexName
+				   ,dbo.FN_GetIdxDataLikeSplit(PATH_CODE,2,'/') AS complexCode
+				   ,dbo.FN_GetIdxDataLikeSplit(PATH_ABBR2,3,'/') AS districtName
+				   ,dbo.FN_GetIdxDataLikeSplit(PATH_CODE,3,'/') AS districtCode
+				   ,dbo.FN_GetIdxDataLikeSplit(PATH_ABBR2,4,'/') AS sectorClubName
+				   ,SECTOR_CLUB_CODE AS sectorClubCode
+				   ,CLUB_TITLE AS clubTitle
+				   ,NAME AS name
+			  FROM LIONS_MEMBER_INFO_VIEW
+		) WARP
+		 WHERE complexCode IS NOT NULL	
+		   AND memberNo NOT IN(
+		   		SELECT MEMBER_NO FROM LIONS_MORE_AUTH_MANAGE
+		   )
+		 <isNotEmpty prepend="AND" property="complexCode">
+		 	complexCode = #complexCode#
+		 </isNotEmpty>
+		 <isNotEmpty prepend="AND" property="districtCode">
+		 	districtCode = #districtCode#
+		 </isNotEmpty>
+		 <isNotEmpty prepend="AND" property="sectorClubCode">
+		 	sectorClubCode = #sectorClubCode#
+		 </isNotEmpty>
+		 <isNotEmpty prepend="AND" property="name">
+		 	name LIKE '%' + #name# + '%'
+		 </isNotEmpty>		 
+	</sql>
+
+	<select id="lionsclubs.com.SM1.SM1_1.SM1_02_A.memerSearchList" resultClass="SM1_02_AVO">
+		SELECT * FROM(
+			SELECT  ROW_NUMBER() OVER(ORDER BY memberNo) AS rnum
+				   ,COUNT(1)  OVER() AS totalRecordCount
+				   ,PAGING_WARP.*
+			  FROM(
+				<include refid="lionsclubs.com.SM1.SM1_1.SM1_02_A.memerSearchQuery"/>
+			) PAGING_WARP
+		) PAGING
+		 WHERE RNUM BETWEEN #firstIndex# + 1 AND #firstIndex# + #recordCountPerPage#
+	</select>
+	
+	
+	<insert id="lionsclubs.com.SM1.SM1_1.SM1_02_A.insert">
+		INSERT INTO LIONS_MORE_AUTH_MANAGE(
+			 MEMBER_NO
+			,AUTH_START_DATE
+			,AUTH_END_DATE
+			,AUTH_DESC
+			,INSERT_DATE
+			,INSERT_NAME
+			,UPDATE_DATE
+			,UPDATE_NAME
+		) VALUES (
+			 #memberNo#
+			,REPLACE(#authStartDate#, '.', '')
+			,REPLACE(#authEndDate#, '.', '')
+			,#authDesc#
+			,GETDATE()
+			,#insertName#
+			,GETDATE()
+			,#updateName#
+		)
+	</insert>
+	
+	<delete id="lionsclubs.com.SM1.SM1_1.SM1_02_A.delete">
+		DELETE FROM LIONS_MORE_AUTH_MANAGE WHERE MEMBER_NO = #memberNo#
+	</delete>
+</sqlMap>

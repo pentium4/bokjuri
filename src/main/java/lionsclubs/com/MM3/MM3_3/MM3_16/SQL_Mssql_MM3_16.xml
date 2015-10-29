@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://www.ibatis.com/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="lionsclubs.com.MM3.MM3_3.MM3_16">
+
+	<typeAlias alias="MM3_16VO" type="lionsclubs.com.MM3.MM3_3.MM3_16.MM3_16VO"/>
+	
+		<select id="lionsclubs.com.MM3.MM3_3.MM3_16.selectList" resultClass="java.util.HashMap" parameterClass="MM3_16VO">
+ 			<![CDATA[
+DECLARE @orgCode NVARCHAR(10)
+DECLARE @yearCode INT
+DECLARE @fromDate NVARCHAR(8)
+DECLARE @toDate NVARCHAR(8)
+
+SET @orgCode = #orgCode#;
+SET @yearCode = #thisYear#;
+SET @fromDate = CAST(@yearCode - 1 as NVARCHAR) + '0701';
+SET @toDate = CAST(@yearCode - 0 as NVARCHAR) + '0630';
+ 			
+WITH 
+ORG_TREE_TO AS ( /* 조직트리 */
+	SELECT
+		 A2.ORGAN_CODE
+		,A2.UPPER_ORGAN_CODE
+		,D.ORGAN_ABOLISH_DATE
+	FROM dbo.LIONS_ORGAN_CODE_HISTORY A2 
+	INNER JOIN dbo.LIONS_ORGAN_CODE D ON D.ORGAN_CODE = A2.ORGAN_CODE
+	WHERE D.SPOT_NIGHT != '' 
+		   AND (D.ORGAN_ABOLISH_DATE >= @fromDate OR D.ORGAN_ABOLISH_DATE = '')	
+		   AND A2.IDN_NO IN (
+				SELECT
+				MAX(B.IDN_NO) OVER(PARTITION BY B.ORGAN_CODE) as IDN_NO
+				FROM (
+					SELECT
+					ORGAN_CODE,
+					MAX(CHANGE_DATE) CHANGE_DATE
+					FROM dbo.LIONS_ORGAN_CODE_HISTORY
+					WHERE CHANGE_DATE BETWEEN @fromDate AND @toDate
+					GROUP BY ORGAN_CODE
+				) A
+				INNER JOIN dbo.LIONS_ORGAN_CODE_HISTORY B
+				ON B.ORGAN_CODE = A.ORGAN_CODE AND B.CHANGE_DATE = A.CHANGE_DATE
+		)
+),
+CLUB_CODE_TO AS ( /* 클럽코드  현재 */
+		SELECT
+			   A.ORGAN_CODE as LVL1_CODE
+			  ,B.ORGAN_CODE as LVL2_CODE
+			  ,C.ORGAN_CODE as LVL3_CODE
+			  ,D.ORGAN_CODE as LVL4_CODE
+			  ,D.ORGAN_ABOLISH_DATE as ORGAN_ABOLISH_DATE
+		FROM ORG_TREE_TO A
+		INNER JOIN ORG_TREE_TO B ON B.UPPER_ORGAN_CODE = A.ORGAN_CODE
+		INNER JOIN ORG_TREE_TO C ON C.UPPER_ORGAN_CODE = B.ORGAN_CODE
+		INNER JOIN ORG_TREE_TO D ON D.UPPER_ORGAN_CODE = C.ORGAN_CODE
+		WHERE C.ORGAN_CODE = @orgCode
+	),
+	CLUB_CODE_OUT AS (
+		select 
+			 LVL1_CODE
+			,LVL2_CODE
+			,LVL3_CODE
+			,LVL4_CODE
+		from CLUB_CODE_TO
+		where ORGAN_ABOLISH_DATE >= @fromDate AND ORGAN_ABOLISH_DATE < @toDate
+	),
+	
+MEMBER_LIST AS (  /*회원명단 - 클럽회장 리스트 */
+		SELECT
+			A.MEMBER_NO
+			,C.LVL4_CODE as ORGAN_CODE			/* 클럽코드 */
+		FROM dbo.LIONS_APPOINTMENT A
+		INNER JOIN CLUB_CODE_TO C ON C.LVL4_CODE = A.ORGAN_CODE
+		WHERE A.APP_KIND_CODE = '1000' AND A.APP_DESC_CODE = '1000' /* 클럽회장 */
+		AND (
+			(A.[START_DATE] >= @fromDate AND A.[START_DATE] <= @toDate  )
+		 OR (A.END_DATE   >= @fromDate AND A.END_DATE   <= @toDate  )
+		 OR (A.[START_DATE] <= @fromDate AND A.END_DATE   >= @fromDate)
+		 OR (A.[START_DATE] <= @toDate   AND A.END_DATE   >= @toDate  )
+		)
+),
+
+MEMBER_ORGAN_LIST AS ( /*회원명단 - 그룹바이 */
+	SELECT			
+		B.ORGAN_CODE as ORGAN_CODE,			
+		COUNT(DISTINCT B.MEMBER_NO) as MEMBER_CNT_TO
+	FROM (		
+		SELECT
+			MEMBER_NO
+			, ORGAN_CODE			/* 클럽코드 */
+		FROM MEMBER_LIST
+	) B
+	GROUP BY B.ORGAN_CODE	
+),
+
+	MEMBER_CNT_TO AS ( /*회원수 현재(현재회기) */
+		SELECT			
+			B.ORGAN_CODE as ORGAN_CODE,			
+			COUNT(DISTINCT B.MEMBER_NO) as MEMBER_CNT_TO
+		FROM (
+			SELECT
+				H.MEMBER_NO
+				, C.LVL4_CODE as ORGAN_CODE			/* 클럽코드 */
+			FROM dbo.LIONS_MEMBER_CLUB_HIST H
+			INNER JOIN CLUB_CODE_TO C ON C.LVL4_CODE = H.ORGAN_CODE
+			/* 클럽만 퇴회 처리되고 회원이 퇴회처리안된 회원은 카운트안되도록 처리 : 2014-11-24 */
+			LEFT OUTER JOIN CLUB_CODE_OUT O ON O.LVL4_CODE = C.LVL4_CODE 
+			WHERE H.[START_DATE] <= @toDate AND H.END_DATE > @toDate	
+			AND O.LVL4_CODE is null	
+		) B 
+		GROUP BY B.ORGAN_CODE			
+	),
+
+OUT_MEMBER AS ( /* 퇴회자 명단 */
+	SELECT
+		 A.MEMBER_NO
+		,C.ORGAN_CODE			
+		,A.APP_DESC_CODE 
+	FROM dbo.LIONS_APPOINTMENT A
+	INNER JOIN MEMBER_LIST C ON C.ORGAN_CODE = A.ORGAN_CODE and C.MEMBER_NO = A.MEMBER_NO
+	WHERE A.APP_KIND_CODE = '1050'
+	AND A.[START_DATE] BETWEEN @fromDate AND @toDate
+)
+
+SELECT
+	T.LVL4_CODE as orgCode
+	,(SELECT ISNULL(KO_NAME,'Not Club') FROM dbo.LIONS_ORGAN_CODE WHERE ORGAN_CODE=T.LVL4_CODE) as orgName
+	,(SELECT ISNULL(ORGAN_MEETING,'') FROM dbo.LIONS_ORGAN_CODE WHERE ORGAN_CODE=T.LVL4_CODE) as organMeeting
+	, ISNULL(N.MEMBER_CNT_TO,0) as memCnt
+	,(SELECT COUNT(MEMBER_NO) FROM OUT_MEMBER WHERE ORGAN_CODE=T.LVL4_CODE) as outCnt
+	]]>
+		<iterate property="outCode" conjunction="," prepend=",">		
+			<![CDATA[				 
+				 ISNULL([$outCode[]$],0) as [$outCode[]$]
+			]]>
+		</iterate>
+		<![CDATA[
+	
+FROM CLUB_CODE_TO T
+LEFT OUTER JOIN (
+	SELECT 
+		ORGAN_CODE
+		]]>
+			<iterate property="outCode" conjunction="," prepend=",">		
+				<![CDATA[				 
+					 [$outCode[]$]
+				]]>
+			</iterate>
+			<![CDATA[
+	from OUT_MEMBER X
+	PIVOT(COUNT(X.MEMBER_NO) FOR X.APP_DESC_CODE IN (
+			
+			]]>
+			<iterate property="outCode" conjunction="," >		
+				<![CDATA[				 
+					 [$outCode[]$]
+				]]>
+			</iterate>
+			<![CDATA[
+			
+	)) as PVT
+) Q  ON Q.ORGAN_CODE = T.LVL4_CODE
+LEFT OUTER JOIN MEMBER_CNT_TO N ON N.ORGAN_CODE = T.LVL4_CODE
+LEFT OUTER JOIN CLUB_CODE_OUT O ON O.LVL4_CODE = T.LVL4_CODE
+WHERE O.LVL4_CODE is null
+ORDER BY T.LVL4_CODE 
+		]]>
+ 		</select>	
+	
+</sqlMap>

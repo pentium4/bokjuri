@@ -1,0 +1,223 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://www.ibatis.com/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="lionsclubs.com.MM4.MM4_2.MM4_11">
+	<typeAlias alias="MM4_11VO_PARAM" type="lionsclubs.com.MM4.MM4_2.MM4_11.MM4_11VO_PARAM"/>
+	<typeAlias alias="MM4_11VO" type="lionsclubs.com.MM4.MM4_2.MM4_11.MM4_11VO"/>
+	<sql id="lionsclubs.com.MM4.MM4_2.MM4_11.commonSql">
+	<![CDATA[
+
+DECLARE @orgCode NVARCHAR(10)
+DECLARE @yearCode INT
+DECLARE @fromDate NVARCHAR(8)
+DECLARE @toDate   NVARCHAR(8)
+
+SET @orgCode  = #orgCode#;
+SET @yearCode = #yearCode#;
+SET @fromDate = CAST(@yearCode - 1 as NVARCHAR(4)) + '0701';
+SET @toDate   = CAST(@yearCode - 0 as NVARCHAR(4)) + '0630';
+WITH 
+ORG_TREE AS ( /* 조직트리 */
+		SELECT
+			 A2.ORGAN_CODE
+			,A2.UPPER_ORGAN_CODE
+		FROM dbo.LIONS_ORGAN_CODE_HISTORY A2
+		INNER JOIN dbo.LIONS_ORGAN_CODE D ON D.ORGAN_CODE = A2.ORGAN_CODE
+		WHERE D.SPOT_NIGHT != '' 
+			   AND (D.ORGAN_ABOLISH_DATE >= @fromDate OR D.ORGAN_ABOLISH_DATE = '')	
+			   AND A2.IDN_NO IN (
+					SELECT
+					MAX(B.IDN_NO) OVER(PARTITION BY B.ORGAN_CODE) as IDN_NO
+					FROM (
+						SELECT
+						ORGAN_CODE,
+						MAX(CHANGE_DATE) CHANGE_DATE
+						FROM dbo.LIONS_ORGAN_CODE_HISTORY
+						WHERE CHANGE_DATE BETWEEN @fromDate AND @toDate
+						GROUP BY ORGAN_CODE
+					) A
+					INNER JOIN dbo.LIONS_ORGAN_CODE_HISTORY B
+					ON B.ORGAN_CODE = A.ORGAN_CODE AND B.CHANGE_DATE = A.CHANGE_DATE
+			)
+),
+BASE_MEMBER_INFO AS (
+SELECT
+	  B.MEMBER_NO
+	 ,SUM(B.PAYMENT) as PAYMENT
+	 ,A.ORGAN_CODE
+FROM LIONS_MONEY_MASTER as A
+INNER JOIN LIONS_MONEY_PAYMENT as B on B.IDN_NO=A.IDN_NO
+WHERE 
+A.CLASS_ITEM_CODE='1030' AND A.DETAIL_ITEM_CODE = '1000'
+AND PAYMENT_DATE BETWEEN @fromDate AND @toDate
+GROUP BY B.MEMBER_NO,A.ORGAN_CODE
+)
+,
+MEMBER_START_DATA AS (
+SELECT
+	 MEMBER_NO 
+	,MAX(START_DATE) as START_DATE
+FROM dbo.LIONS_APPOINTMENT 
+WHERE 
+	APP_KIND_CODE = '1040'
+	]]>
+	<isEqual property="lvl" compareValue="1">
+	<![CDATA[
+		AND APP_DESC_CODE IN('1000', '1020')
+	]]>
+	</isEqual>
+	<isEqual property="lvl" compareValue="2">
+	<![CDATA[
+		AND APP_DESC_CODE IN('1000', '1020')
+	]]>
+	</isEqual>
+	<isEqual property="lvl" compareValue="3">
+	<![CDATA[
+		AND APP_DESC_CODE IN('1000', '1020', '1030')
+	]]>
+	</isEqual>
+	<isEqual property="lvl" compareValue="4">
+	<![CDATA[
+		AND APP_DESC_CODE IN('1000', '1020', '1030')
+	]]>
+	</isEqual>
+	<![CDATA[ 
+GROUP BY MEMBER_NO
+)
+,
+MEMBER_OUT_DATA AS (
+SELECT
+	 MEMBER_NO 
+	,MAX(START_DATE) as START_DATE
+FROM dbo.LIONS_APPOINTMENT 
+WHERE 
+	APP_KIND_CODE = '1050' 
+GROUP BY MEMBER_NO
+)
+]]>
+</sql>
+ 	<select id="lionsclubs.com.MM4.MM4_2.MM4_11.selectList" resultClass="MM4_11VO" parameterClass="MM4_11VO_PARAM">
+ 	<include refid="lionsclubs.com.MM4.MM4_2.MM4_11.commonSql" />
+	<![CDATA[
+
+SELECT
+     A.PAYMENT as payMent
+	,SUBSTRING(G.START_DATE,1,4) + '.' + SUBSTRING(G.START_DATE,5,2) + '.' + SUBSTRING(G.START_DATE,7,2) as inDate
+	,SUBSTRING(H.START_DATE,1,4) + '.' + SUBSTRING(H.START_DATE,5,2) + '.' + SUBSTRING(H.START_DATE,7,2) as outDate
+	,I.ORGAN_CODE as orgCode
+	,I.KO_ABBR	as orgName
+	,J.ORGAN_CODE as clubCode
+	,J.KO_ABBR	as clubName
+	,K.NAME	as memName
+	,STUFF((
+		 SELECT ',' + (
+		 			SELECT CODE_NAME FROM LIONS_CODE 
+					 WHERE CODE = DA.APP_DESC_CODE
+					   AND GROUP_CODE in (
+									case when DA.APP_KIND_CODE='1000' then '2740'
+										 when DA.APP_KIND_CODE='1010' then '2760'
+										 when DA.APP_KIND_CODE='1020' then '2780'
+										 when DA.APP_KIND_CODE='1030' then '2800'
+										 else '2740'
+										 end )
+		 		)
+		   FROM LIONS_APPOINTMENT AS DA 
+		  WHERE DA.MEMBER_NO = A.MEMBER_NO 
+			AND DA.START_DATE BETWEEN @fromDate AND @toDate
+			AND DA.END_DATE BETWEEN @fromDate AND @toDate	
+		  ORDER BY  (CASE WHEN DA.APP_DESC_CODE IS NULL THEN 'Z' ELSE DA.APP_DESC_CODE END)
+					,DA.START_DATE
+		    FOR XML PATH('')
+	), 1, 1, '') AS posName	/* 지구직책명 */
+FROM BASE_MEMBER_INFO A
+INNER JOIN ORG_TREE C
+ON C.ORGAN_CODE = A.ORGAN_CODE
+	]]>
+	<isEqual property="lvl" compareValue="4">
+	<![CDATA[
+		 AND C.ORGAN_CODE = @orgCode
+	]]>
+	</isEqual>
+	<![CDATA[
+INNER JOIN ORG_TREE D
+ON D.ORGAN_CODE = C.UPPER_ORGAN_CODE
+	]]>
+	<isEqual property="lvl" compareValue="3">
+	<![CDATA[
+		 AND D.ORGAN_CODE = @orgCode
+	]]>
+	</isEqual>
+	<![CDATA[
+INNER JOIN ORG_TREE E
+ON E.ORGAN_CODE = D .UPPER_ORGAN_CODE
+	]]>
+	<isEqual property="lvl" compareValue="2">
+	<![CDATA[
+		 AND E.ORGAN_CODE = @orgCode
+	]]>
+	</isEqual>
+	<![CDATA[
+INNER JOIN ORG_TREE F
+ON F.ORGAN_CODE = E.UPPER_ORGAN_CODE
+	]]>
+	<isEqual property="lvl" compareValue="1">
+	<![CDATA[
+		 AND F.ORGAN_CODE = @orgCode
+	]]>
+	</isEqual>
+	<![CDATA[
+INNER JOIN MEMBER_START_DATA G
+ON G.MEMBER_NO = A.MEMBER_NO
+LEFT OUTER JOIN MEMBER_OUT_DATA H
+ON H.MEMBER_NO = A.MEMBER_NO
+INNER JOIN dbo.LIONS_ORGAN_CODE I 
+	]]>
+	<isEqual property="lvl" compareValue="4">
+	<![CDATA[
+		ON I.ORGAN_CODE = A.ORGAN_CODE
+	]]>
+	</isEqual>
+	<isEqual property="lvl" compareValue="3">
+	<![CDATA[
+		ON I.ORGAN_CODE = C.ORGAN_CODE
+	]]>
+	</isEqual>
+	<isEqual property="lvl" compareValue="2">
+	<![CDATA[
+		ON I.ORGAN_CODE = D.ORGAN_CODE
+	]]>
+	</isEqual>
+	<isEqual property="lvl" compareValue="1">
+	<![CDATA[
+		ON I.ORGAN_CODE = E.ORGAN_CODE
+	]]>
+	</isEqual>
+	<![CDATA[
+INNER JOIN dbo.LIONS_ORGAN_CODE J 
+ON J.ORGAN_CODE = A.ORGAN_CODE
+INNER JOIN dbo.LIONS_MEMBER_INFO K
+ON K.MEMBER_NO = A.MEMBER_NO
+ORDER BY	
+	]]>
+	<isEqual property="lvl" compareValue="3">
+	<![CDATA[
+		C.ORGAN_CODE,
+	]]>
+	</isEqual>
+	<isEqual property="lvl" compareValue="2">
+	<![CDATA[
+		D.ORGAN_CODE,
+	]]>
+	</isEqual>
+	<isEqual property="lvl" compareValue="1">
+	<![CDATA[
+		E.ORGAN_CODE,
+	]]>
+	</isEqual>
+	
+	<![CDATA[
+	 A.MEMBER_NO
+	]]>
+</select>
+
+</sqlMap>

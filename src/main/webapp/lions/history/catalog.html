@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+<head>
+  	<title>라이온스클럽</title>
+  	<meta charset="utf-8">
+  	<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  	<meta name="viewport" content="width=device-width">
+	<script type="text/javascript" src="/js/lionsclubs/jquery-1.11.2.min.js"></script>
+	<link rel="stylesheet" href="/lions/css/fotorama.css" type="text/css" />
+	<script type="text/javascript" src="/lions/js/fotorama.js"></script>
+	<style type="text/css">
+		<!--
+		.top_log 		{ float:left; width:400px; height:65px; }
+		.top_catalog	{ float:left; width:300px; height:65px; line-height:65px; vertical-align:middle; font-family:"돋움", "돋움체"; font-size:12px; color:white }
+		.top_nav 		{ float:left; width:300px; height:65px; text-align:center; }
+		.txt_nav		{ text-align:center; border:0px; font-weight:bold; background:url('/lions/images/page_bg.gif') no-repeat; width:85px; height:22px; color:white; }
+		.fotorama__arr { width:31px; height:84px }
+		.fotorama__arr--prev { background:url(/lions/images/left.png) no-repeat; }
+		.fotorama__arr--next { background:url(/lions/images/right.png) no-repeat; }
+	</style>
+	<script>
+		// 카달로그의 이미지는 catalog밑에 폴더를 만든후 이미지를 넣어주세요.
+		// 카달로그 폴더 밑에 이미지는 꼭 JPG(대문자) 형식으로 넣어주세요
+		// 카달로그 폴더의 이미지수를 입력
+		// ex> {"folder":"폴더명","page":"페이지수","desc":"셀렉트박스에 보여줄 내용"}
+		var catalog = [
+			 {"folder":"20140918", "page":"184", "desc":"2014년9월18일"}
+			,{"folder":"20150529", "page":"125", "desc":"2015년5월29일"}
+		];
+		
+		var maxPage = 0;
+		
+		$(document).ready(function() {
+			var resultData = [];
+			for(i=0;i<catalog.length;i++){
+				resultData.push("<option value='"+catalog[i].folder+"'>"+catalog[i].desc+"</option>");
+			}
+			$("[name=sel_catalog]").html("");
+			$("[name=sel_catalog]").append(resultData.join(''));
+			$("[name=sel_catalog]").change( function(){ chage_fotorama(); } );
+			
+			chage_fotorama();
+			
+			var $fotoramaDiv = $('#fotorama').fotorama();
+			var fotorama = $fotoramaDiv.data('fotorama');
+			
+			$('.fotorama').on('fotorama:show', function (e, data, extra) { chage_txtNav( data.activeIndex*1+1 ); })
+			
+			fotorama.resize({
+			  width: $('#fotorama').width(),
+			  height: $('#fotorama').height()-140
+			}, 500);
+			fotorama.startAutoplay(5000);
+			
+			$("#btn_pageFirst").click( function(){ fotorama.show('<<'); } );
+			$("#btn_pageBefore").click( function(){ fotorama.show('<'); } );
+			$("#btn_pageAfter").click( function(){ fotorama.show('>'); } );
+			$("#btn_pageLast").click( function(){ fotorama.show('>>'); } );
+			
+       });
+		
+		function chage_fotorama() {
+			var sel_catalog = $("select[name=sel_catalog]").val();
+			var folder = sel_catalog;
+			var page  = 0;
+			
+			for(i=0;i<catalog.length;i++){
+				if(catalog[i].folder==sel_catalog){
+					page = catalog[i].page*1;
+				}
+			}
+			
+			var resultData = [];
+			resultData.push({img:'./catalog/'+folder+'/'+i+'.JPG',thumb:''})
+			for(i=1;i<=page;i++){
+				if(i==2){
+					resultData.push({video:"http://www.youtube.com/watch?v=EPgJ51hBEDc",img:'/lions/images/KOLPING.JPG',thumb:''})
+					resultData.push({video:"http://www.youtube.com/watch?v=mWzK4stCBw0",img:'/lions/images/BTR.JPG',thumb:''})
+				}
+				resultData.push({img:'./catalog/'+folder+'/'+i+'.JPG',thumb:''})
+			}
+			
+			var $fotoramaDiv = $('#fotorama').fotorama();
+			var fotorama = $fotoramaDiv.data('fotorama');
+			fotorama.load(resultData);
+			fotorama.shift();
+			
+			maxPage = page+2;
+			chage_txtNav(1);
+		}
+		
+		function chage_txtNav(page) {
+			$("#txt_nav").val(page+"/"+maxPage);
+		}
+   </script>
+</head>
+<body style="margin: 0; background-color:Black;">
+	<div style="width:100%; height:65px; background:url('/lions/images/bg.jpg') repeat-x; margin-bottom:5px">
+		<div style="width:1000px;">
+			<div class="top_log">
+				<img src="/lions/images/logo.gif"border="0" align="middle">
+			</div>
+			<div class="top_catalog">
+				카달로그
+				<select name="sel_catalog">
+				</select>
+			</div>
+			<div class="top_nav">
+				<table border=0 cellpadding=0 cellspacing=0 style="height:68px; vertical-align:middle; ">
+				<tr>
+					<td><img title="처음" 		id="btn_pageFirst"		src="/lions/images/btn_last_l.gif" style="cursor:pointer;"></td>
+					<td><img title="이전"		id="btn_pageBefore"  	src="/lions/images/btn_l.gif" style="cursor:pointer"></td>
+					<td>
+						<input type='text' id="txt_nav" class="txt_nav" value="1" readonly>
+					</td>
+					<td><img title="다음"		id="btn_pageAfter"		src="/lions/images/btn_r.gif" 			style="cursor:pointer;"></td>
+					<td><img title="마지막"	id="btn_pageLast"		src="/lions/images/btn_last_r.gif" style="cursor:pointer"></td>
+				</tr>
+				</table>
+			</div>
+		</div>
+	</div>
+	<div class="fotorama" id="fotorama" data-height="100%" data-width="100%" data-max-width="100%" data-nav="thumbs" data-auto="false"></div>
+	
+</body>
+</html>

@@ -1,0 +1,369 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://www.ibatis.com/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="lionsclubs.com.MM3.MM3_11.MM3_42">
+	<typeAlias alias="MM3_42VO" type="lionsclubs.com.MM3.MM3_11.MM3_42.MM3_42VO"/>
+
+	<sql id="lionsclubs.com.MM3.MM3_11.MM3_42.declare">
+		<![CDATA[
+		DECLARE @organCode NVARCHAR(6);
+		DECLARE @sessionYear INT;
+		DECLARE @startDate NVARCHAR(8);
+		DECLARE @endDate NVARCHAR(8);
+		DECLARE @income BIGINT;	/* 수입 합계 */
+		DECLARE @expend BIGINT;	/* 지출 합계 */
+		DECLARE @accountKind NVARCHAR(4);	/* 회계구분 */
+		
+		SET @organCode = #organCode#;
+		SET @sessionYear = #sessionYear#;
+		SET @startDate = CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701';	
+		SET @endDate = CAST(@sessionYear AS NVARCHAR(4)) + '0630';
+		SET @accountKind = #accountKind#;
+		]]>
+	</sql>
+	
+	<sql id="lionsclubs.com.MM3.MM3_11.MM3_42.with">
+		WITH INCOME AS (
+			SELECT  ROW_NUMBER() OVER(
+						ORDER BY  R.incomeType
+							     ,dbo.FN_LIONS_CODE_ORD('6600', R.incomeClassItemCode)
+								 ,dbo.FN_LIONS_DETAILCODE_ORD('6600', R.incomeClassItemCode, R.incomeDetailItemCode)
+					) AS rnum
+				   ,R.incomeType
+				   ,R.incomeClassItemCode
+				   ,R.incomeDetailItemCode
+				   ,MIN(R.incomeDetailItemName) AS incomeDetailItemName
+				   ,SUM(R.incomeBudgetAmount) AS incomeBudgetAmount
+				   ,SUM(R.incomeRealAmount) AS incomeRealAmount
+				   ,SUM(ISNULL(R.incomeRealAmount, 0)) - SUM(ISNULL(R.incomeBudgetAmount, 0)) AS incomeBal
+				   ,MIN(R.accountKind) AS accountKind
+			  FROM(
+				/* 지구 수입예산/실적 */
+				SELECT  'A' AS incomeType
+					   ,DIE.CLASS_ITEM_CODE AS incomeClassItemCode
+					   ,DIE.DETAIL_ITEM_CODE AS incomeDetailItemCode
+					   ,dbo.FN_LIONS_DETAILCODE_NAME('7000', DIE.CLASS_ITEM_CODE, DIE.DETAIL_ITEM_CODE) AS incomeDetailItemName
+					   ,CASE WHEN DIE.DIVISION_CODE = '1020' 
+							 THEN DIE.UNIT * DIE.ATAND_AMOUNT 
+							  END AS incomeBudgetAmount
+					   ,CASE WHEN DIE.DIVISION_CODE = '1030' 
+							 THEN DIE.UNIT * ATAND_AMOUNT 
+							  END AS incomeRealAmount
+					   ,C.CODE3 AS accountKind
+				  FROM LIONS_DISTRICT_INCOME_EXPEND DIE
+				 INNER JOIN LIONS_CODE C
+				    ON C.GROUP_CODE = (SELECT CODE1 FROM LIONS_CODE WHERE GROUP_CODE = '7000' AND CODE = DIE.CLASS_ITEM_CODE)
+				   AND C.CODE = DIE.DETAIL_ITEM_CODE				  
+				 WHERE DIE.DIVISION_CODE IN('1020', '1030')
+				   AND DIE.ORGAN_CODE = @organCode
+				<![CDATA[
+				   AND DIE.INCOME_EXPEND_DATE >= @startDate
+				   AND DIE.INCOME_EXPEND_DATE <= @endDate
+				]]>
+				   
+				 UNION ALL   
+		
+				/* 지구납부금 */
+				SELECT  'A' AS incomeType
+					   ,MIN(DMI.CLASS_ITEM_CODE) AS incomeClassItemCode
+					   ,MIN(DMI.DETAIL_ITEM_CODE) AS incomeDetailItemCode
+					   ,dbo.FN_LIONS_DETAILCODE_NAME('7000', MIN(DMI.CLASS_ITEM_CODE), MIN(DMI.DETAIL_ITEM_CODE)) AS incomeDetailItemName
+					   ,0 AS incomeBudgetAmount
+					   ,SUM(DMP.PAYMENT) AS incomeRealAmount
+					   ,MIN(C.CODE3) AS accountKind
+				  FROM LIONS_DISTRICT_MONEY_IMPOST DMI
+				 INNER JOIN LIONS_DISTRICT_MONEY_PAYMENT DMP
+					ON DMI.IDN_NO = DMP.IDN_NO
+				 INNER JOIN LIONS_CODE C
+				    ON C.GROUP_CODE = (SELECT CODE1 FROM LIONS_CODE WHERE GROUP_CODE = '7000' AND CODE = DMI.CLASS_ITEM_CODE)
+				   AND C.CODE = DMI.DETAIL_ITEM_CODE					
+				 WHERE (DMP.PAYMENT_DEFECT != 'Y' OR DMP.PAYMENT_DEFECT IS NULL)		/*결손금*/
+				   AND DMI.ORGAN_CODE = @organCode
+				<![CDATA[
+				   AND DMI.GEN_DATE >= @startDate
+				   AND DMI.GEN_DATE <= @endDate
+				]]>
+				 GROUP BY DMI.IDN_NO
+
+				 UNION ALL
+		
+				/* 지구 임원분담금 */ 
+				SELECT  'A' AS expendType
+					   ,'1060' AS expendClassItemCode
+					   ,(SELECT CODE FROM LIONS_CODE WHERE GROUP_CODE = '7150' AND CODE2 = MI.TARGET_POSITION_CODE) AS expendDetailItemCode
+					   ,dbo.FN_LIONS_DETAILCODE_NAME('7000', '1060', (SELECT CODE FROM LIONS_CODE WHERE GROUP_CODE = '7150' AND CODE2 = MI.TARGET_POSITION_CODE)) AS expendDetailItemName
+					   ,0 AS budgetAmount		/*예산정보는 LIONS_expend_EXPEND테이블에서 가져와서 GROUP BY*/
+					   ,MP.PAYMENT AS realAmount
+					   ,C.CODE3 AS accountKind
+				  FROM LIONS_MONEY_MASTER MM
+				 INNER JOIN LIONS_MONEY_IMPOST MI
+					ON MM.IDN_NO = MI.IDN_NO
+				  LEFT OUTER JOIN LIONS_MONEY_PAYMENT MP
+					ON MM.IDN_NO = MP.IDN_NO
+				 INNER JOIN LIONS_CODE C
+				    ON C.GROUP_CODE = '7150'
+				   AND C.CODE = (SELECT CODE FROM LIONS_CODE WHERE GROUP_CODE = '7150' AND CODE2 = MI.TARGET_POSITION_CODE)						
+				 WHERE MP.PAYMENT_DEFECT != 'Y'		/*결손금*/
+				   AND MM.ORGAN_CODE IN (
+						SELECT ORGAN_CODE 
+						  FROM dbo.FN_LIONS_SUB_TREE_YEAR_ORGAN(@sessionYear, @organCode) 
+						 WHERE LVL = 2  
+				   )
+				<![CDATA[
+				   AND MP.PAYMENT_DATE >= @startDate
+				   AND MP.PAYMENT_DATE <= @endDate
+				]]>
+				   AND MM.CLASS_ITEM_CODE = '1040'
+				   AND MM.DETAIL_ITEM_CODE = '1000'			
+			  ) R
+			 <dynamic prepend="WHERE">
+			 	<isNotEmpty prepend="AND" property="accountKind">
+		 			R.accountKind = @accountKind
+			 	</isNotEmpty>
+			 </dynamic>
+			 GROUP BY  R.incomeType
+					  ,R.incomeClassItemCode
+					  ,R.incomeDetailItemCode
+		), EXPEND AS (
+			SELECT  ROW_NUMBER() OVER(ORDER BY R.expendType, R.expendClassItemCode, R.expendDetailItemCode) AS rnum
+				   ,R.expendType
+				   ,R.expendClassItemCode
+				   ,R.expendDetailItemCode
+				   ,MIN(R.expendDetailItemName) AS expendDetailItemName
+				   ,SUM(R.expendBudgetAmount) AS expendBudgetAmount
+				   ,SUM(R.expendRealAmount) AS expendRealAmount
+				   ,SUM(ISNULL(R.expendBudgetAmount, 0)) - SUM(ISNULL(R.expendRealAmount, 0)) AS expendBal
+			  FROM(
+				/* 지구 지출예산/실적 */
+				SELECT  'A' AS expendType
+					   ,DIE.CLASS_ITEM_CODE AS expendClassItemCode
+					   ,DIE.DETAIL_ITEM_CODE AS expendDetailItemCode
+					   ,dbo.FN_LIONS_DETAILCODE_NAME('6600', DIE.CLASS_ITEM_CODE, DIE.DETAIL_ITEM_CODE) AS expendDetailItemName
+					   ,CASE WHEN DIE.DIVISION_CODE = '1000' 
+							 THEN DIE.UNIT * DIE.ATAND_AMOUNT 
+							  END AS expendBudgetAmount
+					   ,CASE WHEN DIE.DIVISION_CODE = '1010' 
+							 THEN DIE.UNIT * DIE.ATAND_AMOUNT 
+							  END AS expendRealAmount
+					   ,C.CODE3 AS accountKind
+				  FROM LIONS_DISTRICT_INCOME_EXPEND DIE
+				 INNER JOIN LIONS_CODE C
+				    ON C.GROUP_CODE = (SELECT CODE1 FROM LIONS_CODE WHERE GROUP_CODE = '6600' AND CODE = DIE.CLASS_ITEM_CODE)
+				   AND C.CODE = DIE.DETAIL_ITEM_CODE
+				 WHERE DIE.DIVISION_CODE IN('1000', '1010')
+				   AND DIE.ORGAN_CODE = @organCode
+				<![CDATA[
+				   AND DIE.INCOME_EXPEND_DATE >= @startDate
+				   AND DIE.INCOME_EXPEND_DATE <= @endDate
+				]]>
+			  ) R
+			 <dynamic prepend="WHERE">
+			 	<isNotEmpty prepend="AND" property="accountKind">
+		 			R.accountKind = @accountKind
+			 	</isNotEmpty>
+			 </dynamic>
+			 GROUP BY  R.expendType
+					  ,R.expendClassItemCode
+					  ,R.expendDetailItemCode
+		)
+	</sql>
+	
+	<select id="lionsclubs.com.MM3.MM3_11.MM3_42.MM3_42" resultClass="MM3_42VO">
+		<include refid="lionsclubs.com.MM3.MM3_11.MM3_42.declare" />
+		<include refid="lionsclubs.com.MM3.MM3_11.MM3_42.with" />
+		
+		SELECT  I.incomeType
+			   ,I.incomeClassItemCode
+			   ,I.incomeDetailItemCode
+			   ,I.incomeDetailItemName
+			   ,I.incomeBudgetAmount
+			   ,I.incomeRealAmount
+			   ,I.incomeBal
+			   ,E.expendType
+			   ,E.expendClassItemCode
+			   ,E.expendDetailItemCode
+			   ,E.expendDetailItemName
+			   ,E.expendBudgetAmount
+			   ,E.expendRealAmount
+			   ,E.expendBal
+		  FROM INCOME I
+		  FULL OUTER JOIN EXPEND E
+		    ON I.rnum = E.rnum
+	</select>
+	
+	<select id="lionsclubs.com.MM3.MM3_11.MM3_42.amountSum" resultClass="MM3_42VO">
+		<include refid="lionsclubs.com.MM3.MM3_11.MM3_42.declare" />
+		<include refid="lionsclubs.com.MM3.MM3_11.MM3_42.with" />
+		
+		SELECT  SUM(I.incomeBudgetAmount) AS incomeBudgetAmount
+			   ,SUM(I.incomeRealAmount) AS incomeRealAmount
+			   ,SUM(I.incomeBal) AS incomeBal
+			   ,SUM(E.expendBudgetAmount) AS expendBudgetAmount
+			   ,SUM(E.expendRealAmount) AS expendRealAmount
+			   ,SUM(E.expendBal) AS expendBal
+		  FROM INCOME I
+		  FULL OUTER JOIN EXPEND E
+		    ON I.rnum = E.rnum
+	</select>
+	
+	<select id="lionsclubs.com.MM3.MM3_11.MM3_42.objectDistrictCalculate" resultClass="MM3_42VO">
+		<include refid="lionsclubs.com.MM3.MM3_11.MM3_42.declare" />
+
+		SELECT  ORGAN_CODE AS organCode	/* 지구코드 */
+			   ,SESSION_YEAR AS sessionYear	/* 회기년도 */
+			   ,PREV_SESSION_YEAR_AMOUNT AS prevSessionYearAmount	/* 전년도이월금 */
+			   ,CONFIRM_DATE AS confirmDate	/* 정산일 */
+			   ,CONFIRM_YN AS confirmYn	/* 정산여부 */
+			   ,CONFIRM_LOCK_DATE AS confirmLockDate	/* 정산확정일 */
+			   ,CONFIRM_LOCK_YN AS confirmLockYn	/* 정산확정여부 */
+			   ,CONFIRM_COUNT AS confirmCount	/* 정산횟수 */
+			   ,INSERT_DATE AS insertDate	/* 생성일자 */
+			   ,INSERT_NAME AS insertName	/* 생성자 */
+			   ,UPDATE_DATE AS updateDate	/* 수정일자 */
+			   ,UPDATE_NAME AS updateName	/* 수정자 */
+		  FROM LIONS_DISTRICT_CALCULATE
+		 WHERE ORGAN_CODE = @organCode
+		   AND SESSION_YEAR = @sessionYear
+	</select>
+	
+	<update id="lionsclubs.com.MM3.MM3_11.MM3_42.saveDistrictCalculateConfirm">
+		<include refid="lionsclubs.com.MM3.MM3_11.MM3_42.declare" />
+		
+		<![CDATA[
+		/* 수입합계 */
+		SET @income = (
+			SELECT SUM(R.incomeAmount) AS incomeAmount
+			  FROM(
+				SELECT PREV_SESSION_YEAR_AMOUNT AS incomeAmount
+				  FROM LIONS_DISTRICT_CALCULATE
+				 WHERE SESSION_YEAR = (@sessionYear - 1)
+				 
+				 UNION ALL
+				 			  
+				/* 지구 수입예산/실적 */
+				SELECT UNIT * ATAND_AMOUNT AS incomeAmount
+				  FROM LIONS_DISTRICT_INCOME_EXPEND
+				 WHERE DIVISION_CODE = '1030'
+				   AND ORGAN_CODE = @organCode
+				   AND INCOME_EXPEND_DATE >= @startDate
+				   AND INCOME_EXPEND_DATE <= @endDate
+				   
+				 UNION ALL   
+		
+				/* 지구납부금 */
+				SELECT SUM(DMP.PAYMENT) AS incomeAmount
+				  FROM LIONS_DISTRICT_MONEY_IMPOST DMI
+				 INNER JOIN LIONS_DISTRICT_MONEY_PAYMENT DMP
+					ON DMI.IDN_NO = DMP.IDN_NO
+				 WHERE (DMP.PAYMENT_DEFECT != 'Y' OR DMP.PAYMENT_DEFECT IS NULL)		/*결손금*/
+				   AND DMI.ORGAN_CODE = @organCode
+				   AND DMI.GEN_DATE >= @startDate
+				   AND DMI.GEN_DATE <= @endDate
+				 GROUP BY DMI.IDN_NO
+
+				 UNION ALL
+		
+				/* 지구 임원분담금 */ 
+				SELECT MP.PAYMENT AS incomeAmount
+				  FROM LIONS_MONEY_MASTER MM
+				 INNER JOIN LIONS_MONEY_IMPOST MI
+					ON MM.IDN_NO = MI.IDN_NO
+				  LEFT OUTER JOIN LIONS_MONEY_PAYMENT MP
+					ON MM.IDN_NO = MP.IDN_NO
+				 WHERE MP.PAYMENT_DEFECT != 'Y'		/*결손금*/
+				   AND MM.ORGAN_CODE IN (
+						SELECT ORGAN_CODE 
+						  FROM dbo.FN_LIONS_SUB_TREE_YEAR_ORGAN(@sessionYear, @organCode) 
+						 WHERE LVL = 2  
+				   )
+				   AND MP.PAYMENT_DATE >= @startDate
+				   AND MP.PAYMENT_DATE <= @endDate
+				   AND MM.CLASS_ITEM_CODE = '1040'
+				   AND MM.DETAIL_ITEM_CODE = '1000'			
+			  ) R
+		)
+		/* 지출합계 */
+		SET @expend = (
+			/* 지구 지출예산/실적 */
+			SELECT SUM(UNIT * ATAND_AMOUNT) AS expendAmount
+			  FROM LIONS_DISTRICT_INCOME_EXPEND
+			 WHERE DIVISION_CODE = '1010'
+			   AND ORGAN_CODE = @organCode
+			   AND INCOME_EXPEND_DATE >= @startDate
+			   AND INCOME_EXPEND_DATE <= @endDate
+		);
+		]]>
+		
+		MERGE LIONS_DISTRICT_CALCULATE DC
+     	USING (SELECT @organCode AS organCode, @sessionYear AS sessionYear) S
+		   ON DC.ORGAN_CODE	= S.organCode
+		  AND DC.SESSION_YEAR = S.sessionYear
+	     WHEN NOT MATCHED BY TARGET THEN		
+			INSERT (
+				 ORGAN_CODE	/* 조직코드 */
+				,SESSION_YEAR
+				,PREV_SESSION_YEAR_AMOUNT
+				,CONFIRM_DATE
+				,CONFIRM_YN
+				,CONFIRM_COUNT
+				,INSERT_DATE	/* 생성일자 */
+				,INSERT_NAME	/* 생성자 */
+				,UPDATE_DATE	/* 수정일자 */
+				,UPDATE_NAME	/* 수정자 */
+			) VALUES (
+				 @organCode	/* 조직코드 */
+				,@sessionYear
+				,@income - @expend
+				,CONVERT(CHAR(8), GETDATE(), 112)
+				,'Y'
+				,'1'
+				,GETDATE()	/* 생성일자 */
+				,#insertName#	/* 생성자 */
+				,GETDATE()	/* 수정일자 */
+				,#updateName#	/* 수정자 */			
+			)
+		 WHEN MATCHED THEN
+		 	UPDATE 
+		 	   SET  PREV_SESSION_YEAR_AMOUNT = @income - @expend
+		 	   	   ,CONFIRM_DATE = CONVERT(CHAR(8), GETDATE(), 112)
+		 	   	   ,CONFIRM_YN = 'Y'
+		 	   	   ,CONFIRM_COUNT = CONFIRM_COUNT + 1
+		 	   	   ,UPDATE_DATE = GETDATE()
+		 	   	   ,UPDATE_NAME = #updateName#;
+	</update>
+
+	<update id="lionsclubs.com.MM3.MM3_11.MM3_42.updateDistrictCalculateConfirmCancel">
+		<include refid="lionsclubs.com.MM3.MM3_11.MM3_42.declare" />
+		
+		UPDATE LIONS_DISTRICT_CALCULATE
+	 	   SET  CONFIRM_YN = 'N'
+	 	   	   ,UPDATE_DATE = GETDATE()
+	 	   	   ,UPDATE_NAME = #updateName#
+		 WHERE ORGAN_CODE = @organCode
+		   AND SESSION_YEAR = @sessionYear	 	   	   
+	</update>
+
+	<update id="lionsclubs.com.MM3.MM3_11.MM3_42.updateDistrictCalculateConfirmLock">
+		<include refid="lionsclubs.com.MM3.MM3_11.MM3_42.declare" />
+		
+		UPDATE LIONS_DISTRICT_CALCULATE
+	 	   SET  CONFIRM_LOCK_DATE = CONVERT(CHAR(8), GETDATE(), 112)
+	 	   	   ,CONFIRM_LOCK_YN = 'Y'
+	 	   	   ,UPDATE_DATE = GETDATE()
+	 	   	   ,UPDATE_NAME = #updateName#
+		 WHERE ORGAN_CODE = @organCode
+		   AND SESSION_YEAR = @sessionYear	 	   	   
+	</update>
+	
+	<update id="lionsclubs.com.MM3.MM3_11.MM3_42.updateDistrictCalculateConfirmLockCancel">
+		<include refid="lionsclubs.com.MM3.MM3_11.MM3_42.declare" />
+		
+		UPDATE LIONS_DISTRICT_CALCULATE
+	 	   SET  CONFIRM_YN = 'N'
+	 	   	   ,CONFIRM_LOCK_YN = 'N'
+	 	   	   ,UPDATE_DATE = GETDATE()
+	 	   	   ,UPDATE_NAME = #updateName#
+		 WHERE ORGAN_CODE = @organCode
+		   AND SESSION_YEAR = @sessionYear
+	</update>
+</sqlMap>

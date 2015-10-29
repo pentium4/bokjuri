@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://www.ibatis.com/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="lionsclubs.com.MM3.MM3_9.MM3_39">
+	<typeAlias alias="MM3_39VO" type="lionsclubs.com.MM3.MM3_9.MM3_39.MM3_39VO"/>
+	
+	<sql id="lionsclubs.com.MM3.MM3_9.MM3_39.declare">
+		DECLARE @SQL NVARCHAR(MAX);
+		DECLARE @Prod NVARCHAR(MAX);
+		DECLARE @districtCode NVARCHAR(6);
+		DECLARE @sessionYear NVARCHAR(4);
+		DECLARE @startDate NVARCHAR(8);
+		DECLARE @endDate NVARCHAR(8);
+		DECLARE @order NVARCHAR(1);
+				
+		SET @districtCode = REPLACE(#districtCode#, '-', '');
+		SET @sessionYear = #sessionYear#;
+		SET @Prod = '';
+		SET @startDate = CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701';
+		SET @endDate = CAST(@sessionYear AS NVARCHAR(4)) + '0630';
+		SET @order = #order#
+	</sql>
+	
+	<sql id="lionsclubs.com.MM3.MM3_9.MM3_39.listEventCode">
+		<![CDATA[
+		SELECT  EVENT_CODE AS eventCode
+			   ,dbo.FN_LIONS_CODE_NAME(('36' + CAST(SUBSTRING(MIN(DISTRICT_CODE), 2, 2) AS NVARCHAR(2))), EVENT_CODE) AS eventName	/* 행사명 */
+		  FROM LIONS_BASIC_MERIT
+		 WHERE DISTRICT_CODE = @districtCode
+		   AND EVENT_DATE >= @startDate
+		   AND EVENT_DATE <= @endDate	
+		 GROUP BY EVENT_CODE
+		]]>
+	</sql>
+	
+	<select id="lionsclubs.com.MM3.MM3_9.MM3_39.MM3_39" resultClass="java.util.HashMap" remapResults="true">
+		<include refid="lionsclubs.com.MM3.MM3_9.MM3_39.declare"/>
+		
+		SELECT @Prod = @Prod + '[' + eventCode + '],'
+		  FROM (
+		  	<include refid="lionsclubs.com.MM3.MM3_9.MM3_39.listEventCode"/>
+		  ) A
+		  
+		SET @Prod = CASE WHEN LEN(@Prod) = 0 THEN '[0]' ELSE LEFT(@Prod, LEN(@Prod) - 1) END;
+
+		<![CDATA[			
+		SET @SQL = '
+			SELECT * FROM(
+				SELECT  R.CLUB_CODE
+					   ,dbo.FN_LIONS_ORGAN_NAME(R.CLUB_CODE) AS clubName
+					   ,SUM(R.totalScore) AS totalScore
+					   ,EVENT_CODE
+				  FROM(
+					SELECT  CM.CLUB_CODE
+						   ,BM.EVENT_CODE
+						   ,CAST(ISNULL(CM.SUBJECTIVE_SCORE, 0) AS BIGINT) + CAST(ISNULL(CM.JOIN_SCORE, 0) AS BIGINT) + CAST(ISNULL(CM.SERVICE_SCORE, 0) AS BIGINT) AS totalScore
+					  FROM LIONS_BASIC_MERIT BM
+					  LEFT OUTER JOIN LIONS_CLUB_MERIT CM
+						ON BM.DISTRICT_CODE = CM.DISTRICT_CODE
+					   AND BM.EVENT_CODE = CM.EVENT_CODE
+					   AND BM.EVENT_DATE = CM.EVENT_DATE
+					 WHERE BM.DISTRICT_CODE = ''' + @districtCode + '''
+					   AND BM.EVENT_DATE >= ''' + @startDate + '''
+					   AND BM.EVENT_DATE <= ''' + @endDate + '''
+				  ) R
+				 GROUP BY  R.CLUB_CODE
+						  ,R.EVENT_CODE
+			  ) TB1
+			 PIVOT (SUM(TB1.totalScore) FOR TB1.EVENT_CODE IN(' + @Prod + ')) AS PVT
+			 ORDER BY CLUB_CODE
+		'
+		EXEC SP_EXECUTESQL @SQL
+	  	]]>
+	</select>
+	
+	<select id="lionsclubs.com.MM3.MM3_9.MM3_39.sum" resultClass="java.util.HashMap" remapResults="true">
+		<include refid="lionsclubs.com.MM3.MM3_9.MM3_39.declare"/>
+		
+		SELECT @Prod = @Prod + '[' + eventCode + '],'
+		  FROM (
+		  	<include refid="lionsclubs.com.MM3.MM3_9.MM3_39.listEventCode"/>
+		  ) A
+		  
+		SET @Prod = CASE WHEN LEN(@Prod) = 0 THEN '[0]' ELSE LEFT(@Prod, LEN(@Prod) - 1) END;
+		<![CDATA[
+		SET @SQL = '
+			SELECT *
+			  FROM(
+				SELECT  SUM(totalScore) AS totalScore
+					   ,EVENT_CODE
+				  FROM(
+					SELECT  CM.CLUB_CODE
+						   ,BM.EVENT_CODE
+						   ,CAST(ISNULL(CM.SUBJECTIVE_SCORE, 0) AS BIGINT) + CAST(ISNULL(CM.JOIN_SCORE, 0) AS BIGINT) + CAST(ISNULL(CM.SERVICE_SCORE, 0) AS BIGINT) AS totalScore
+					  FROM LIONS_BASIC_MERIT BM
+					  LEFT OUTER JOIN LIONS_CLUB_MERIT CM
+						ON BM.DISTRICT_CODE = CM.DISTRICT_CODE
+					   AND BM.EVENT_CODE = CM.EVENT_CODE
+					   AND BM.EVENT_DATE = CM.EVENT_DATE
+					 WHERE BM.DISTRICT_CODE = ''' + @districtCode + '''
+					   AND BM.EVENT_DATE >= ''' + @startDate + '''
+					   AND BM.EVENT_DATE <= ''' + @endDate + '''
+				  ) R
+				 GROUP BY R.EVENT_CODE
+			  ) TB1
+			 PIVOT (SUM(TB1.totalScore) FOR TB1.EVENT_CODE IN(' + @Prod + ')) AS PVT
+		'
+		EXEC SP_EXECUTESQL @SQL
+		]]>
+	</select>	
+	
+	<select id="lionsclubs.com.MM3.MM3_9.MM3_39.listEvent" resultClass="MM3_39VO">
+		<include refid="lionsclubs.com.MM3.MM3_9.MM3_39.declare"/>
+		<include refid="lionsclubs.com.MM3.MM3_9.MM3_39.listEventCode"/>
+	</select>
+</sqlMap>

@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://www.ibatis.com/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="lionsclubs.com.MM3.MM3_7.MM3_33_A">
+	<typeAlias alias="MM3_33_AVO" type="lionsclubs.com.MM3.MM3_7.MM3_33_A.MM3_33_AVO"/>
+	
+	<sql id="lionsclubs.com.MM3.MM3_7.MM3_33_A.declare">
+		DECLARE @organCode NVARCHAR(6);
+		DECLARE @sessionYear NVARCHAR(4);
+		DECLARE @startDate NVARCHAR(8);
+		DECLARE @endDate NVARCHAR(8);
+				
+		SET @organCode = REPLACE(#organCode#, '-', '');
+		SET @sessionYear = #sessionYear#;
+		SET @startDate = CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701';
+		SET @endDate = CAST(@sessionYear AS NVARCHAR(4)) + '0630';
+	</sql>
+	
+	<sql id="lionsclubs.com.MM3.MM3_7.MM3_33_A.query">
+		SELECT  MIN(R.memberName) AS memberName	/* 회원명 */
+			   ,R.memberNo	/* 회원번호 */
+			   ,MIN(R.clubCode) AS clubCode	/* 클럽코드 */
+			   ,(SELECT KO_ABBR2 FROM LIONS_ORGAN_CODE WHERE ORGAN_CODE = MIN(R.clubCode)) AS clubName	/* 클럽명 */
+			   ,MIN(R.positionName) AS positionName	/* 직책 */
+			   ,MIN(R.impost) AS impost	/* 임원분담금 */
+			   ,SUM(R.payment) AS payment	/* 납부금 */
+			   ,MIN(ISNULL(R.impost, 0)) - (SUM(ISNULL(R.payment, 0)) + SUM(ISNULL(R.paymentDefect, 0))) AS balance	/* 미수금 */
+			   ,SUM(R.paymentDefect) AS paymentDefect	/* 결손금 */
+		  FROM(
+			SELECT  MM.MEMBER_NO AS memberNo
+				   ,(SELECT NAME FROM LIONS_MEMBER_INFO WHERE MEMBER_NO = MM.MEMBER_NO) AS memberName
+				   ,MM.ORGAN_CODE AS clubCode
+				   ,MI.TARGET_POSITION_CODE AS targetPositionCode
+				   ,dbo.FN_LIONS_DETAILCODE_NAME('2700', '1010', MI.TARGET_POSITION_CODE) AS positionName
+				   ,MI.IMPOST AS impost		/*예산정보는 LIONS_INCOME_EXPEND테이블에서 가져와서 GROUP BY*/
+				   ,CASE WHEN (MP.PAYMENT_DEFECT != 'Y' OR MP.PAYMENT_DEFECT IS NULL)
+						 THEN ISNULL(MP.PAYMENT, 0)
+						  END AS payment	/* 납부금 */
+				   ,CASE WHEN MP.PAYMENT_DEFECT = 'Y'
+						 THEN ISNULL(MP.PAYMENT, 0)
+						  END AS paymentDefect	/* 결손금 */
+			  FROM LIONS_MONEY_MASTER MM
+			 INNER JOIN LIONS_MONEY_IMPOST MI
+				ON MM.IDN_NO = MI.IDN_NO 
+			  LEFT OUTER JOIN LIONS_MONEY_PAYMENT MP
+				ON MM.IDN_NO = MP.IDN_NO
+			 WHERE MM.ORGAN_CODE IN (
+					SELECT ORGAN_CODE 
+					  FROM dbo.FN_LIONS_SUB_TREE_YEAR_ORGAN(@sessionYear, @organCode) 
+					 WHERE LVL = 2  
+			   )
+			   AND MM.CLASS_ITEM_CODE = '1040'
+			   AND MM.DETAIL_ITEM_CODE = '1000'
+			   <![CDATA[
+			   AND MM.GEN_DATE >= @startDate
+			   AND MM.GEN_DATE <= @endDate
+			   ]]>			   
+		  ) R
+		 GROUP BY R.memberNo	
+	</sql>
+	
+	<select id="lionsclubs.com.MM3.MM3_7.MM3_33_A.List" resultClass="MM3_33_AVO">
+		<include refid="lionsclubs.com.MM3.MM3_7.MM3_33_A.declare"/>
+		<include refid="lionsclubs.com.MM3.MM3_7.MM3_33_A.query"/>
+		<dynamic prepend="ORDER BY">
+			<isEqual property="order" compareValue="1">
+	 			 MIN(R.memberName)
+	 			,dbo.FN_LIONS_DISTRICT_TITLE_ORD(@sessionYear, MIN(R.targetPositionCode))
+	 			,R.memberNo
+	 		</isEqual>
+	 		<isEqual property="order" compareValue="2">
+	 			 MIN(R.clubCode)
+	 			,dbo.FN_LIONS_DISTRICT_TITLE_ORD(@sessionYear, MIN(R.targetPositionCode))
+	 			,R.memberNo
+	 		</isEqual>
+			<isEqual property="order" compareValue="3">
+				 dbo.FN_LIONS_DISTRICT_TITLE_ORD(@sessionYear, MIN(R.targetPositionCode))
+				,R.memberNo
+	 		</isEqual>
+		</dynamic>
+	</select>
+
+	<select id="lionsclubs.com.MM3.MM3_7.MM3_33_A.sum" resultClass="MM3_33_AVO">
+		<include refid="lionsclubs.com.MM3.MM3_7.MM3_33_A.declare"/>
+		
+		SELECT  SUM(TOT.impost) AS impost
+			   ,SUM(TOT.payment) AS payment
+			   ,SUM(TOT.balance) AS balance
+			   ,SUM(TOT.paymentDefect) AS paymentDefect
+		  FROM(
+		  	<include refid="lionsclubs.com.MM3.MM3_7.MM3_33_A.query"/>
+		  ) TOT	
+	</select>
+</sqlMap>

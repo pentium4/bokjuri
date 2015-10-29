@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://www.ibatis.com/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="lionsclubs.com.MM3.MM3_4.MM3_19">
+	<typeAlias alias="CODE_INFO" type="lionsclubs.com.MM3.MM3_4.MM3_19.CODE_INFO"/>
+	<typeAlias alias="MM3_19VO" type="lionsclubs.com.MM3.MM3_4.MM3_19.MM3_19VO"/>
+	
+	<select id="lionsclubs.com.MM3.MM3_4.MM3_19.codeList" resultClass="CODE_INFO">
+		SELECT  REPLACE(C1.CODE1, '-', '') AS duesDstCode
+		       ,C1.CODE2 AS groupCode
+		       ,C2.CODE AS code
+		       ,C2.CODE_NAME AS codeName
+		       ,(SELECT CODE1 FROM LIONS_CODE WHERE GROUP_CODE = C2.CODE1 AND CODE = C2.CODE2) AS dollarKind
+		       ,C2.USE_YN AS useYn
+		  FROM LIONS_CODE C1
+		 INNER JOIN LIONS_CODE C2
+		    ON C1.CODE2 = C2.GROUP_CODE
+		 WHERE C1.GROUP_CODE = '8100'
+		   AND REPLACE(C1.CODE1, '-', '') = #thisOrganCode#
+		 ORDER BY  C1.CODE1
+		 		  ,C1.CODE2
+		 		  ,C2.CODE		   
+	</select>
+	
+	<select id="lionsclubs.com.MM3.MM3_4.MM3_19.selectList" resultClass="java.util.HashMap" remapResults="true">
+		SELECT * FROM (    
+		    SELECT  DISTRICT_CODE AS districtCode
+		    	   ,IDN_NO AS idnNo
+		           ,CLUB_CODE AS clubCode
+		           ,(SELECT KO_NAME FROM LIONS_ORGAN_CODE WHERE ORGAN_CODE = CLUB_CODE) AS clubName
+		           ,SESSION_YEAR AS sessionYear
+		           ,FIRST_SEC_KIND AS firstSecKind
+		           ,SIX_MONTH AS sixMonth
+		           ,LIFETIME AS lifeTime
+		           ,$columnNames$
+		      FROM (
+		        SELECT  B.IDN_NO 
+		        	   ,B.DISTRICT_CODE
+		               ,B.CLUB_CODE
+		               ,B.SESSION_YEAR
+		               ,B.FIRST_SEC_KIND
+		               ,B.SIX_MONTH
+		               ,B.LIFETIME
+		               ,A.ITEM_CODE
+		               ,CONVERT(BIGINT, A.DUE) AS DUE
+		          FROM LIONS_CLUB_MYDUES B
+		          LEFT OUTER JOIN LIONS_CLUB_MYDUES_ITEM A 
+		            ON A.IDN_NO = B.IDN_NO 
+		         WHERE B.DISTRICT_CODE = #thisOrganCode# 
+		           AND B.SESSION_YEAR = #thisYear# 
+		           AND B.FIRST_SEC_KIND = #firstOrSecond#
+		    ) T1
+		    PIVOT (SUM(T1.DUE) FOR T1.ITEM_CODE IN($columnNames$)) AS PVT
+		) TB1
+	</select>
+	
+	<select id="lionsclubs.com.MM3.MM3_4.MM3_19.excelTemplateDownload" resultClass="java.util.LinkedHashMap" remapResults="true">
+		<![CDATA[
+		DECLARE @districtCode NVARCHAR(6);
+		DECLARE @thisYear INT;
+		
+		SET @districtCode = #thisOrganCode#;
+		SET @thisYear = #thisYear#;
+		
+		/* 템플릿 기본 조회 */
+		WITH ORG_TREE AS ( /* 조직트리 */
+			SELECT  HISTORY.ORGAN_CODE
+				   ,HISTORY.UPPER_ORGAN_CODE 
+			  FROM(
+				SELECT  ROW_NUMBER() OVER (PARTITION BY ORGAN_CODE ORDER BY CHANGE_DATE DESC, IDN_NO DESC) AS rnum
+					   ,ORGAN_CODE
+					   ,UPPER_ORGAN_CODE
+				FROM LIONS_ORGAN_CODE_HISTORY
+			   WHERE CHANGE_DATE BETWEEN CAST(@thisYear - 1 AS NVARCHAR(4)) + '0701' AND CAST(@thisYear AS NVARCHAR(4)) + '0630'
+			) HISTORY
+			 INNER JOIN dbo.LIONS_ORGAN_CODE D
+			    ON D.ORGAN_CODE = HISTORY.ORGAN_CODE
+			   AND (
+					   D.ORGAN_ABOLISH_DATE IS NULL 
+					OR D.ORGAN_ABOLISH_DATE = '' 
+					OR D.ORGAN_ABOLISH_DATE BETWEEN CAST(@thisYear - 1 AS NVARCHAR(4)) + '0701' AND CAST(@thisYear AS NVARCHAR(4)) + '0630'
+				)
+			 WHERE HISTORY.rnum = 1
+			   AND HISTORY.UPPER_ORGAN_CODE = @districtCode
+		)
+		
+		SELECT  ROW_NUMBER() OVER(ORDER BY A.ORGAN_CODE) AS rnum
+			   ,A.ORGAN_CODE AS clubCode
+			   ,B.KO_ABBR2 AS clubName
+		  FROM ORG_TREE A
+		 INNER JOIN dbo.LIONS_ORGAN_CODE B
+		    ON B.ORGAN_CODE = A.ORGAN_CODE
+		 ORDER BY A.ORGAN_CODE ASC
+		]]>
+	</select>
+	
+	<delete id="lionsclubs.com.MM3.MM3_4.MM3_19.expensesDelete">
+		DELETE FROM LIONS_CLUB_MYDUES
+		 WHERE DISTRICT_CODE = #thisOrganCode#
+		   AND SESSION_YEAR = #thisYear#
+		   AND FIRST_SEC_KIND = #firstOrSecond#
+	</delete>
+	
+	<delete id="lionsclubs.com.MM3.MM3_4.MM3_19.expensesDelete2">
+		DELETE FROM LIONS_CLUB_MYDUES_ITEM
+		 WHERE IDN_NO IN (
+			SELECT IDN_NO FROM LIONS_CLUB_MYDUES
+			 WHERE DISTRICT_CODE = #thisOrganCode#
+			   AND SESSION_YEAR = #thisYear#
+			   AND FIRST_SEC_KIND = #firstOrSecond#
+		)
+	</delete>
+	 
+	 <insert id="lionsclubs.com.MM3.MM3_4.MM3_19.expensesInsert">
+	 	<selectKey resultClass="int" keyProperty="idnNo" >
+			INSERT INTO LIONS_CLUB_MYDUES(
+				 DISTRICT_CODE
+				,CLUB_CODE
+				,SESSION_YEAR
+				,FIRST_SEC_KIND
+				,SIX_MONTH
+				,LIFETIME
+				,INSERT_DATE
+				,INSERT_NAME
+				,UPDATE_DATE
+				,UPDATE_NAME
+			) VALUES (
+				 #thisOrganCode#	
+				,#clubCode#	
+				,#thisYear#
+				,#firstOrSecond#
+				,#sixMonth#	
+				,#lifeTime#	
+				,GETDATE()	
+				,#insertName#	
+				,GETDATE()	
+				,#updateName#
+			)
+			
+			SELECT SCOPE_IDENTITY() AS idnNo
+		</selectKey>
+	</insert>
+	
+	<insert id="lionsclubs.com.MM3.MM3_4.MM3_19.expensesInsert2">
+		INSERT INTO LIONS_CLUB_MYDUES_ITEM(
+			 IDN_NO
+			,ITEM_CODE
+			,DUE
+			,DUE_DOLLAR
+		) VALUES (
+			 #idnNo#	
+			,#itemCode#	
+			,#due#
+			,#dueDollar#
+		)
+	</insert>
+</sqlMap>

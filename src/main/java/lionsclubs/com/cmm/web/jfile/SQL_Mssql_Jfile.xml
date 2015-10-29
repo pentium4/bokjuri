@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://www.ibatis.com/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="lionsclubs.com.cmm.web.jfile">
+
+	<typeAlias alias="jfileVO" type="lionsclubs.com.cmm.web.jfile.JfileVO"/>
+
+	<select id="lionsclubs.com.cmm.web.jfile.jfileList" resultClass="jfileVO">
+		SELECT  FILE_ID AS fileId
+			   ,FILE_SEQ AS fileSeq
+		  FROM J_ATTACHFILE
+		 WHERE FILE_ID = #fileId#
+	</select>
+</sqlMap>

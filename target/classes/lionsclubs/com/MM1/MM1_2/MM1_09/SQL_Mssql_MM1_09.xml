@@ -1,0 +1,471 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://www.ibatis.com/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="lionsclubs.com.MM1.MM1_2.MM1_09">
+
+	<typeAlias alias="MM1_09VO" type="lionsclubs.com.MM1.MM1_2.MM1_09.MM1_09VO"/>
+	
+	<sql id="lionsclubs.com.MM1.MM1_2.MM1_09.declare">
+		DECLARE @memberNo NVARCHAR(8);	/* 회원번호 */
+		DECLARE @sessionYear NVARCHAR(4);	/* 현회선택 */
+		DECLARE @startDate NVARCHAR(8);
+		DECLARE @endDate NVARCHAR(8);		
+		
+		SET @memberNo = REPLACE(#memberNo#, '-', '');
+		SET @sessionYear = #sessionYear#;
+		SET @startDate = CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701';	
+		SET @endDate = CAST(@sessionYear AS NVARCHAR(4)) + '0630';
+	</sql>
+		
+	<sql id="lionsclubs.com.MM1.MM1_2.MM1_09.queryList">
+		SELECT  P.IDN_NO AS idnNo
+			   ,NULL AS paymentCount
+			   ,MIN(P.GEN_DATE) AS genDate
+			   ,MIN(P.CLASS_ITEM_CODE) AS classItemCode
+			   ,MIN(P.DETAIL_ITEM_CODE) AS detailItemCode
+			   ,MIN(P.classItemName) AS classItemName
+			   ,MIN(P.detailItemName) AS detailItemName
+			   ,MIN(P.IMPOST) AS impost
+			   ,SUM(P.payment) AS payment
+			   ,SUM(P.paymentDefect) AS paymentDefect
+			   ,MIN(P.reference) AS reference
+		  FROM(		
+			SELECT  MM.IDN_NO	/* 번호 */
+				   ,MM.GEN_DATE	/* 발생일자 */
+				   ,MM.CLASS_ITEM_CODE	/* 분류항목코드 */
+				   ,MM.DETAIL_ITEM_CODE	/* 세부항목코드 */
+				   ,dbo.FN_LIONS_CODE_NAME('4100', MM.CLASS_ITEM_CODE) AS classItemName	/* 분류항목명 */
+				   ,dbo.FN_LIONS_DETAILCODE_NAME('4100', MM.CLASS_ITEM_CODE, MM.DETAIL_ITEM_CODE) AS detailItemName	/* 세부항목명 */
+				   ,MI.IMPOST	/* 부과금 */
+				   ,CASE WHEN MP.PAYMENT_DEFECT != 'Y'
+						 THEN MP.PAYMENT
+						  END AS payment	/* 납부금 */
+				   ,CASE WHEN MP.PAYMENT_DEFECT = 'Y'
+						 THEN MP.PAYMENT
+						  END AS paymentDefect	/* 결손금 */
+				   ,MI.REFERENCE	/* 참고사항 */
+			  FROM LIONS_MONEY_MASTER MM
+			  LEFT OUTER JOIN LIONS_MONEY_IMPOST MI
+				ON MM.IDN_NO = MI.IDN_NO
+			  LEFT OUTER JOIN LIONS_MONEY_PAYMENT MP
+				ON MM.IDN_NO = MP.IDN_NO
+			 WHERE MM.MEMBER_NO = @memberNo
+			   AND MM.CLASS_ITEM_CODE NOT IN('1030', '1040')
+			<isNotEmpty prepend="AND" property="sessionYear">
+			<![CDATA[
+				    MM.GEN_DATE >= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701'
+				AND MM.GEN_DATE <= CAST(@sessionYear AS NVARCHAR(4)) + '0630'
+			]]>
+			</isNotEmpty>
+		) P
+		 GROUP BY P.IDN_NO
+		 
+		 UNION ALL
+		 
+		SELECT  MM.IDN_NO AS idnNo	/* 번호 */
+			   ,MP.PAYMENT_COUNT AS paymentCount	/* 납부카운트 */
+			   ,MP.PAYMENT_DATE AS genDate	/* 부과일자 */
+			   ,MM.CLASS_ITEM_CODE AS classItemCode	/* 분류항목코드 */
+			   ,MM.DETAIL_ITEM_CODE AS detailItemCode	/* 세부항목코드 */
+			   ,dbo.FN_LIONS_CODE_NAME('4100', MM.CLASS_ITEM_CODE) AS classItemName	/* 분류항목명 */
+			   ,dbo.FN_LIONS_DETAILCODE_NAME('4100', MM.CLASS_ITEM_CODE, MM.DETAIL_ITEM_CODE) AS detailItemName	/* 세부항목명 */
+			   ,MP.PAYMENT AS impost	/* 부과금 */
+			   ,CASE WHEN MP.PAYMENT_DEFECT != 'Y'
+					 THEN MP.PAYMENT
+					  END AS payment	/* 납부금 */
+			   ,CASE WHEN MP.PAYMENT_DEFECT = 'Y'
+					 THEN MP.PAYMENT
+					  END AS paymentDefect	/* 결손금 */
+			   ,MI.REFERENCE AS reference	/* 참고사항 */
+		  FROM LIONS_MONEY_MASTER MM
+		 INNER JOIN LIONS_MONEY_IMPOST MI
+			ON MM.IDN_NO = MI.IDN_NO
+		 INNER JOIN LIONS_MONEY_PAYMENT MP
+			ON MM.IDN_NO = MP.IDN_NO
+		 WHERE MM.MEMBER_NO = @memberNo
+		   AND MM.CLASS_ITEM_CODE IN('1030', '1040')
+		<isNotEmpty prepend="AND" property="sessionYear">
+		<![CDATA[
+			    MP.PAYMENT_DATE >= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701'
+			AND MP.PAYMENT_DATE <= CAST(@sessionYear AS NVARCHAR(4)) + '0630'
+		]]>
+		</isNotEmpty>
+	</sql>
+
+	<select id="lionsclubs.com.MM1.MM1_2.MM1_09.List" resultClass="MM1_09VO">
+		<include refid="lionsclubs.com.MM1.MM1_2.MM1_09.declare"/>
+	
+		SELECT *
+		  FROM (
+			<include refid="lionsclubs.com.MM1.MM1_2.MM1_09.queryList"/>
+		  ) P
+		 ORDER BY  P.genDate DESC
+				  ,dbo.FN_LIONS_CODE_ORD('4100', P.classItemCode)
+				  ,dbo.FN_LIONS_DETAILCODE_ORD('4100', P.classItemCode, P.detailItemCode)	
+ 	</select>
+ 	
+ 	<select id="lionsclubs.com.MM1.MM1_2.MM1_09.SelectPaymentSum" resultClass="MM1_09VO">
+ 		<include refid="lionsclubs.com.MM1.MM1_2.MM1_09.declare"/>
+ 		
+ 		SELECT  SUM(P.impost) AS impost
+			   ,SUM(P.payment) AS payment
+			   ,SUM(P.paymentDefect) AS paymentDefect
+ 		  FROM(
+			<include refid="lionsclubs.com.MM1.MM1_2.MM1_09.queryList"/>
+		) P
+ 	</select>
+ 	
+ 	<select id="lionsclubs.com.MM1.MM1_2.MM1_09.Select" resultClass="MM1_09VO">
+		SELECT  MM.GEN_DATE AS genDate	/* 발생일자 */
+			   ,dbo.FN_LIONS_CODE_NAME('4100', MM.CLASS_ITEM_CODE) AS classItemName	/* 분류항목명 */
+			   ,dbo.FN_LIONS_DETAILCODE_NAME('4100', MM.CLASS_ITEM_CODE, MM.DETAIL_ITEM_CODE) AS detailItemName	/* 세부항목명 */
+			   ,MI.IMPOST AS impost	/* 부과금 */
+			   ,MI.REFERENCE AS reference	/* 참고사항 */
+		  FROM LIONS_MONEY_MASTER MM
+		 INNER JOIN LIONS_MONEY_IMPOST MI
+			ON MM.IDN_NO = MI.IDN_NO 	
+ 		 WHERE MM.IDN_NO = #idnNo#
+ 	</select>
+ 	
+ 	<select id="lionsclubs.com.MM1.MM1_2.MM1_09.SelectPaymentCount" resultClass="Integer">
+ 		SELECT count(*) AS caCount  
+		  FROM LIONS_MONEY_PAYMENT 
+		 WHERE IDN_NO = #idnNo#
+ 	</select>
+ 	
+ 	<select id="lionsclubs.com.MM1.MM1_2.MM1_09.SelectOrganCode" resultClass="MM1_09VO">
+		SELECT dbo.FN_LIONS_ORGAN_CODE(#memberNo#) AS organCode
+ 	</select>
+ 	
+ 	<select id="lionsclubs.com.MM1.MM1_2.MM1_09.SelectCDate" resultClass="String">
+	 	SELECT TOP 1 CONFIRM_DATE 
+	 	  FROM LIONS_CALCULATE
+		 WHERE ORGAN_CODE = #organCode# 
+		   AND CONFIRM_YN = 'Y'
+		 ORDER BY CA_YM desc
+ 	</select>
+ 	
+ 	<select id="lionsclubs.com.MM1.MM1_2.MM1_09.SelectCalCount" resultClass="Integer">
+ 		SELECT count(*) AS caCount  
+		  FROM LIONS_CALCULATE
+		 WHERE ORGAN_CODE = #organCode# 
+		   AND CA_YM = REPLACE(#caYm#, '.', '')
+ 	</select>
+ 	
+ 	<select id="lionsclubs.com.MM1.MM1_2.MM1_09.SelectCal" resultClass="String">
+ 		SELECT CONFIRM_YN AS confirmYn 
+		  FROM LIONS_CALCULATE
+		 WHERE ORGAN_CODE = #organCode# 
+		   AND CA_YM = REPLACE(#caYm#, '.', '')
+ 	</select>
+ 	
+ 	<insert id="lionsclubs.com.MM1.MM1_2.MM1_09.InsertCal">
+        <![CDATA[
+			INSERT INTO LIONS_CALCULATE (
+				 ORGAN_CODE
+				,CA_YM
+				,CONFIRM_YN
+				,INSERT_DATE
+				,INSERT_NAME
+				,UPDATE_DATE
+				,UPDATE_NAME
+			) VALUES (
+				 #organCode#
+				,REPLACE(#caYm#, '.', '')
+				,'N'
+				,GETDATE()
+				,#insertName#
+				,GETDATE()
+				,#updateName#
+			) 
+        ]]>
+    </insert> 	
+ 	
+ 	<insert id="lionsclubs.com.MM1.MM1_2.MM1_09.InsertMaster">
+ 		<selectKey resultClass="String" keyProperty="idnNo" >
+			INSERT INTO LIONS_MONEY_MASTER (
+				 CA_YM
+				,ORGAN_CODE
+				,MEMBER_NO
+				,STAMP_CODE
+				,GEN_DATE
+				,CLASS_ITEM_CODE
+				,DETAIL_ITEM_CODE
+				,MASTER_GUBN
+				,INSERT_DATE
+				,INSERT_NAME
+				,UPDATE_DATE
+				,UPDATE_NAME
+			) VALUES (
+				 #caYm#
+				,#organCode#
+				,#memberNo#
+				,#stampCode#
+				,REPLACE(#genDate#, '.', '')
+				,#classItemCode#
+				,#detailItemCode#
+				,'A'
+				,GETDATE()
+				,#insertName#
+				,GETDATE()
+				,#updateName#
+			)
+			SELECT SCOPE_IDENTITY() AS idnNo
+		</selectKey>
+	</insert>
+	
+	<insert id="lionsclubs.com.MM1.MM1_2.MM1_09.InsertImpost">
+        <![CDATA[
+		INSERT INTO LIONS_MONEY_IMPOST (
+			 IDN_NO
+			,IMPOST_MEMBER_NO
+			,IMPOST
+			,REFERENCE
+			,INSERT_DATE
+			,INSERT_NAME
+			,UPDATE_DATE
+			,UPDATE_NAME
+		) VALUES (
+			 #idnNo#
+			,#impostMemberNo#
+			,REPLACE(#impost#, ',', '')
+			,#reference#
+			,GETDATE()
+			,#insertName#
+			,GETDATE()
+			,#updateName#
+		)
+        ]]>
+    </insert>
+    
+ 	<insert id="lionsclubs.com.MM1.MM1_2.MM1_09.InsertPayment">
+        <![CDATA[
+		INSERT INTO LIONS_MONEY_PAYMENT (
+			 IDN_NO
+			,MEMBER_NO
+			,PAYMENT
+			,PAYMENT_DATE
+			,PAYMENT_DEFECT
+			,PAYMENT_FINISH
+			,PAYMENT_COUNT
+			,REFERENCE
+			,INSERT_DATE
+			,INSERT_NAME
+			,UPDATE_DATE
+			,UPDATE_NAME
+		) VALUES (
+			 #idnNo#
+			,#memberNo#
+			,REPLACE(#payment#, ',', '')
+			,REPLACE(#paymentDate#, '.', '')
+			,#paymentDefect#
+			,'N'
+			,(SELECT ISNULL(MAX(PAYMENT_COUNT),0) + 1 FROM LIONS_MONEY_PAYMENT WHERE IDN_NO = #idnNo#)
+			,#reference#
+			,GETDATE()
+			,#insertName#
+			,GETDATE()
+			,#updateName#
+		) 
+        ]]>
+    </insert>
+    
+ 	<update id="lionsclubs.com.MM1.MM1_2.MM1_09.UpdateImpost">
+		<![CDATA[
+		UPDATE LIONS_MONEY_IMPOST 
+		   SET  IMPOST = REPLACE(#impost#, ',', '')
+		   	   ,REFERENCE = REPLACE(#reference#, ',', '')
+		       ,UPDATE_DATE = GETDATE()
+		       ,UPDATE_NAME = #updateName#             
+		 WHERE IDN_NO = #idnNo#
+        ]]>
+	</update>
+	
+	<update id="lionsclubs.com.MM1.MM1_2.MM1_09.UpdatePayment">
+		<![CDATA[
+		UPDATE LIONS_MONEY_PAYMENT
+		   SET  PAYMENT_DATE = REPLACE(#paymentDate#, '.', '')
+		   	   ,PAYMENT = REPLACE(#payment#, ',', '')
+			   ,PAYMENT_DEFECT = #paymentDefect#
+		       ,UPDATE_DATE = GETDATE()
+		       ,UPDATE_NAME = #updateName#
+		 WHERE IDN_NO = #idnNo# 
+		   AND PAYMENT_COUNT = #paymentCount# 
+        ]]>
+	</update>
+    
+    <delete id="lionsclubs.com.MM1.MM1_2.MM1_09.DeleteMaster">
+        <![CDATA[
+		DELETE FROM LIONS_MONEY_MASTER 
+		 WHERE IDN_NO = #idnNo#
+        ]]>
+    </delete>
+    
+    <delete id="lionsclubs.com.MM1.MM1_2.MM1_09.DeleteImpost">
+        <![CDATA[
+		DELETE FROM LIONS_MONEY_IMPOST 
+		 WHERE IDN_NO = #idnNo#
+        ]]>
+    </delete>
+    
+    <delete id="lionsclubs.com.MM1.MM1_2.MM1_09.DeletePayment">
+        <![CDATA[
+		DELETE FROM LIONS_MONEY_PAYMENT 
+		 WHERE IDN_NO = #idnNo# 
+		   AND PAYMENT_COUNT = #paymentCount# 
+        ]]>
+    </delete>
+    
+ 	<select id="lionsclubs.com.MM1.MM1_2.MM1_09.SelectClassCode" resultClass="MM1_09VO">
+		SELECT  CODE AS code
+			   ,CODE + ' ' + CODE_NAME AS codeName
+			   ,CODE1 AS code1
+			   ,CODE2 AS code2
+			   ,CODE3 AS code3			   
+		  FROM LIONS_CODE
+		 WHERE GROUP_CODE = '4100' 
+		   AND CODE3 IN (#gubn#,'C')
+		 ORDER BY ORD
+ 	</select>
+ 	
+    <select id="lionsclubs.com.MM1.MM1_2.MM1_09.SelectDetailCode" resultClass="MM1_09VO">
+		SELECT  CODE AS code
+			   ,CODE + ' ' + CODE_NAME AS codeName
+			   ,CODE1 AS code1
+			   ,CODE2 AS code2
+			   ,CODE3 AS code3
+		  FROM LIONS_CODE
+		 WHERE GROUP_CODE = (SELECT CODE1 FROM LIONS_CODE WHERE CODE = #code# AND GROUP_CODE = #groupCode#)
+		 <isEqual prepend="AND" property="gubn" compareValue="A">
+			CODE2 = 'O'
+		 </isEqual>
+		 <isEqual prepend="AND" property="gubn" compareValue="B">
+			CODE1 != 'X'
+		 </isEqual>
+		 <isEqual prepend="AND" property="gubn" compareValue="C">
+			CODE3 != '*'
+		 </isEqual>
+		 ORDER BY ORD
+ 	</select>
+ 	
+ 	<select id="lionsclubs.com.MM1.MM1_2.MM1_09.SelectDetailType" resultClass="java.lang.String">
+		SELECT  <isEqual property="returnCode" compareValue="CODE1">
+					CODE1
+		 		</isEqual>
+		 		<isEqual property="returnCode" compareValue="CODE2">
+					CODE2
+		 		</isEqual>
+		 		<isEqual property="returnCode" compareValue="CODE3">
+					CODE3
+		 		</isEqual>
+		  FROM LIONS_CODE
+		 WHERE GROUP_CODE = (SELECT CODE1 FROM LIONS_CODE WHERE CODE = #code# AND GROUP_CODE = #groupCode# )
+		   AND CODE = #detailcode#
+ 	</select>
+ 	
+ 	<select id="lionsclubs.com.MM1.MM1_2.MM1_09.SelectMemberPay" resultClass="java.lang.Integer">
+		SELECT ISNULL(MONTH_DUE,0) AS payment 
+		  FROM LIONS_MEMBER_DIVISION_MONTH_DUE 
+		 WHERE DIVISION_CODE IN (
+			SELECT DIVISION 
+			  FROM LIONS_MEMBER_INFO 
+			 WHERE MEMBER_NO = #memberNo#
+		 ) 
+		   AND ORGAN_CODE = #organCode#
+ 	</select>
+ 	
+ 	<select id="lionsclubs.com.MM1.MM1_2.MM1_09.listPayment" resultClass="MM1_09VO">
+		SELECT  MP.IDN_NO AS idnNo
+			   ,MM.ORGAN_CODE AS organCode
+			   ,(SELECT KO_ABBR2 FROM LIONS_ORGAN_CODE WHERE ORGAN_CODE = MM.ORGAN_CODE) AS organName
+			   ,MM.MEMBER_NO AS memberNo
+			   ,(SELECT NAME FROM LIONS_MEMBER_INFO WHERE MEMBER_NO = MM.MEMBER_NO) AS name			   
+			   ,dbo.FN_LIONS_DETAILCODE_NAME('4100', MM.CLASS_ITEM_CODE, MM.DETAIL_ITEM_CODE) AS detailItemName	/* 세부항목명 */
+			   ,MP.PAYMENT_COUNT AS paymentCount	/* 납부 idnNo 카운트 */
+			   ,MP.PAYMENT_DATE AS paymentDate	/* 납부일자 */
+			   ,MP.PAYMENT AS payment	/* 납부금 */
+			   ,MP.DOLLAR AS paymentDollar
+			   ,MP.PAYMENT_DEFECT AS paymentDefect	/* 결손여부 */
+			   ,ISNULL((SELECT CONFIRM_YN FROM LIONS_CALCULATE WHERE ORGAN_CODE = MM.ORGAN_CODE AND CA_YM = CAST(MP.PAYMENT_DATE AS NVARCHAR(6))), 'N') AS confirmYn
+		  FROM LIONS_MONEY_PAYMENT MP
+		 INNER JOIN LIONS_MONEY_MASTER MM
+		    ON MP.IDN_NO = MM.IDN_NO
+		 WHERE MP.IDN_NO = #idnNo#
+		<isNotEmpty prepend="AND" property="paymentCount">
+		    MP.PAYMENT_COUNT = #paymentCount#
+		</isNotEmpty>
+ 	</select>
+ 	
+ 	<select id="lionsclubs.com.MM1.MM1_2.MM1_09.objectPayment" resultClass="MM1_09VO">
+		SELECT  MP.IDN_NO AS idnNo
+			   ,MM.ORGAN_CODE AS organCode
+			   ,(SELECT KO_ABBR2 FROM LIONS_ORGAN_CODE WHERE ORGAN_CODE = MM.ORGAN_CODE) AS organName
+			   ,MM.MEMBER_NO AS memberNo
+			   ,(SELECT NAME FROM LIONS_MEMBER_INFO WHERE MEMBER_NO = MM.MEMBER_NO) AS name			   
+			   ,dbo.FN_LIONS_DETAILCODE_NAME('4100', MM.CLASS_ITEM_CODE, MM.DETAIL_ITEM_CODE) AS detailItemName	/* 세부항목명 */
+			   ,MP.PAYMENT_COUNT AS paymentCount	/* 납부 idnNo 카운트 */
+			   ,MP.PAYMENT_DATE AS paymentDate	/* 납부일자 */
+			   ,MP.PAYMENT AS payment	/* 납부금 */
+			   ,MP.DOLLAR AS paymentDollar
+			   ,MP.PAYMENT_DEFECT AS paymentDefect	/* 결손여부 */
+			   ,ISNULL((SELECT CONFIRM_YN FROM LIONS_CALCULATE WHERE ORGAN_CODE = MM.ORGAN_CODE AND CA_YM = CAST(MP.PAYMENT_DATE AS NVARCHAR(6))), 'N') AS confirmYn
+		  FROM LIONS_MONEY_PAYMENT MP
+		 INNER JOIN LIONS_MONEY_MASTER MM
+		    ON MP.IDN_NO = MM.IDN_NO
+		 WHERE MP.IDN_NO = #idnNo#
+		   AND MP.PAYMENT_COUNT = #paymentCount#
+ 	</select> 	
+ 	
+	<select id="lionsclubs.com.MM1.MM1_2.MM1_09.objectTreasurer" resultClass="MM1_09VO">
+		<include refid="lionsclubs.com.MM1.MM1_2.MM1_09.declare"/>
+		
+		<![CDATA[
+		/* 템플릿 기본 조회 */
+		WITH ORG_TREE AS ( /* 조직트리 */
+			SELECT  HISTORY.ORGAN_CODE
+				   ,HISTORY.UPPER_ORGAN_CODE 
+			  FROM(
+				SELECT  ROW_NUMBER() OVER (PARTITION BY ORGAN_CODE ORDER BY CHANGE_DATE DESC, IDN_NO DESC) AS rnum
+					   ,ORGAN_CODE
+					   ,UPPER_ORGAN_CODE
+				FROM LIONS_ORGAN_CODE_HISTORY
+			   WHERE CHANGE_DATE >= @startDate
+			     AND CHANGE_DATE <= @endDate
+			) HISTORY
+			 INNER JOIN dbo.LIONS_ORGAN_CODE D
+			    ON D.ORGAN_CODE = HISTORY.ORGAN_CODE
+			   AND (
+					   D.ORGAN_ABOLISH_DATE IS NULL 
+					OR D.ORGAN_ABOLISH_DATE = '' 
+					OR (D.ORGAN_ABOLISH_DATE >= @startDate
+				   AND D.ORGAN_ABOLISH_DATE <= @endDate)
+				)
+			 WHERE HISTORY.rnum = 1
+			   AND HISTORY.ORGAN_CODE = #organCode#
+		)
+				
+		SELECT  R.MEMBER_NO AS memberNo
+			   ,R.NAME AS name
+			   ,(SELECT KO_ABBR FROM LIONS_ORGAN_CODE WHERE ORGAN_CODE = (SELECT UPPER_ORGAN_CODE FROM ORG_TREE)) AS districtName
+		  FROM(	
+			SELECT  ROW_NUMBER() OVER (PARTITION BY A.MEMBER_NO ORDER BY A.END_DATE DESC, A.IDN_NO DESC) AS rnum
+				   ,A.MEMBER_NO 
+				   ,MI.NAME
+			  FROM LIONS_APPOINTMENT A
+			 INNER JOIN LIONS_MEMBER_INFO MI
+				ON A.MEMBER_NO = MI.MEMBER_NO		  
+			 WHERE A.ORGAN_CODE IN(
+				SELECT ORGAN_CODE FROM dbo.FN_LIONS_SUB_TREE_YEAR_ORGAN(@sessionYear, (SELECT UPPER_ORGAN_CODE FROM ORG_TREE))
+			 )
+			   AND A.APP_KIND_CODE = '1010'
+			   AND A.APP_DESC_CODE = '1800'
+			   AND (
+					   (A.START_DATE >= @startDate AND A.START_DATE <= @endDate)
+					OR (A.END_DATE >= @startDate AND A.END_DATE <= @endDate)
+					OR (A.START_DATE <= @startDate AND A.END_DATE >= @startDate) /* '20120701' >= START_DATE AND '20120701' <= END_DATE */ 
+					OR (A.START_DATE <= @endDate AND A.END_DATE >= @endDate)
+				)
+		) R
+		]]>
+	</select> 	
+</sqlMap>

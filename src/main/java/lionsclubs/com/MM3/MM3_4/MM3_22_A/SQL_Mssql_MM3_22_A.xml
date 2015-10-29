@@ -1,0 +1,244 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://www.ibatis.com/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="lionsclubs.com.MM3.MM3_4.MM3_22_A">
+
+	<typeAlias alias="MM3_22_AVO" type="lionsclubs.com.MM3.MM3_4.MM3_22_A.MM3_22_AVO"/>
+	
+	<select id="lionsclubs.com.MM3.MM3_4.MM3_22_A.select" resultClass="MM3_22_AVO">
+		<![CDATA[
+		DECLARE @sessionYear NVARCHAR(4)	/* 현회기 */
+		DECLARE @clubCode NVARCHAR(6)	/* 클럽코드 */
+		
+		SET @sessionYear = #sessionYear#;
+		SET @clubCode = REPLACE(#clubCode#, '-', '');
+		
+		SELECT  ROW_NUMBER() OVER (
+					PARTITION BY  PAYMENT.CLUB_CODE
+								 ,PAYMENT.SESSION_YEAR
+								 ,PAYMENT.FIRST_SEC_KIND
+								 ,PAYMENT.ITEM_KIND_CODE
+								 ,PAYMENT.ITEM_CODE
+						ORDER BY  dbo.FN_LIONS_CODE_ORD('7660', PAYMENT.FIRST_SEC_KIND)
+								 ,dbo.FN_LIONS_CODE_ORD('6120', PAYMENT.ITEM_CODE)
+								 ,PAYMENT.PAYMENT_DATE DESC
+				) AS rnum
+			   ,PAYMENT.DISTRICT_CODE AS districtCode	/* 지구코드 */
+			   ,PAYMENT.PAYMENT_DATE AS paymentDate	/* 납부일자 */
+			   ,PAYMENT.FIRST_SEC_KIND AS firstSecKind	/* 분기코드 */
+			   ,dbo.FN_LIONS_CODE_NAME('7660', PAYMENT.FIRST_SEC_KIND) AS firstSecKindName	/* 분기명 */
+			   ,PAYMENT.ITEM_KIND_CODE AS itemKindCode	/* 부과항목구분코드 */
+			   ,PAYMENT.ITEM_CODE AS itemCode	/* 부과항목코드 */
+			   ,PAYMENT.ITEM_NAME AS itemName	/* 부과항목명 */
+			   ,PAYMENT.DUE_DOLLAR AS dueDollar	/* 부과금액 달러 */
+			   ,PAYMENT.DUE AS due	/* 부과금액 */
+			   ,PAYMENT.PAYMENT_DOLLAR AS paymentDollar	/* 납부금액 달러 */
+			   ,PAYMENT.PAYMENT AS payment	/* 납부금액 */
+			   ,PAYMENT.PAYMENT_DOLLAR_BAL AS paymentDollarBal	/* 납부금액 달러잔액 */
+			   ,PAYMENT.PAYMENT_BAL AS paymentBal	/* 납부금액 잔액 */
+			   ,CASE WHEN PAYMENT.CODE1 = '$$'
+			   		 THEN 'Y' ELSE 'N' END AS dollarYN	/* 달러구분 */
+			   ,PAYMENT.PAYMENT_IDN_NO AS paymentIdnNo	/* 클럽납부금 번호 */
+		  FROM(
+			SELECT  CIP.DISTRICT_CODE
+				   ,CIP.CLUB_CODE
+				   ,CIP.SESSION_YEAR
+				   ,CP.PAYMENT_DATE	/* 납부일자 */
+				   ,CIP.FIRST_SEC_KIND	/* 분기 */
+				   ,CIP.ITEM_KIND_CODE	/* 부고항목구분코드 */
+				   ,CIP.ITEM_CODE	/* 부과항목 코드 */
+				   ,CODE.CODE_NAME AS ITEM_NAME	/* 부과항목명 */
+				   ,ISNULL(CIP.DUE_DOLLAR, 0) + ISNULL(CIP.NEW_DUE_DOLLAR, 0) AS DUE_DOLLAR	/* 부과금액 달러 */
+				   ,ISNULL(CIP.DUE, 0) + ISNULL(CIP.NEW_DUE, 0) AS DUE	/* 부과금액 */
+				   ,CP.PAYMENT_DOLLAR	/* 납부금액 달러 */
+				   ,CP.PAYMENT	/* 납부금액 */
+				   ,ISNULL(CIP.DUE_DOLLAR, 0) + ISNULL(CIP.NEW_DUE_DOLLAR, 0) - 
+					(
+						SELECT ISNULL(SUM(PAYMENT_DOLLAR), 0)
+						  FROM LIONS_CLUB_PAYMENT
+						 WHERE CLUB_CODE = CP.CLUB_CODE
+						   AND SESSION_YEAR = CP.SESSION_YEAR
+						   AND FIRST_SEC_KIND = CP.FIRST_SEC_KIND
+						   AND ITEM_KIND_CODE = CP.ITEM_KIND_CODE
+						   AND ITEM_CODE = CP.ITEM_CODE
+						   AND PAYMENT_DATE <= CP.PAYMENT_DATE
+					) AS PAYMENT_DOLLAR_BAL	/* 납부금액 달러잔액 */
+				   ,ISNULL(CIP.DUE, 0) + ISNULL(CIP.NEW_DUE, 0) - 
+					(
+						SELECT ISNULL(SUM(PAYMENT), 0)
+						  FROM LIONS_CLUB_PAYMENT
+						 WHERE CLUB_CODE = CP.CLUB_CODE
+						   AND SESSION_YEAR = CP.SESSION_YEAR
+						   AND FIRST_SEC_KIND = CP.FIRST_SEC_KIND
+						   AND ITEM_KIND_CODE = CP.ITEM_KIND_CODE
+						   AND ITEM_CODE = CP.ITEM_CODE
+						   AND PAYMENT_DATE <= CP.PAYMENT_DATE
+					) AS PAYMENT_BAL	/* 납부금액 잔액 */
+				   ,CODE.CODE1
+				   ,CP.PAYMENT_IDN_NO
+			  FROM LIONS_CLUB_ITEM_PAYMENT CIP
+			  LEFT OUTER JOIN LIONS_CLUB_PAYMENT CP
+				ON CIP.CLUB_CODE = CP.CLUB_CODE
+			   AND CIP.SESSION_YEAR = CP.SESSION_YEAR
+			   AND CIP.FIRST_SEC_KIND = CP.FIRST_SEC_KIND
+			   AND CIP.ITEM_KIND_CODE = CP.ITEM_KIND_CODE
+			   AND CIP.ITEM_CODE = CP.ITEM_CODE
+			  LEFT OUTER JOIN LIONS_CODE CODE
+				ON CODE.GROUP_CODE = CIP.ITEM_KIND_CODE
+			   AND CODE.CODE = CIP.ITEM_CODE
+			 WHERE CIP.CLUB_CODE = @clubCode
+			   AND CIP.SESSION_YEAR = @sessionYear
+		) PAYMENT
+		 ORDER BY  dbo.FN_LIONS_CODE_ORD('7660', PAYMENT.FIRST_SEC_KIND)
+				  ,dbo.FN_LIONS_CODE_ORD('6120', PAYMENT.ITEM_CODE)
+				  ,PAYMENT.PAYMENT_DATE
+		]]>
+	</select>
+	
+	<insert id="lionsclubs.com.MM3.MM3_4.MM3_22_A.insertClubPayment">
+		INSERT INTO LIONS_CLUB_PAYMENT(
+			 CLUB_CODE	/* 클럽코드 */
+			,SESSION_YEAR	/* 회기년 */
+			,FIRST_SEC_KIND	/* 상반기/하반기구분 */
+			,ITEM_KIND_CODE	/* 부과항목구분코드 */
+			,ITEM_CODE	/* 부과항목코드 */
+			,PAYMENT_DATE	/* 납부일자 */
+			,PAYMENT	/* 납부금액 */
+			,PAYMENT_DOLLAR	/* 납부금액달러 */
+			,INSERT_DATE	/* 생성일자 */
+			,INSERT_NAME	/* 생성자 */
+			,UPDATE_DATE	/* 수정일자 */
+			,UPDATE_NAME	/* 수정자 */
+		) VALUES (
+			 #clubCode#	/* 클럽코드 */
+			,#sessionYear#	/* 회기년 */
+			,#firstSecKind#	/* 상반기/하반기구분 */
+			,#itemKindCode#	/* 부과항목구분코드 */
+			,#itemCode#	/* 부과항목코드 */
+			,REPLACE(#paymentDate#, '.' ,'')	/* 납부일자 */
+			,REPLACE(#payment#, ',', '')	/* 납부금액 */
+			,REPLACE(#paymentDollar#, ',', '')	/* 납부금액달러 */
+			,GETDATE()	/* 생성일자 */
+			,#insertName#	/* 생성자 */
+			,GETDATE()	/* 수정일자 */
+			,#updateName#	/* 수정자 */	
+		)
+	</insert>
+	
+	<update id="lionsclubs.com.MM3.MM3_4.MM3_22_A.updateClubPayment">
+		UPDATE LIONS_CLUB_PAYMENT
+ 		   SET  PAYMENT_DATE = REPLACE(#paymentDate#, '.' ,'')	/* 납부일자 */
+ 		   	   ,PAYMENT = REPLACE(#payment#, ',', '')	/* 납부금액 */
+			   ,PAYMENT_DOLLAR = REPLACE(#paymentDollar#, ',', '')	/* 납부금액달러 */
+			   ,UPDATE_DATE = GETDATE()	/* 수정일자 */
+			   ,UPDATE_NAME = #updateName#	/* 수정자 */
+		 WHERE PAYMENT_IDN_NO = #paymentIdnNo#
+	</update>
+	
+	<delete id="lionsclubs.com.MM3.MM3_4.MM3_22_A.deleteClubPayment">
+		DELETE FROM LIONS_CLUB_PAYMENT
+		 WHERE PAYMENT_IDN_NO = #paymentIdnNo#
+	</delete>
+
+	<select id="lionsclubs.com.MM3.MM3_4.MM3_22_A.objectClubPayment" resultClass="MM3_22_AVO">
+		SELECT  PAYMENT_DATE AS paymentDate
+			   ,PAYMENT AS payment
+			   ,PAYMENT_DOLLAR AS paymentDollar
+		  FROM LIONS_CLUB_PAYMENT
+		 WHERE PAYMENT_IDN_NO = #paymentIdnNo#
+	</select>
+	
+	<select id="lionsclubs.com.MM3.MM3_4.MM3_22_A.dupPaymentDateCnt" resultClass="Integer">
+		DECLARE @sessionYear NVARCHAR(4)	/* 현회기 */
+		DECLARE @clubCode NVARCHAR(6)	/* 클럽코드 */
+		DECLARE @firstSecKind NVARCHAR(4)	/* 상반기/하반기구분 */
+		DECLARE @itemKindCode NVARCHAR(6)	/* 부과항목구분코드 */
+		DECLARE @itemCode NVARCHAR(6)	/* 부과항목코드 */
+		DECLARE @paymentIdnNo INT	/* 클럽납입금번호 */
+		DECLARE @paymentDate NVARCHAR(8)	/* 납입일자 */
+		
+		SET @sessionYear = #sessionYear#;
+		SET @clubCode = REPLACE(#clubCode#, '-', '');
+		SET @firstSecKind = #firstSecKind#;
+		SET @itemKindCode = #itemKindCode#;
+		SET @itemCode = #itemCode#;
+		SET @paymentIdnNo = #paymentIdnNo#;
+		SET @paymentDate = REPLACE(#paymentDate#, '.', '');
+		
+		SELECT COUNT(*)
+		  FROM LIONS_CLUB_PAYMENT
+		 WHERE CLUB_CODE = @clubCode
+		   AND SESSION_YEAR = @sessionYear
+		   AND FIRST_SEC_KIND = @firstSecKind
+		   AND ITEM_KIND_CODE = @itemKindCode
+		   AND ITEM_CODE = @itemCode
+		   AND PAYMENT_DATE = @paymentDate
+		   AND PAYMENT_DATE != ISNULL((SELECT PAYMENT_DATE FROM LIONS_CLUB_PAYMENT WHERE PAYMENT_IDN_NO = @paymentIdnNo), '')	
+	</select>	
+	
+	<select id="lionsclubs.com.MM3.MM3_4.MM3_22_A.objectBalance" resultClass="Integer">
+		DECLARE @sessionYear NVARCHAR(4)	/* 현회기 */
+		DECLARE @clubCode NVARCHAR(6)	/* 클럽코드 */
+		DECLARE @firstSecKind NVARCHAR(4)	/* 상반기/하반기구분 */
+		DECLARE @itemKindCode NVARCHAR(6)	/* 부과항목구분코드 */
+		DECLARE @itemCode NVARCHAR(6)	/* 부과항목코드 */
+		DECLARE @paymentIdnNo INT	/* 클럽납부금번호 */
+		DECLARE @payment BIGINT	/* 납입금 */
+		DECLARE @paymentDollar BIGINT	/* 납입금 달러 */
+		
+		SET @sessionYear = #sessionYear#;
+		SET @clubCode = REPLACE(#clubCode#, '-', '');
+		SET @firstSecKind = #firstSecKind#;
+		SET @itemKindCode = #itemKindCode#;
+		SET @itemCode = #itemCode#;
+		SET @paymentIdnNo = #paymentIdnNo#;
+		SET @payment = REPLACE(#payment#, ',', '');
+		SET @paymentDollar = REPLACE(#paymentDollar#, ',', '');
+		
+		SELECT CASE WHEN P.CODE1 = '$$'
+					THEN ISNULL(P.DUE_DOLLAR, 0) - ((ISNULL(P.paymentDollarSum, 0) - ISNULL(P.PAYMENT_DOLLAR, 0)) + @paymentDollar)
+					ELSE ISNULL(P.DUE, 0) - ((ISNULL(P.paymentSum, 0) - ISNULL(P.PAYMENT, 0)) + @payment)
+					 END AS balance	/* 잔액 */
+		  FROM(
+			SELECT  CODE.CODE1 
+				   ,ISNULL(CIP.DUE, 0) + ISNULL(CIP.NEW_DUE, 0) AS DUE
+				   ,ISNULL(CIP.DUE_DOLLAR, 0) + ISNULL(CIP.NEW_DUE_DOLLAR, 0) AS DUE_DOLLAR
+				   ,CP.PAYMENT
+				   ,CP.PAYMENT_DOLLAR  
+				   ,(
+						SELECT SUM(PAYMENT)
+						  FROM LIONS_CLUB_PAYMENT
+						 WHERE CLUB_CODE = CIP.CLUB_CODE
+						   AND SESSION_YEAR = CIP.SESSION_YEAR
+						   AND FIRST_SEC_KIND = CIP.FIRST_SEC_KIND
+						   AND ITEM_KIND_CODE = CIP.ITEM_KIND_CODE
+						   AND ITEM_CODE = CIP.ITEM_CODE
+					) AS paymentSum
+					,(
+						SELECT SUM(PAYMENT_DOLLAR)
+						  FROM LIONS_CLUB_PAYMENT
+						 WHERE CLUB_CODE = CIP.CLUB_CODE
+						   AND SESSION_YEAR = CIP.SESSION_YEAR
+						   AND FIRST_SEC_KIND = CIP.FIRST_SEC_KIND
+						   AND ITEM_KIND_CODE = CIP.ITEM_KIND_CODE
+						   AND ITEM_CODE = CIP.ITEM_CODE
+					) AS paymentDollarSum
+			  FROM LIONS_CLUB_ITEM_PAYMENT CIP
+			  LEFT OUTER JOIN LIONS_CLUB_PAYMENT CP
+				ON CIP.CLUB_CODE = CP.CLUB_CODE
+			   AND CIP.SESSION_YEAR = CP.SESSION_YEAR
+			   AND CIP.FIRST_SEC_KIND = CP.FIRST_SEC_KIND
+			   AND CIP.ITEM_KIND_CODE = CP.ITEM_KIND_CODE
+			   AND CIP.ITEM_CODE = CP.ITEM_CODE
+			   AND CP.PAYMENT_IDN_NO = @paymentIdnNo
+			  LEFT OUTER JOIN LIONS_CODE CODE
+				ON CODE.GROUP_CODE = CIP.ITEM_KIND_CODE
+			   AND CODE.CODE = CIP.ITEM_CODE
+			 WHERE CIP.CLUB_CODE = @clubCode
+			   AND CIP.SESSION_YEAR = @sessionYear
+			   AND CIP.FIRST_SEC_KIND = @firstSecKind
+			   AND CIP.ITEM_KIND_CODE = @itemKindCode
+			   AND CIP.ITEM_CODE = @itemCode
+		) P
+	</select>
+</sqlMap>

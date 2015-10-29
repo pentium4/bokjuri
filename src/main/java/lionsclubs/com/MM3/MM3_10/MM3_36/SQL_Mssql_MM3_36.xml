@@ -1,0 +1,568 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://www.ibatis.com/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="lionsclubs.com.MM3.MM3_10.MM3_36">
+	<typeAlias alias="MM3_36VO" type="lionsclubs.com.MM3.MM3_10.MM3_36.MM3_36VO"/>
+
+	<sql id="lionsclubs.com.MM3.MM3_10.MM3_36.declare">
+		<![CDATA[
+		DECLARE @organCode NVARCHAR(6);
+		DECLARE @sessionYear NVARCHAR(4);
+		DECLARE @year NVARCHAR(4);
+		DECLARE @month NVARCHAR(2); 
+		DECLARE @startDate NVARCHAR(8); 
+		DECLARE @endDate NVARCHAR(8);
+		DECLARE @prevStartDate NVARCHAR(8); 
+		DECLARE @prevEndDate NVARCHAR(8);
+		
+		SET @organCode = #organCode#; 
+		SET @sessionYear = #sessionYear#;
+		SET @month = #month#;
+		SET @year = CASE WHEN @month < '07'
+						 THEN CAST(@sessionYear AS NVARCHAR(4))
+						 ELSE CAST(@sessionYear - 1 AS NVARCHAR(4))
+						  END;
+		SET @startDate = CASE WHEN LEN(@month) > 0
+							  THEN CONVERT(NVARCHAR(8), DATEADD(S, 1, DATEADD(MM, DATEDIFF(M, 0, @year + @month + '01'), 0)), 112)
+							  ELSE CONVERT(NVARCHAR(8), DATEADD(S, 1, DATEADD(MM, DATEDIFF(M, 0, CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701'), 0)), 112)
+							   END;
+		SET @endDate = CASE WHEN LEN(@month) > 0
+							THEN CONVERT(NVARCHAR(8), DATEADD(S, - 1, DATEADD(MM, DATEDIFF(M, 0, @year + @month + '01') + 1, 0)), 112)
+							ELSE CONVERT(NVARCHAR(8), DATEADD(S, - 1, DATEADD(MM, DATEDIFF(M, 0, CAST(@sessionYear AS NVARCHAR(4)) + '0630') + 1, 0)), 112)
+							 END;
+		SET @prevStartDate = CONVERT(NVARCHAR(8), DATEADD(S, 1, DATEADD(MM, DATEDIFF(M, 0, @startDate) - 1, 0)), 112);
+		SET @prevEndDate = CONVERT(NVARCHAR(8), DATEADD(S, - 1, DATEADD(MM, DATEDIFF(M, 0, @endDate), 0)), 112);
+		]]>
+	</sql>
+	
+	<sql id="lionsclubs.com.MM3.MM3_10.MM3_36.clubMemberShipQuery">
+		<include refid="lionsclubs.com.MM3.MM3_10.MM3_36.declare" />
+		<![CDATA[
+		WITH ORGAN_CODE_HISTORY AS(
+			SELECT 	HISTORY.ORGAN_CODE   
+				   ,HISTORY.UPPER_ORGAN_CODE	/* 상위조직 코드 */
+				   ,HISTORY.ORGAN_DIVISION_CODE	/* 조직구분코드 */
+				   ,X.SPOT_NIGHT
+				   ,X.ORGAN_ABOLISH_DATE
+			  FROM LIONS_ORGAN_CODE_HISTORY HISTORY
+			 INNER JOIN(
+				SELECT  IDN_NO
+					   ,SPOT_NIGHT
+					   ,ORGAN_ABOLISH_DATE
+				  FROM(
+					SELECT  ROW_NUMBER() OVER (PARTITION BY OCH.ORGAN_CODE ORDER BY OCH.CHANGE_DATE DESC, OCH.IDN_NO DESC) AS rnum
+						   ,OCH.IDN_NO
+						   ,OC.SPOT_NIGHT
+						   ,OC.ORGAN_ABOLISH_DATE
+					  FROM (
+						SELECT  ORGAN_CODE
+							   ,SPOT_NIGHT
+							   ,CASE WHEN LEN(ORGAN_ABOLISH_DATE) > 0 
+									  THEN ORGAN_ABOLISH_DATE 
+									  ELSE '99991231' 
+									   END AS ORGAN_ABOLISH_DATE
+						  FROM LIONS_ORGAN_CODE
+					  ) OC
+					 INNER JOIN LIONS_ORGAN_CODE_HISTORY OCH
+					    ON OC.ORGAN_CODE = OCH.ORGAN_CODE
+					 WHERE (
+							   (OC.SPOT_NIGHT >= @prevStartDate AND OC.SPOT_NIGHT <= @endDate)
+							OR (OC.ORGAN_ABOLISH_DATE >= @prevStartDate AND OC.ORGAN_ABOLISH_DATE <= @endDate)
+							OR (OC.SPOT_NIGHT <= @prevStartDate AND OC.ORGAN_ABOLISH_DATE >= @prevStartDate)
+							OR (OC.SPOT_NIGHT <= @endDate AND OC.ORGAN_ABOLISH_DATE >= @endDate)
+					 )
+				) IDN
+				 WHERE rnum = 1
+			 ) X
+				ON HISTORY.IDN_NO = X.IDN_NO
+		), ORGAN_TREE AS 
+		(
+			SELECT  1 AS LVL
+				   ,ORGAN.ORGAN_CODE	/* 조직코드 */
+				   ,HISTORY.ORGAN_DIVISION_CODE	/* 조직구분코드 */
+				   ,HISTORY.SPOT_NIGHT
+				   ,HISTORY.ORGAN_ABOLISH_DATE
+			  FROM LIONS_ORGAN_CODE ORGAN 
+			  LEFT OUTER JOIN ORGAN_CODE_HISTORY HISTORY 
+			    ON ORGAN.ORGAN_CODE = HISTORY.ORGAN_CODE
+			 WHERE HISTORY.ORGAN_CODE = @organCode
+			  
+			 UNION ALL
+		
+			SELECT  TREE.lvl + 1 AS LVL
+			       ,HISTORY.ORGAN_CODE	/* 조직코드 */
+			       ,HISTORY.ORGAN_DIVISION_CODE	/* 조직구분코드 */
+				   ,HISTORY.SPOT_NIGHT
+				   ,HISTORY.ORGAN_ABOLISH_DATE			       
+			  FROM ORGAN_TREE AS TREE
+			 INNER JOIN ORGAN_CODE_HISTORY HISTORY
+			   ON HISTORY.UPPER_ORGAN_CODE = TREE.ORGAN_CODE
+		/* 전월 퇴회정보 */
+		), PREV_MONTH_RETIRE AS(
+			SELECT  MEMBER_NO
+				   ,END_DATE
+			  FROM LIONS_APPOINTMENT APP
+			 INNER JOIN(
+				SELECT IDN.IDN_NO 
+				  FROM(
+					SELECT  ROW_NUMBER() OVER (PARTITION BY MEMBER_NO ORDER BY END_DATE DESC, CASE WHEN APP_KIND_CODE = '1050' THEN 1 ELSE 2 END, IDN_NO DESC) AS rnum
+						   ,IDN_NO
+						   ,APP_KIND_CODE
+					  FROM LIONS_APPOINTMENT
+					 WHERE (
+							   (START_DATE >= @prevStartDate AND START_DATE <= @prevEndDate)
+							OR (END_DATE >= @prevStartDate AND END_DATE <= @prevEndDate)
+							OR (START_DATE <= @prevStartDate AND END_DATE >= @prevStartDate) /* '20120701' >= START_DATE AND '20120701' <= END_DATE */
+							OR (START_DATE <= @prevEndDate AND END_DATE >= @prevEndDate)
+						)
+				) IDN
+				 WHERE IDN.rnum = 1
+				   AND IDN.APP_KIND_CODE = '1050'	/* 선임구분(2700) : 선임-퇴회 */
+			  ) X
+				 ON APP.IDN_NO = X.IDN_NO	    
+		/* 전월말 인원수 */	   
+		),PREV_MONTH_MEMBER_CNT AS ( 
+			SELECT  COUNT(DISTINCT MCH.MEMBER_NO) AS prevMemberCnt
+				   ,MCH.ORGAN_CODE
+			  FROM dbo.LIONS_MEMBER_CLUB_HIST MCH
+			  LEFT OUTER JOIN PREV_MONTH_RETIRE PMR
+				ON MCH.MEMBER_NO = PMR.MEMBER_NO	  
+			 WHERE @prevEndDate >= MCH.START_DATE
+			   AND @prevEndDate <= MCH.END_DATE
+			   AND PMR.END_DATE IS NULL
+			 GROUP BY MCH.ORGAN_CODE
+		/* 신입회원 */ 
+		), NEW_MEMBER_CNT AS(
+			SELECT  COUNT(DISTINCT APP.MEMBER_NO) AS newMemberCnt
+				   ,APP.ORGAN_CODE
+			  FROM dbo.LIONS_APPOINTMENT APP
+			 WHERE APP.APP_KIND_CODE = '1040'	/* 선임구분(2700) : 선임-입회 퇴회 재입회 */
+			   AND APP.APP_DESC_CODE = '1000'	/* 선임-입회 퇴회 재입회(2820) : 입회 */
+			   AND APP.START_DATE >= @startDate
+			   AND APP.START_DATE <= @endDate
+			 GROUP BY APP.ORGAN_CODE
+		/* 재입회원 */
+		), RE_MEMBER_CNT AS(
+			SELECT  COUNT(DISTINCT APP.MEMBER_NO) AS reMemberCnt
+				   ,APP.ORGAN_CODE
+			  FROM LIONS_APPOINTMENT APP
+			 INNER JOIN(
+				 SELECT IDN_NO FROM(
+					 SELECT  ROW_NUMBER() OVER (PARTITION BY APP.MEMBER_NO ORDER BY APP.END_DATE DESC, APP.IDN_NO DESC) AS rnum
+							,APP.IDN_NO
+					   FROM LIONS_APPOINTMENT APP
+					  WHERE APP.APP_KIND_CODE = '1040'	/* 선임구분(2700) : 선임-입회 재입회 */
+						AND APP.APP_DESC_CODE = '1020'	/* 선임-입회 재입회(2820) : 재입회 */
+					    AND APP.START_DATE >= @startDate
+					    AND APP.START_DATE <= @endDate
+					) IDN
+					 WHERE rnum = 1
+			) X
+			    ON APP.IDN_NO = X.IDN_NO
+			 GROUP BY APP.ORGAN_CODE
+		/* 전입회원 */
+		), MOVING_MEMBER_CNT AS(
+			SELECT  COUNT(DISTINCT APP.MEMBER_NO) AS movingMemberCnt
+				   ,APP.ORGAN_CODE
+			  FROM LIONS_APPOINTMENT APP
+			 INNER JOIN(
+				 SELECT IDN_NO FROM(
+					 SELECT  ROW_NUMBER() OVER (PARTITION BY APP.MEMBER_NO ORDER BY APP.END_DATE DESC, APP.IDN_NO DESC) AS rnum
+							,APP.IDN_NO
+					   FROM LIONS_APPOINTMENT APP
+					  WHERE APP.APP_KIND_CODE = '1040'	/* 선임구분(2700) : 선임-입회 재입회 */
+						AND APP.APP_DESC_CODE = '1030'	/* 선임-입회 재입회(2820) : 전입회원 */
+					    AND APP.START_DATE >= @startDate
+					    AND APP.START_DATE <= @endDate
+					) IDN
+					 WHERE rnum = 1
+			) X
+			    ON APP.IDN_NO = X.IDN_NO
+			 GROUP BY APP.ORGAN_CODE
+		/* 현재월 퇴회정보 */
+		), CURRENT_MONTH_RETIRE AS(
+			SELECT  MEMBER_NO
+				   ,END_DATE
+				   ,ORGAN_CODE
+			  FROM LIONS_APPOINTMENT APP
+			 INNER JOIN(
+				SELECT IDN.IDN_NO 
+				  FROM(
+					SELECT  ROW_NUMBER() OVER (PARTITION BY MEMBER_NO ORDER BY END_DATE DESC, CASE WHEN APP_KIND_CODE = '1050' THEN 1 ELSE 2 END, IDN_NO DESC) AS rnum
+						   ,IDN_NO
+						   ,APP_KIND_CODE
+					  FROM LIONS_APPOINTMENT
+					 WHERE END_DATE >= @startDate
+					   AND END_DATE <= @endDate
+				) IDN
+				 WHERE IDN.rnum = 1
+				   AND IDN.APP_KIND_CODE = '1050'	/* 선임구분(2700) : 선임-퇴회 */
+			  ) X
+				 ON APP.IDN_NO = X.IDN_NO
+		/* 퇴회회원 */
+		), QUIT_MEMBER_CNT AS(
+			SELECT  COUNT(DISTINCT CMR.MEMBER_NO) AS quitMemberCnt
+				   ,CMR.ORGAN_CODE
+			  FROM CURRENT_MONTH_RETIRE CMR
+			 GROUP BY CMR.ORGAN_CODE	    
+		/* 현재월말 인원수 */	   
+		), CURRENT_MONTH_MEMBER_CNT AS (
+			SELECT  COUNT(DISTINCT MEMBER_NO) AS currentMemberCnt
+				   ,ORGAN_CODE
+			  FROM dbo.LIONS_MEMBER_CLUB_HIST
+			 WHERE @endDate >= START_DATE
+			   AND @endDate <= END_DATE
+			 GROUP BY ORGAN_CODE
+		)
+		]]>		
+	</sql>
+
+	<select id="lionsclubs.com.MM3.MM3_10.MM3_36.clubMemberShip" resultClass="MM3_36VO">
+		<include refid="lionsclubs.com.MM3.MM3_10.MM3_36.clubMemberShipQuery"/>
+		<![CDATA[
+		SELECT  RIGHT(OT.ORGAN_CODE, 3) + '. ' + dbo.FN_LIONS_ORGAN_NAME(OT.ORGAN_CODE) AS organName
+			   ,OT.ORGAN_DIVISION_CODE AS organDivisionCode	/* 조직구분 코드 */
+			   ,PMMC.prevMemberCnt	/* 전월말 회원수 */
+			   ,NMC.newMemberCnt	/* 신입회원 */
+			   ,RMC.reMemberCnt	/* 재입회원 */
+			   ,MMC.movingMemberCnt	/* 전입회원 */
+			   ,QMC.quitMemberCnt	/* 퇴회회원 */
+			   ,CMMC.currentMemberCnt	/* 현재월말 회원수 */
+			   ,ISNULL(CMMC.currentMemberCnt, 0) - ISNULL(PMMC.prevMemberCnt, 0) AS increaseMemberCnt 	/* 순증가 회원수 */
+		  FROM ORGAN_TREE OT
+		  LEFT OUTER JOIN PREV_MONTH_MEMBER_CNT PMMC
+		    ON OT.ORGAN_CODE = PMMC.ORGAN_CODE
+		  LEFT OUTER JOIN NEW_MEMBER_CNT NMC
+		    ON OT.ORGAN_CODE = NMC.ORGAN_CODE
+		  LEFT OUTER JOIN RE_MEMBER_CNT RMC
+		    ON OT.ORGAN_CODE = RMC.ORGAN_CODE
+		  LEFT OUTER JOIN MOVING_MEMBER_CNT MMC
+		    ON OT.ORGAN_CODE = MMC.ORGAN_CODE
+		  LEFT OUTER JOIN QUIT_MEMBER_CNT QMC
+		    ON OT.ORGAN_CODE = QMC.ORGAN_CODE
+		  LEFT OUTER JOIN CURRENT_MONTH_MEMBER_CNT CMMC
+		    ON OT.ORGAN_CODE = CMMC.ORGAN_CODE
+		 WHERE OT.LVL = 2
+		 ORDER BY OT.ORGAN_CODE
+		]]>
+	</select>
+	
+	<select id="lionsclubs.com.MM3.MM3_10.MM3_36.serviceStatus" resultClass="MM3_36VO">
+		<include refid="lionsclubs.com.MM3.MM3_10.MM3_36.declare" />
+		<![CDATA[
+		WITH ORGAN_CODE_HISTORY AS(
+			SELECT 	HISTORY.ORGAN_CODE   
+				   ,HISTORY.UPPER_ORGAN_CODE	/* 상위조직 코드 */
+			  FROM LIONS_ORGAN_CODE_HISTORY HISTORY
+			 INNER JOIN(
+				SELECT IDN_NO FROM(
+					SELECT  ROW_NUMBER() OVER (PARTITION BY OCH.ORGAN_CODE ORDER BY OCH.CHANGE_DATE DESC, OCH.IDN_NO DESC) AS rnum
+						   ,OCH.IDN_NO
+					  FROM (
+						SELECT  ORGAN_CODE
+							   ,SPOT_NIGHT
+							   ,CASE WHEN LEN(ORGAN_ABOLISH_DATE) > 0 
+									  THEN ORGAN_ABOLISH_DATE 
+									  ELSE '99991231' 
+									   END AS ORGAN_ABOLISH_DATE
+						  FROM LIONS_ORGAN_CODE
+					  ) OC
+					 INNER JOIN LIONS_ORGAN_CODE_HISTORY OCH
+					    ON OC.ORGAN_CODE = OCH.ORGAN_CODE
+					 WHERE (
+							   (OC.SPOT_NIGHT >= @prevEndDate AND OC.SPOT_NIGHT <= @endDate)
+							OR (OC.ORGAN_ABOLISH_DATE >= @prevEndDate AND OC.ORGAN_ABOLISH_DATE <= @endDate)
+							OR (OC.SPOT_NIGHT <= @prevEndDate AND OC.ORGAN_ABOLISH_DATE >= @prevEndDate)
+							OR (OC.SPOT_NIGHT <= @endDate AND OC.ORGAN_ABOLISH_DATE >= @endDate)
+					 )
+				) IDN
+				 WHERE rnum = 1
+			 ) X
+				ON HISTORY.IDN_NO = X.IDN_NO
+		), ORGAN_TREE AS (
+			SELECT  1 AS LVL
+				   ,ORGAN.ORGAN_CODE	/* 조직코드 */
+			  FROM LIONS_ORGAN_CODE ORGAN 
+			  LEFT OUTER JOIN ORGAN_CODE_HISTORY HISTORY 
+			    ON ORGAN.ORGAN_CODE = HISTORY.ORGAN_CODE
+			 WHERE HISTORY.ORGAN_CODE = @organCode
+		
+			 UNION ALL
+		
+			SELECT  TREE.lvl + 1 AS LVL
+			       ,HISTORY.ORGAN_CODE	/* 조직코드 */
+			  FROM ORGAN_TREE AS TREE
+			 INNER JOIN ORGAN_CODE_HISTORY HISTORY
+			   ON HISTORY.UPPER_ORGAN_CODE = TREE.ORGAN_CODE
+		), CURRENT_MONTH_SERVICE_STATUS AS(
+			SELECT  C.CODE
+				   ,MIN(C.CODE_NAME) AS detailItemName
+				   ,COUNT(IE.AMOUNT) AS cnt
+				   ,SUM(IE.AMOUNT) AS amount
+			  FROM LIONS_CODE C
+			  LEFT OUTER JOIN LIONS_INCOME_EXPEND IE
+				ON C.CODE = IE.SERVICE_PERFORMANCE_CODE
+			   AND IE.INEX_DATE >= @prevStartDate
+			   AND IE.INEX_DATE <= @prevEndDate 
+			   AND IE.ORGAN_CODE IN(
+					SELECT ORGAN_CODE FROM ORGAN_TREE
+			   )
+			   AND IE.CLASS_ITEM_CODE = '1040'
+			 WHERE GROUP_CODE = '6110'
+			 GROUP BY C.CODE
+		), SESSION_SERVICE_STATUS AS(
+			SELECT  C.CODE
+				   ,MIN(C.CODE_NAME) AS detailItemName
+				   ,COUNT(IE.AMOUNT) AS cnt
+				   ,SUM(IE.AMOUNT) AS amount
+			  FROM LIONS_CODE C
+			  LEFT OUTER JOIN LIONS_INCOME_EXPEND IE
+				ON C.CODE = IE.SERVICE_PERFORMANCE_CODE
+			   AND IE.INEX_DATE >= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701'
+			   AND IE.INEX_DATE <= CAST(@sessionYear AS NVARCHAR(4)) + '0630' 
+			   AND IE.ORGAN_CODE IN(
+					SELECT ORGAN_CODE FROM ORGAN_TREE
+			   )
+			   AND IE.CLASS_ITEM_CODE = '1040'
+			 WHERE GROUP_CODE = '6110'
+			 GROUP BY C.CODE		
+		)
+		
+		SELECT  CMSS.detailItemName
+			   ,CMSS.cnt
+			   ,CMSS.amount
+			   ,SSS.cnt AS sessionYearCnt
+			   ,SSS.amount AS sessionYearAmount
+		  FROM CURRENT_MONTH_SERVICE_STATUS CMSS
+		 INNER JOIN SESSION_SERVICE_STATUS SSS
+		    ON CMSS.CODE = SSS.CODE
+		]]>
+	</select>
+	
+	<sql id="lionsclubs.com.MM3.MM3_10.MM3_36.lcifStatusQuery">
+		<include refid="lionsclubs.com.MM3.MM3_10.MM3_36.declare" />
+		<![CDATA[
+		WITH ORGAN_CODE_HISTORY AS(
+			SELECT 	HISTORY.ORGAN_CODE   
+				   ,HISTORY.UPPER_ORGAN_CODE	/* 상위조직 코드 */
+			  FROM LIONS_ORGAN_CODE_HISTORY HISTORY
+			 INNER JOIN(
+				SELECT IDN_NO FROM(
+					SELECT  ROW_NUMBER() OVER (PARTITION BY OCH.ORGAN_CODE ORDER BY OCH.CHANGE_DATE DESC, OCH.IDN_NO DESC) AS rnum
+						   ,OCH.IDN_NO
+					  FROM (
+						SELECT  ORGAN_CODE
+							   ,SPOT_NIGHT
+							   ,CASE WHEN LEN(ORGAN_ABOLISH_DATE) > 0 
+									  THEN ORGAN_ABOLISH_DATE 
+									  ELSE '99991231' 
+									   END AS ORGAN_ABOLISH_DATE
+						  FROM LIONS_ORGAN_CODE
+					  ) OC
+					 INNER JOIN LIONS_ORGAN_CODE_HISTORY OCH
+					    ON OC.ORGAN_CODE = OCH.ORGAN_CODE
+					 WHERE (
+							   (OC.SPOT_NIGHT >= @prevEndDate AND OC.SPOT_NIGHT <= @endDate)
+							OR (OC.ORGAN_ABOLISH_DATE >= @prevEndDate AND OC.ORGAN_ABOLISH_DATE <= @endDate)
+							OR (OC.SPOT_NIGHT <= @prevEndDate AND OC.ORGAN_ABOLISH_DATE >= @prevEndDate)
+							OR (OC.SPOT_NIGHT <= @endDate AND OC.ORGAN_ABOLISH_DATE >= @endDate)
+					 )
+				) IDN
+				 WHERE rnum = 1
+			 ) X
+				ON HISTORY.IDN_NO = X.IDN_NO
+		), ORGAN_TREE AS (
+			SELECT  1 AS LVL
+				   ,ORGAN.ORGAN_CODE	/* 조직코드 */
+			  FROM LIONS_ORGAN_CODE ORGAN 
+			  LEFT OUTER JOIN ORGAN_CODE_HISTORY HISTORY 
+			    ON ORGAN.ORGAN_CODE = HISTORY.ORGAN_CODE
+			 WHERE HISTORY.ORGAN_CODE = @organCode
+		
+			 UNION ALL
+		
+			SELECT  TREE.lvl + 1 AS LVL
+			       ,HISTORY.ORGAN_CODE	/* 조직코드 */
+			  FROM ORGAN_TREE AS TREE
+			 INNER JOIN ORGAN_CODE_HISTORY HISTORY
+			   ON HISTORY.UPPER_ORGAN_CODE = TREE.ORGAN_CODE
+		)
+		]]>
+	</sql>
+	
+	<select id="lionsclubs.com.MM3.MM3_10.MM3_36.lcifStatus" resultClass="MM3_36VO">
+		<include refid="lionsclubs.com.MM3.MM3_10.MM3_36.lcifStatusQuery"/>
+		<![CDATA[		
+		SELECT  RIGHT(MM.ORGAN_CODE, 3) + '. ' + (SELECT KO_ABBR2 FROM LIONS_ORGAN_CODE WHERE ORGAN_CODE = MM.ORGAN_CODE) AS organName
+			   ,(SELECT NAME FROM LIONS_MEMBER_INFO WHERE MEMBER_NO = MM.MEMBER_NO) AS name
+			   ,SUM(MP.PAYMENT) AS payment
+			   ,SUM(MP.DOLLAR) AS dollar
+		  FROM LIONS_MONEY_MASTER MM
+		 INNER JOIN LIONS_MONEY_PAYMENT MP
+		    ON MM.IDN_NO = MP.IDN_NO
+		 INNER JOIN ORGAN_TREE OT
+		    ON MM.ORGAN_CODE = OT.ORGAN_CODE    
+		 WHERE MM.CLASS_ITEM_CODE = '1030'
+		   AND MM.DETAIL_ITEM_CODE = '1000'
+		   AND MP.PAYMENT_DATE >= @startDate
+		   AND MP.PAYMENT_DATE <= @endDate    
+		 GROUP BY  MM.ORGAN_CODE
+				  ,MM.MEMBER_NO
+		]]>
+	</select>
+		
+	<select id="lionsclubs.com.MM3.MM3_10.MM3_36.serviceHistory" resultClass="MM3_36VO">
+		<include refid="lionsclubs.com.MM3.MM3_10.MM3_36.declare" />
+		<![CDATA[
+		WITH ORGAN_CODE_HISTORY AS(
+			SELECT 	HISTORY.ORGAN_CODE   
+				   ,HISTORY.UPPER_ORGAN_CODE	/* 상위조직 코드 */
+			  FROM LIONS_ORGAN_CODE_HISTORY HISTORY
+			 INNER JOIN(
+				SELECT IDN_NO FROM(
+					SELECT  ROW_NUMBER() OVER (PARTITION BY OCH.ORGAN_CODE ORDER BY OCH.CHANGE_DATE DESC, OCH.IDN_NO DESC) AS rnum
+						   ,OCH.IDN_NO
+					  FROM (
+						SELECT  ORGAN_CODE
+							   ,SPOT_NIGHT
+							   ,CASE WHEN LEN(ORGAN_ABOLISH_DATE) > 0 
+									  THEN ORGAN_ABOLISH_DATE 
+									  ELSE '99991231' 
+									   END AS ORGAN_ABOLISH_DATE
+						  FROM LIONS_ORGAN_CODE
+					  ) OC
+					 INNER JOIN LIONS_ORGAN_CODE_HISTORY OCH
+					    ON OC.ORGAN_CODE = OCH.ORGAN_CODE
+					 WHERE (
+							   (OC.SPOT_NIGHT >= @prevEndDate AND OC.SPOT_NIGHT <= @endDate)
+							OR (OC.ORGAN_ABOLISH_DATE >= @prevEndDate AND OC.ORGAN_ABOLISH_DATE <= @endDate)
+							OR (OC.SPOT_NIGHT <= @prevEndDate AND OC.ORGAN_ABOLISH_DATE >= @prevEndDate)
+							OR (OC.SPOT_NIGHT <= @endDate AND OC.ORGAN_ABOLISH_DATE >= @endDate)
+					 )
+				) IDN
+				 WHERE rnum = 1
+			 ) X
+				ON HISTORY.IDN_NO = X.IDN_NO
+		), ORGAN_TREE AS (
+			SELECT  1 AS LVL
+				   ,ORGAN.ORGAN_CODE	/* 조직코드 */
+			  FROM LIONS_ORGAN_CODE ORGAN 
+			  LEFT OUTER JOIN ORGAN_CODE_HISTORY HISTORY 
+			    ON ORGAN.ORGAN_CODE = HISTORY.ORGAN_CODE
+			 WHERE HISTORY.ORGAN_CODE = @organCode
+		
+			 UNION ALL
+		
+			SELECT  TREE.lvl + 1 AS LVL
+			       ,HISTORY.ORGAN_CODE	/* 조직코드 */
+			  FROM ORGAN_TREE AS TREE
+			 INNER JOIN ORGAN_CODE_HISTORY HISTORY
+			   ON HISTORY.UPPER_ORGAN_CODE = TREE.ORGAN_CODE
+		), GROUP_ORGAN_CODE AS (
+			SELECT  MIN(IE.ORGAN_CODE) AS ORGAN_CODE
+				   ,COUNT(DISTINCT IE.DETAIL_ITEM_CODE) AS groupCnt
+			  FROM LIONS_CODE C
+			 INNER JOIN LIONS_INCOME_EXPEND IE
+				ON C.CODE = IE.SERVICE_PERFORMANCE_CODE
+			 INNER JOIN ORGAN_TREE OT
+				ON IE.ORGAN_CODE = OT.ORGAN_CODE
+			 WHERE IE.CLASS_ITEM_CODE = '1040'
+			   AND C.GROUP_CODE = '6110'
+			   AND IE.INEX_DATE >= @startDate
+			   AND IE.INEX_DATE <= @endDate	
+			 GROUP BY IE.ORGAN_CODE
+		)
+		
+		SELECT  CASE WHEN R.rnum = 1
+					 THEN R.organName
+					  END AS organName
+			   ,R.detailItemName
+			   ,R.amount
+			   ,R.groupCnt	
+		  FROM(
+			SELECT  ROW_NUMBER() OVER (PARTITION BY IE.ORGAN_CODE ORDER BY IE.ORGAN_CODE) AS rnum
+				   ,IE.ORGAN_CODE AS ORGAN_CODE
+				   ,(SELECT KO_ABBR2 FROM LIONS_ORGAN_CODE WHERE ORGAN_CODE = IE.ORGAN_CODE) AS organName
+				   ,MIN(C.CODE_NAME) AS detailItemName
+				   ,SUM(IE.AMOUNT) AS amount
+				   ,MIN(GOC.groupCnt) AS groupCnt
+			  FROM LIONS_CODE C
+			 INNER JOIN LIONS_INCOME_EXPEND IE
+				ON C.CODE = IE.SERVICE_PERFORMANCE_CODE
+			 INNER JOIN ORGAN_TREE OT
+				ON IE.ORGAN_CODE = OT.ORGAN_CODE
+			 INNER JOIN GROUP_ORGAN_CODE GOC
+				ON IE.ORGAN_CODE = GOC.ORGAN_CODE
+			 WHERE IE.CLASS_ITEM_CODE = '1040'
+			   AND C.GROUP_CODE = '6110'
+			   AND IE.INEX_DATE >= @startDate
+			   AND IE.INEX_DATE <= @endDate
+			 GROUP BY  IE.ORGAN_CODE
+					  ,IE.DETAIL_ITEM_CODE
+		  ) R
+		 ORDER BY R.ORGAN_CODE
+		]]>
+	</select>
+	
+	<select id="lionsclubs.com.MM3.MM3_10.MM3_36.reportSummary" resultClass="MM3_36VO">
+		<include refid="lionsclubs.com.MM3.MM3_10.MM3_36.clubMemberShipQuery"/>
+		<![CDATA[
+		SELECT  SUM(CASE WHEN OT.ORGAN_DIVISION_CODE = '1000' THEN 1 END) AS maleClubCnt	/* 남성클럽수 */
+			   ,SUM(CASE WHEN OT.ORGAN_DIVISION_CODE = '1010' THEN 1 END) AS femaleClubCnt	/* 여성클럽수 */
+			   ,SUM(CASE WHEN OT.ORGAN_DIVISION_CODE = '1020' THEN 1 END) AS mixtrueClubCnt	/* 혼성클럽수 */
+			   ,SUM(CASE WHEN OT.ORGAN_DIVISION_CODE = '1000' THEN CMMC.currentMemberCnt END) AS maleMemberCnt	/* 남성회원수 */
+			   ,SUM(CASE WHEN OT.ORGAN_DIVISION_CODE = '1010' THEN CMMC.currentMemberCnt END) AS femaleMemberCnt	/* 여성회원수 */
+			   ,SUM(CASE WHEN OT.ORGAN_DIVISION_CODE = '1020' THEN CMMC.currentMemberCnt END) AS mixtrueMemberCnt	/* 혼성회원수 */
+			   ,SUM(PMMC.prevMemberCnt) AS prevMemberCnt	/* 전월말 회원수 */
+			   ,SUM(CMMC.currentMemberCnt) AS currentMemberCnt	/* 현재월말 회원수 */
+			   ,SUM(ISNULL(NMC.newMemberCnt, 0)) + SUM(ISNULL(RMC.reMemberCnt, 0)) + SUM(ISNULL(MMC.movingMemberCnt, 0)) AS newMemberCnt	/* 신입회원수 */
+			   ,SUM(QMC.quitMemberCnt) AS quitMemberCnt	/* 탈퇴회원수 */
+			   ,SUM(CASE WHEN @prevEndDate >= OT.SPOT_NIGHT AND @prevEndDate < OT.ORGAN_ABOLISH_DATE
+						 THEN 1 END
+				) AS prevClubCnt	/* 전월말 클럽수 */
+			   ,SUM(CASE WHEN OT.SPOT_NIGHT >= @startDate AND OT.SPOT_NIGHT <= @endDate
+						 THEN 1 END
+				) AS newClubCnt	/* 신생 클럽수 */
+			   ,SUM(CASE WHEN OT.ORGAN_ABOLISH_DATE >= @startDate AND OT.ORGAN_ABOLISH_DATE <= @endDate
+						 THEN 1 END
+				) AS abolishClubCnt	/* 취소 클럽수 */
+			   ,SUM(CASE WHEN @endDate >= OT.SPOT_NIGHT AND @endDate < OT.ORGAN_ABOLISH_DATE
+						 THEN 1 END
+				) AS currentClubCnt	/* 현재월말 클럽수 */
+			   ,CONVERT(DATETIME, @prevEndDate, 112) AS prevEndDate	/* 전월말 날짜 */
+			   ,CONVERT(DATETIME, @endDate, 112) AS endDate	/* 현재월말 날짜 */
+		  FROM ORGAN_TREE OT
+		  LEFT OUTER JOIN PREV_MONTH_MEMBER_CNT PMMC
+		    ON OT.ORGAN_CODE = PMMC.ORGAN_CODE
+		  LEFT OUTER JOIN NEW_MEMBER_CNT NMC
+		    ON OT.ORGAN_CODE = NMC.ORGAN_CODE
+		  LEFT OUTER JOIN RE_MEMBER_CNT RMC
+		    ON OT.ORGAN_CODE = RMC.ORGAN_CODE
+		  LEFT OUTER JOIN MOVING_MEMBER_CNT MMC
+		    ON OT.ORGAN_CODE = MMC.ORGAN_CODE
+		  LEFT OUTER JOIN QUIT_MEMBER_CNT QMC
+		    ON OT.ORGAN_CODE = QMC.ORGAN_CODE
+		  LEFT OUTER JOIN CURRENT_MONTH_MEMBER_CNT CMMC
+		    ON OT.ORGAN_CODE = CMMC.ORGAN_CODE
+		 WHERE OT.LVL = 2
+		]]>
+	</select>
+	
+	<select id="lionsclubs.com.MM3.MM3_10.MM3_36.lcifStatusSummary" resultClass="MM3_36VO">
+		<include refid="lionsclubs.com.MM3.MM3_10.MM3_36.lcifStatusQuery"/>
+		<![CDATA[		
+		SELECT  COUNT(*) AS cnt
+			   ,SUM(MP.PAYMENT) AS payment
+			   ,SUM(MP.DOLLAR) AS dollar
+		  FROM LIONS_MONEY_MASTER MM
+		 INNER JOIN LIONS_MONEY_PAYMENT MP
+		    ON MM.IDN_NO = MP.IDN_NO
+		 INNER JOIN ORGAN_TREE OT
+		    ON MM.ORGAN_CODE = OT.ORGAN_CODE    
+		 WHERE MM.CLASS_ITEM_CODE = '1030'
+		   AND MM.DETAIL_ITEM_CODE = '1000'
+		   AND MP.PAYMENT_DATE >= @startDate
+		   AND MP.PAYMENT_DATE <= @endDate    
+		]]>
+	</select>	
+</sqlMap>

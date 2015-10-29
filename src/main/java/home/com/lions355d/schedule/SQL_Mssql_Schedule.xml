@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://www.ibatis.com/dtd/sql-map-2.dtd">
+<!-- 
+	수정일                 수정자                          수정내용
+  =========     =======    =================================================
+  2011.8.26   	서준식     	 	SSO 로그인을 위한 쿼리 추가
+  2011.09.27    서준식              컬럼 변경 SUB_DN 을  CRTFC_DN_VALUE 로 변경
+  2011.09.28    서준식              컬럼 변경 entrprsmber_id 을  ENTRPRS_MBER_ID 로 변경
+-->
+<sqlMap namespace="home.com.lions355d.schedule">
+	<typeAlias  alias="scheduleVO" type="home.com.lions355d.schedule.ScheduleVO"/>
+	
+	<sql id="home.com.lions355d.schedule.eventDeclare">
+		DECLARE @organCode NVARCHAR(6)	/* 조직코드 */
+		DECLARE @clubCode NVARCHAR(6)	/* 클럽코드 */
+		
+		SET @organCode = REPLACE(#organCode#, '-', '');
+		SET @clubCode = REPLACE(#clubCode#, '-', '');
+	</sql>
+	
+	<sql id="home.com.lions355d.schedule.eventQuery">
+		<include refid="home.com.lions355d.schedule.eventDeclare"/>
+		
+		SELECT  dbo.FN_LIONS_CODE_NAME(('36' + CAST(SUBSTRING(ES.ORGAN_CODE,2,2) AS NVARCHAR(2))), MIN(ES.EVENT_NAME_CODE)) + '(' + MIN(ES.EVENT_DESC) + ')' AS title	/* 행사명 */
+			   ,MIN(CONVERT(NVARCHAR(10), CONVERT(DATETIME, ES.EVENT_START_DATE), 120)) AS start /* 행사시작기간 */
+			   ,MIN(CONVERT(NVARCHAR(10), CONVERT(DATETIME, ES.EVENT_END_DATE), 120)) AS [end] /* 행사종료기간 */
+		  FROM LIONS_EVENT_SPONSOR ES
+		  LEFT OUTER JOIN LIONS_EVENT_CLUB EC
+		    ON ES.IDN_NO = EC.IDN_NO
+		  LEFT OUTER JOIN LIONS_EVENT_MEMBER EM
+		    ON EC.EVENT_CLUB_IDN_NO = EM.EVENT_CLUB_IDN_NO	
+	</sql>	
+	
+	<select id="home.com.lions355d.schedule.listSchedule1" resultClass="scheduleVO">
+		<include refid="home.com.lions355d.schedule.eventQuery"/>
+		 WHERE EC.CLUB_CODE = @organCode
+		    OR ES.ORGAN_CODE = @organCode    
+		 GROUP BY  ES.ORGAN_CODE
+				  ,ES.IDN_NO		
+	</select>
+	
+	<select id="home.com.lions355d.schedule.listSchedule2" resultClass="scheduleVO">
+		<include refid="home.com.lions355d.schedule.eventQuery"/>
+		 WHERE (
+			 ES.ORGAN_CODE IN(
+			 	SELECT ORGAN_CODE 
+			 	  FROM dbo.FN_LIONS_SUB_TREE_YEAR_ORGAN('', @clubCode)
+		 	 )
+			OR EC.CLUB_CODE IN(
+				SELECT ORGAN_CODE 
+				  FROM dbo.FN_LIONS_SUB_TREE_YEAR_ORGAN('', @clubCode)
+			)
+		)
+		 GROUP BY  ES.ORGAN_CODE
+				  ,ES.IDN_NO
+	</select>
+	
+	<select id="home.com.lions355d.schedule.listClubCode" resultClass="scheduleVO">
+		<include refid="home.com.lions355d.schedule.eventDeclare"/>
+		
+		SELECT  ORGAN_CODE AS organCode
+			   ,RIGHT(ORGAN_CODE, 3) + '. ' + dbo.FN_LIONS_ORGAN_NAME(ORGAN_CODE) AS organName 
+		  FROM dbo.FN_LIONS_SUB_TREE_YEAR_ORGAN('', @organCode)
+		 WHERE LVL = 2
+		 ORDER BY ORGAN_CODE
+	</select>
+</sqlMap>

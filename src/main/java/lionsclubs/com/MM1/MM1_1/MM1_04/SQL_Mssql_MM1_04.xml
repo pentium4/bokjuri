@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://www.ibatis.com/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="lionsclubs.com.MM1.MM1_1.MM1_04">
+
+	<typeAlias alias="MM1_04VO" type="lionsclubs.com.MM1.MM1_1.MM1_04.MM1_04VO" />
+
+	<sql id="lionsclubs.com.MM1.MM1_1.MM1_04.queryList">
+ 		<![CDATA[
+		SELECT  LS.IDN_NO AS idnNo
+			   ,LS.MEMBER_NO AS memberNo
+			   ,LS.SANCTION_START_DATE AS sanctionStartDate
+			   ,LS.SANCTION_END_DATE AS sanctionEndDate
+			   ,LS.EDUCATION_CODE AS educationCode
+			   ,dbo.FN_LIONS_DETAILCODE_NAME('3110', LS.KIND_CODE, LS.EDUCATION_CODE) AS educationName
+			   ,LS.KIND_CODE AS kindCode
+			   ,dbo.FN_LIONS_CODE_NAME('3800', LS.KIND_CODE) AS kindName
+			   ,LS.ITEM_CODE AS itemCode
+			   ,dbo.FN_LIONS_DETAILCODE_NAME((SELECT CODE1 FROM LIONS_CODE WHERE GROUP_CODE = '3110' AND CODE = LS.KIND_CODE), LS.EDUCATION_CODE, LS.ITEM_CODE) AS itemName
+			   ,LS.AWARD_GRANTOR_CODE AS awardGrantorCode
+			   ,dbo.FN_LIONS_CODE_NAME('3000', LS.AWARD_GRANTOR_CODE) AS awardGrantorName
+			   ,LS.[DESC] AS [desc]
+			   ,LS.UPDATE_DATE AS updateDate
+		  FROM LIONS_SANCTION LS
+		 WHERE LS.MEMBER_NO = #memberNo#
+		   AND LS.KIND_CODE = #kindCode#
+		 ORDER BY LS.SANCTION_START_DATE DESC
+ 		]]>
+	</sql>
+	
+	<select id="lionsclubs.com.MM1.MM1_1.MM1_04.List" resultClass="MM1_04VO">
+		<include refid="lionsclubs.com.MM1.MM1_1.MM1_04.queryList"/>
+ 	</select>
+ 	
+ 	<select id="lionsclubs.com.MM1.MM1_1.MM1_04.Select" resultClass="MM1_04VO">
+			SELECT  IDN_NO AS idnNo
+				   ,MEMBER_NO AS memberNo
+				   ,SANCTION_START_DATE AS sanctionStartDate
+				   ,SANCTION_END_DATE AS sanctionEndDate
+				   ,EDUCATION_CODE AS educationCode
+				   ,KIND_CODE AS kindCode
+				   ,ITEM_CODE AS itemCode
+				   ,AWARD_GRANTOR_CODE AS awardGrantorCode
+				   ,[DESC] AS [desc]
+				   ,UPDATE_DATE AS updateDate
+			  FROM LIONS_SANCTION
+			 WHERE IDN_NO = #idnNo#
+ 	</select>
+ 	
+ 	<insert id="lionsclubs.com.MM1.MM1_1.MM1_04.Insert">
+        <![CDATA[
+			INSERT INTO LIONS_SANCTION (
+				 MEMBER_NO
+				,SANCTION_START_DATE
+				,SANCTION_END_DATE
+				,EDUCATION_CODE
+				,KIND_CODE
+				,ITEM_CODE
+				,AWARD_GRANTOR_CODE
+				,[DESC]
+				,INSERT_DATE
+				,INSERT_NAME
+				,UPDATE_DATE
+				,UPDATE_NAME
+			) VALUES (
+				 #memberNo#
+				,REPLACE(#sanctionStartDate#, '.', '')
+				,REPLACE(#sanctionEndDate#, '.', '')
+				,#educationCode#
+				,#kindCode#
+				,#itemCode#
+				,#awardGrantorCode#
+				,#desc#
+				,GETDATE()
+				,#insertName#
+				,GETDATE()
+				,#updateName#
+			) 
+        ]]>
+    </insert>
+    
+ 	<update id="lionsclubs.com.MM1.MM1_1.MM1_04.Update">
+        <![CDATA[
+            UPDATE LIONS_SANCTION 
+               SET  SANCTION_START_DATE = REPLACE(#sanctionStartDate#, '.', '')
+                   ,SANCTION_END_DATE = REPLACE(#sanctionEndDate#, '.', '')
+	               ,EDUCATION_CODE = #educationCode#
+	               ,KIND_CODE = #kindCode#
+	               ,ITEM_CODE = #itemCode#
+	               ,AWARD_GRANTOR_CODE = #awardGrantorCode#
+	               ,[DESC] = #desc#
+	               ,UPDATE_DATE =  GETDATE()
+	               ,UPDATE_NAME = #updateName#             
+             WHERE IDN_NO = #idnNo#
+        ]]>
+    </update>
+    
+    <delete id="lionsclubs.com.MM1.MM1_1.MM1_04.Delete">
+        <![CDATA[
+            DELETE FROM LIONS_SANCTION 
+             WHERE IDN_NO = #idnNo#
+        ]]>
+    </delete>
+</sqlMap>

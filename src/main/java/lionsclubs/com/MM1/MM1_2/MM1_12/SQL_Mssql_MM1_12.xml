@@ -1,0 +1,382 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://www.ibatis.com/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="lionsclubs.com.MM1.MM1_2.MM1_12">
+
+	<typeAlias alias="MM1_12VO" type="lionsclubs.com.MM1.MM1_2.MM1_12.MM1_12VO"/>
+	
+	<sql id="lionsclubs.com.MM1.MM1_2.MM1_12.queryList">
+ 		<![CDATA[
+		SELECT  M.IDN_NO AS idnNo
+			   ,M.CA_YM AS caYm
+			   ,M.ORGAN_CODE AS organCode
+			   ,M.GEN_DATE AS genDate
+			   ,M.CLASS_ITEM_CODE AS classItemCode
+			   ,M.DETAIL_ITEM_CODE AS detailItemCode					
+			   ,dbo.FN_LIONS_CODE_NAME('4100', M.CLASS_ITEM_CODE) AS classItemName
+			   ,dbo.FN_LIONS_DETAILCODE_NAME('4100', M.CLASS_ITEM_CODE, M.DETAIL_ITEM_CODE) AS detailItemName
+			   ,I.KIND_CODE AS kindCode
+			   ,(SELECT KO_ABBR2 FROM LIONS_ORGAN_CODE WHERE ORGAN_CODE = I.KIND_CODE) AS kindName
+			   ,P.MEMBER_NO AS memberNo
+			   ,P.PAYMENT_DATE AS paymentDate	
+			   ,ISNULL(P.PAYMENT_COUNT,0) AS paymentCount
+			   ,P.PAYMENT_FINISH AS paymentFinish
+			   ,P.PAYMENT_DEFECT AS paymentDefect
+			   ,CASE WHEN M.DETAIL_ITEM_CODE = '1000' AND ISNULL(I.PERSONAL_IMPOST,0) > 0 
+					 THEN 'Y'
+					 ELSE 'N'
+					  END AS xdata
+			   ,ISNULL(I.PERSONAL_IMPOST,0) AS personalImpost
+			   ,CASE WHEN M.DETAIL_ITEM_CODE = '1000' 
+					 THEN ISNULL(I.PERSONAL_IMPOST,0)
+					 ELSE 0
+					  END AS dollar
+			   ,CASE WHEN M.DETAIL_ITEM_CODE = '1000' 
+					 THEN ISNULL(I.PERSONAL_IMPOST,0) * 
+						CASE WHEN CONVERT(INT, R.WON)=0 
+							 THEN 1 
+							 ELSE ISNULL(R.WON,1) 
+							 END
+					 ELSE ISNULL(I.IMPOST,0)
+					  END AS impost
+			   ,ISNULL(P.DOLLAR,0) AS paymentDollar
+			   ,ISNULL(P.PAYMENT,0) AS payment
+			   ,CASE WHEN M.DETAIL_ITEM_CODE = '1000'
+				     THEN (ISNULL(I.PERSONAL_IMPOST,0) - (SELECT ISNULL(SUM(DOLLAR),0) FROM LIONS_MONEY_PAYMENT AS MP WHERE MP.IDN_NO = M.IDN_NO))
+					 ELSE 0
+					  END AS balanceDollar
+			   ,CASE WHEN M.DETAIL_ITEM_CODE='1000' 
+					 THEN (ISNULL(I.PERSONAL_IMPOST,0) - (SELECT ISNULL(SUM(DOLLAR),0) FROM LIONS_MONEY_PAYMENT AS MP WHERE MP.IDN_NO = M.IDN_NO)) * 
+						CASE WHEN CONVERT(INT, R.WON) = 0 
+							 THEN 1 
+							 ELSE ISNULL(R.WON, 1) 
+							  END
+					 ELSE (ISNULL(I.IMPOST,0) - (SELECT ISNULL(SUM(PAYMENT),0) FROM LIONS_MONEY_PAYMENT AS MP WHERE MP.IDN_NO = M.IDN_NO))
+					  END AS balance
+			   ,(SELECT COUNT(PAYMENT) FROM LIONS_MONEY_PAYMENT AS MP2 WHERE MP2.IDN_NO = M.IDN_NO) AS pcount
+		  FROM LIONS_MONEY_MASTER M
+		  LEFT OUTER JOIN LIONS_MONEY_IMPOST I
+			ON I.IDN_NO = M.IDN_NO
+		  LEFT OUTER JOIN LIONS_MONEY_PAYMENT P
+			ON P.IDN_NO = M.IDN_NO
+		  LEFT OUTER JOIN LIONS_RATES R
+			ON R.YYYYMM = CONVERT(CHAR(6), GETDATE(), 112)
+ 		]]>
+	</sql>
+	
+	<select id="lionsclubs.com.MM1.MM1_2.MM1_12.List" resultClass="MM1_12VO">
+		<include refid="lionsclubs.com.MM1.MM1_2.MM1_12.queryList"/>
+		WHERE I.TARGET_MEMBER_NO = #memberNo# 
+		  AND M.CLASS_ITEM_CODE = #classItemCode#
+		ORDER BY  genDate
+				 ,detailItemCode ASC
+				 ,paymentDate ASC
+ 	</select>
+ 	
+ 	<sql id="lionsclubs.com.MM1.MM1_2.MM1_12.querySelect">
+ 		<![CDATA[
+		SELECT  M.IDN_NO AS idnNo
+			   ,M.CA_YM AS caYm
+			   ,M.ORGAN_CODE AS organCode
+			   ,M.GEN_DATE AS genDate
+			   ,M.CLASS_ITEM_CODE AS classItemCode
+			   ,M.DETAIL_ITEM_CODE AS detailItemCode
+			   ,M.UPDATE_DATE AS updateDate	
+			   ,I.IMPOST AS impost
+			   ,I.PERSONAL_Impost AS personalImpost					
+			   ,I.KIND_CODE AS kindCode
+			   ,dbo.FN_LIONS_ORGAN_NAME(I.KIND_CODE) AS kindName
+			   ,I.TARGET_MEMBER_NO AS targetMemberNo
+			   ,I.IMPOST_MEMBER_NO AS impostMemberNo
+		  FROM LIONS_MONEY_MASTER M 
+		  LEFT OUTER JOIN LIONS_MONEY_IMPOST AS I 
+		    ON I.IDN_NO = M.IDN_NO 
+ 		]]>
+	</sql>
+	
+ 	<select id="lionsclubs.com.MM1.MM1_2.MM1_12.Select" resultClass="MM1_12VO">
+		<include refid="lionsclubs.com.MM1.MM1_2.MM1_12.querySelect"/>
+ 		WHERE M.IDN_NO = #idnNo# AND I.TARGET_MEMBER_NO = #memberNo#
+ 	</select>
+ 	
+ 	<select id="lionsclubs.com.MM1.MM1_2.MM1_12.SelectOrganCode" resultClass="MM1_12VO">
+ 		SELECT dbo.FN_LIONS_ORGAN_CODE(#memberNo#) AS organCode
+ 	</select>
+ 	
+ 	<select id="lionsclubs.com.MM1.MM1_2.MM1_12.SelectDollar" resultClass="Integer">
+ 		WITH WDATA AS (
+			SELECT #caYm# AS yyyymm
+		)
+		SELECT CASE WHEN ISNULL(R.WON,0) > 0 
+					THEN ISNULL(R.WON,0) 
+					ELSE 0 END AS won 
+		  FROM WDATA W
+		  LEFT OUTER JOIN LIONS_RATES AS R 
+		    ON R.YYYYMM = W.yyyymm
+ 	</select>
+ 	
+ 	<select id="lionsclubs.com.MM1.MM1_2.MM1_12.SelectCalCount" resultClass="Integer">
+ 		SELECT COUNT(*) AS CACOUNT  
+		  FROM LIONS_CALCULATE
+		 WHERE ORGAN_CODE = #organCode# 
+		   AND CA_YM = REPLACE(#caYm#, '.', '')
+ 	</select>
+ 	
+ 	<select id="lionsclubs.com.MM1.MM1_2.MM1_12.SelectCal" resultClass="java.lang.String">
+ 		SELECT CONFIRM_YN AS CONFIRMYN 
+		  FROM LIONS_CALCULATE
+		 WHERE ORGAN_CODE = #organCode# 
+		   AND CA_YM = REPLACE(#caYm#, '.', '')
+ 	</select>
+ 	
+ 	<insert id="lionsclubs.com.MM1.MM1_2.MM1_12.InsertCal">
+        <![CDATA[
+		INSERT INTO LIONS_CALCULATE (
+			 ORGAN_CODE
+			,CA_YM
+			,CONFIRM_YN
+			,INSERT_DATE
+			,INSERT_NAME
+			,UPDATE_DATE
+			,UPDATE_NAME
+		) VALUES (
+			 #organCode#
+			,REPLACE(#caYm#, '.', '')
+			,'N'
+			,GETDATE()
+			,#insertName#
+			,GETDATE()
+			,#updateName#
+		) 
+        ]]>
+    </insert> 
+ 	
+ 	<insert id="lionsclubs.com.MM1.MM1_2.MM1_12.InsertMaster">
+		<selectKey resultClass="int" keyProperty="idnNo" >
+			INSERT INTO LIONS_MONEY_MASTER (
+				 CA_YM
+				,ORGAN_CODE
+				,MEMBER_NO
+				,STAMP_CODE
+				,GEN_DATE
+				,CLASS_ITEM_CODE
+				,DETAIL_ITEM_CODE
+				,MASTER_GUBN
+				,INSERT_DATE
+				,INSERT_NAME
+				,UPDATE_DATE
+				,UPDATE_NAME
+			) VALUES (
+				 #caYm#
+				,#organCode#
+				,#memberNo#
+				,#stampCode#
+				,#genDate#
+				,#classItemCode#
+				,#detailItemCode#
+				,'A'
+				,GETDATE()
+				,#insertName#
+				,GETDATE()
+				,#updateName#
+			) 
+			
+			SELECT SCOPE_IDENTITY() AS idnNo
+		</selectKey> 
+	</insert>
+	
+	<insert id="lionsclubs.com.MM1.MM1_2.MM1_12.InsertImpost">
+		<![CDATA[
+		INSERT INTO LIONS_MONEY_IMPOST (
+			 IDN_NO
+			,IMPOST
+			,IMPOST_MEMBER_NO
+			,TARGET_MEMBER_NO
+			,PERSONAL_IMPOST
+			,KIND_CODE
+			,INSERT_DATE
+			,INSERT_NAME
+			,UPDATE_DATE
+			,UPDATE_NAME
+		) VALUES (
+			 #idnNo#
+			,#impost#
+			,#impostMemberNo#
+			,#targetMemberNo#
+			,#personalImpost#
+			,#kindCode#
+			,GETDATE()
+			,#insertName#
+			,GETDATE()
+			,#updateName#
+		) 
+        ]]>
+	</insert>  
+	 	
+	<insert id="lionsclubs.com.MM1.MM1_2.MM1_12.InsertPayment">
+		<selectKey resultClass="string" keyProperty="paymentCount" >
+			SELECT ISNULL(MAX(PAYMENT_COUNT), 0) + 1 AS paymentCount FROM LIONS_MONEY_PAYMENT WHERE IDN_NO = #idnNo#
+		</selectKey>
+		
+		INSERT INTO LIONS_MONEY_PAYMENT (
+			 IDN_NO
+			,MEMBER_NO
+			,PAYMENT_COUNT
+			,PAYMENT
+			,PAYMENT_DATE
+			,PAYMENT_FINISH
+			,PAYMENT_DEFECT
+			,DOLLAR
+			,INSERT_DATE
+			,INSERT_NAME
+			,UPDATE_DATE
+			,UPDATE_NAME
+		) VALUES (
+			 #idnNo#
+			,#memberNo#
+			,#paymentCount#
+			,#payment#
+			,#paymentDate#
+			,#paymentFinish#
+			,#paymentDefect#
+			,#dollar#
+			,GETDATE()
+			,#insertName#
+			,GETDATE()
+			,#updateName#
+		) 
+	</insert>
+    
+	<update id="lionsclubs.com.MM1.MM1_2.MM1_12.UpdateImpost">
+		<![CDATA[
+		UPDATE LIONS_MONEY_IMPOST 
+		   SET  IMPOST = #impost#
+			   ,PERSONAL_IMPOST = #personalImpost#
+			   ,KIND_CODE = #kindCode#
+		       ,UPDATE_DATE = GETDATE()
+		       ,UPDATE_NAME = #updateName#             
+		 WHERE IDN_NO = #idnNo#            
+        ]]>
+	</update>
+	
+	<update id="lionsclubs.com.MM1.MM1_2.MM1_12.UpdatePaymentCount">
+		<![CDATA[
+		UPDATE LIONS_MONEY_PAYMENT 
+		   SET  PAYMENT = #payment#
+			   ,PAYMENT_DATE = #paymentDate#
+			   ,PAYMENT_DEFECT = #paymentDefect#
+			   ,PAYMENT_FINISH = #paymentFinish#
+			   ,DOLLAR = #dollar#
+		       ,UPDATE_DATE = GETDATE()
+		       ,UPDATE_NAME = #updateName#             
+		 WHERE MEMBER_NO = #memberNo# 
+		   AND IDN_NO = #idnNo# 
+		   AND PAYMENT_COUNT = #paymentCount#           
+        ]]>
+	</update>
+    
+    <delete id="lionsclubs.com.MM1.MM1_2.MM1_12.DeleteMaster">
+        <![CDATA[
+            DELETE FROM LIONS_MONEY_MASTER 
+             WHERE IDN_NO = #idnNo#
+        ]]>
+    </delete>
+    
+    <delete id="lionsclubs.com.MM1.MM1_2.MM1_12.DeleteImpost">
+        <![CDATA[
+		DELETE FROM LIONS_MONEY_IMPOST 
+		 WHERE IDN_NO = #idnNo#
+        ]]>
+    </delete>
+    
+    <delete id="lionsclubs.com.MM1.MM1_2.MM1_12.DeletePayment">
+        <![CDATA[
+		DELETE FROM LIONS_MONEY_PAYMENT 
+		 WHERE IDN_NO = #idnNo#
+        ]]>
+    </delete>
+    
+    <delete id="lionsclubs.com.MM1.MM1_2.MM1_12.DeletePaymentCount">
+        <![CDATA[
+		DELETE FROM LIONS_MONEY_PAYMENT 
+		 WHERE IDN_NO = #idnNo# 
+		   AND PAYMENT_COUNT = #paymentCount#
+        ]]>
+    </delete>
+    
+    <select id="lionsclubs.com.MM1.MM1_2.MM1_12.SelectPaymentSum" resultClass="Integer">
+ 		SELECT ISNULL(SUM(PAYMENT),0) AS paymentSum 
+ 		  FROM LIONS_MONEY_PAYMENT 
+ 		 WHERE IDN_NO = #idnNo#
+ 	</select>
+ 	
+ 	<select id="lionsclubs.com.MM1.MM1_2.MM1_12.SelectPaymentSumLCIF" resultClass="Integer">
+ 		SELECT ISNULL(SUM(DOLLAR),0) AS paymentSum 
+ 		  FROM LIONS_MONEY_PAYMENT 
+ 		 WHERE IDN_NO = #idnNo#
+ 	</select>
+ 	
+ 	<select id="lionsclubs.com.MM1.MM1_2.MM1_12.SelectPaymentSumQ" resultClass="Integer">
+ 		SELECT ISNULL(SUM(PAYMENT),0) AS paymentSum 
+ 		  FROM LIONS_MONEY_PAYMENT 
+ 		 WHERE IDN_NO = #idnNo# 
+ 		   AND PAYMENT_COUNT NOT IN (#paymentCount#)
+ 	</select>
+ 	
+ 	<select id="lionsclubs.com.MM1.MM1_2.MM1_12.SelectPaymentSumLCIFQ" resultClass="Integer">
+ 		SELECT ISNULL(SUM(DOLLAR),0) AS paymentSum 
+ 		  FROM LIONS_MONEY_PAYMENT 
+ 		 WHERE IDN_NO = #idnNo# 
+ 		   AND PAYMENT_COUNT NOT IN (#paymentCount#)
+ 	</select>
+ 	
+	<delete id="lionsclubs.com.MM1.MM1_2.MM1_12.deleteIncomeExpend">
+		DELETE FROM LIONS_INCOME_EXPEND
+		 WHERE MONEY_IDN_NO = #idnNo#
+		 <isNotEmpty prepend="AND" property="paymentCount">
+		 	MONEY_PAYMENT_COUNT = #paymentCount#
+		 </isNotEmpty>
+    </delete>
+    
+    <insert id="lionsclubs.com.MM1.MM1_2.MM1_12.insertIncomeExpend">
+        <![CDATA[
+		INSERT INTO LIONS_INCOME_EXPEND (
+			 CA_YM
+			,ORGAN_CODE
+			,INEX_CODE
+			,INEX_DATE
+			,CLASS_ITEM_CODE
+			,DETAIL_ITEM_CODE
+			,AMOUNT
+			,INEX_DESC
+			,MONEY_IDN_NO
+			,MONEY_PAYMENT_COUNT
+			,INCOME_INSERT_DATE
+			,UNIT
+			,ATAND_AMOUNT
+			,INSERT_DATE
+			,INSERT_NAME
+			,UPDATE_DATE
+			,UPDATE_NAME
+		) VALUES (
+			 #caYm#
+			,#organCode#
+			,'1010'
+			,REPLACE(#paymentDate#, '.', '')
+			,#classItemCode#
+			,#detailItemCode#
+			,REPLACE(#payment#, ',', '')
+			,(SELECT NAME + '(' + MEMBER_NO + ')' FROM LIONS_MEMBER_INFO WHERE MEMBER_NO = #memberNo#)
+			,#idnNo#
+			,#paymentCount#
+			,CONVERT(CHAR(8), GETDATE(), 112)
+			,'1'
+			,REPLACE(#payment#, ',', '')
+			,GETDATE()
+			,#insertName#
+			,GETDATE()
+			,#updateName#
+		)
+        ]]>
+    </insert>
+</sqlMap>

@@ -1,0 +1,187 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://www.ibatis.com/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="lionsclubs.com.MM1.MM1_1.MM1_07">
+	<typeAlias alias="MM1_07VO" type="lionsclubs.com.MM1.MM1_1.MM1_07.MM1_07VO" />
+	
+	<sql id="lionsclubs.com.MM1.MM1_1.MM1_07.declare">
+		DECLARE @sessionYear NVARCHAR(4)	/* 현회선택 */
+		DECLARE @memberNo NVARCHAR(8)	/* 회원번호 */
+		DECLARE @organCode NVARCHAR(6)	/* 조직코드 */
+	
+		SET @sessionYear = #sessionYear#;
+		SET @memberNo = #memberNo#;
+		SET @organCode = #organCode#;
+						
+		WITH BASE_YEAR_MONTH AS(
+		   SELECT CAST(@sessionYear - 1 AS NVARCHAR(4)) + '07' AS CA_YM
+		   UNION ALL
+		   SELECT CAST(@sessionYear - 1 AS NVARCHAR(4)) + '08' AS CA_YM
+		   UNION ALL
+		   SELECT CAST(@sessionYear - 1 AS NVARCHAR(4)) + '09' AS CA_YM
+		   UNION ALL
+		   SELECT CAST(@sessionYear - 1 AS NVARCHAR(4)) + '10' AS CA_YM
+		   UNION ALL
+		   SELECT CAST(@sessionYear - 1 AS NVARCHAR(4)) + '11' AS CA_YM
+		   UNION ALL
+		   SELECT CAST(@sessionYear - 1 AS NVARCHAR(4)) + '12' AS CA_YM
+		   UNION ALL
+		   SELECT  @sessionYear + '01' AS CA_YM
+		   UNION ALL
+		   SELECT  @sessionYear + '02' AS CA_YM
+		   UNION ALL
+		   SELECT  @sessionYear + '03' AS CA_YM
+		   UNION ALL
+		   SELECT  @sessionYear + '04' AS CA_YM
+		   UNION ALL
+		   SELECT  @sessionYear + '05' AS CA_YM
+		   UNION ALL
+		   SELECT  @sessionYear + '06' AS CA_YM	
+		)	
+	</sql>
+	
+	<select id="lionsclubs.com.MM1.MM1_1.MM1_07.List" resultClass="MM1_07VO">
+		<include refid="lionsclubs.com.MM1.MM1_1.MM1_07.declare"/>
+		
+		SELECT  ISNULL(EA.MEMBER_NO, '') AS memberNo
+			   ,ISNULL(BTM.CA_YM, '') AS attendDate
+			   ,ISNULL(EA.MONTH_MEETING, '') AS monthMeeting
+			   ,ISNULL(EA.DIRECTOR_MEETING, '') AS directorMeeting
+			   ,ISNULL(EA.EVENT1_CHECK, '') AS event1Check
+			   ,ISNULL(EA.EVENT2_CHECK, '') AS event2Check
+			   ,ISNULL(EA.EVENT3_CHECK, '') AS event3Check
+			   ,ISNULL(EA.UPDATE_DATE, '') AS updateDate
+			   ,ME.EVENT1 AS event1
+			   ,ME.EVENT2 AS event2
+			   ,ME.EVENT3 AS event3 
+		  FROM BASE_YEAR_MONTH BTM
+		  LEFT OUTER JOIN LIONS_EVENT_ATTEND EA
+		    ON EA.ATTEND_DATE = BTM.CA_YM 
+		   AND EA.MEMBER_NO = @memberNo 
+		   AND EA.ATTEND_DATE BETWEEN CAST(@sessionYear - 1 AS NVARCHAR(4)) + '07' AND @sessionYear + '06'
+		  LEFT OUTER JOIN LIONS_MONTH_EVENT ME
+		    ON ME.EVENT_YYYYMM = BTM.CA_YM
+		   AND ME.ORGAN_CODE = @organCode
+ 	</select>
+ 	
+ 	<select id="lionsclubs.com.MM1.MM1_1.MM1_07.ListEvent" resultClass="MM1_07VO">
+ 		<include refid="lionsclubs.com.MM1.MM1_1.MM1_07.declare"/>
+ 		
+		SELECT  ISNULL(ME.ORGAN_CODE, @organCode) AS organCode
+			   ,ISNULL(BYM.CA_YM, '') AS eventYyyymm					
+			   ,ISNULL(ME.EVENT1, '') AS event1
+			   ,ISNULL(ME.EVENT2, '') AS event2
+			   ,ISNULL(ME.EVENT3, '') AS event3
+			   ,ISNULL(ME.UPDATE_DATE, '') AS updateDate
+		  FROM BASE_YEAR_MONTH BYM
+		  LEFT OUTER JOIN LIONS_MONTH_EVENT ME 
+		    ON ME.EVENT_YYYYMM = BYM.CA_YM 
+		   AND ME.ORGAN_CODE = @organCode 
+		   AND ME.EVENT_YYYYMM BETWEEN CAST(@sessionYear - 1 AS NVARCHAR(4)) + '07' AND @sessionYear + '06'
+ 	</select>
+ 	
+ 	<update id="lionsclubs.com.MM1.MM1_1.MM1_07.Insert">
+        <![CDATA[
+		IF NOT EXISTS (
+			SELECT EVENT_YYYYMM 
+			  FROM LIONS_MONTH_EVENT 
+			 WHERE ORGAN_CODE = #organCode# 
+			   AND EVENT_YYYYMM = #eventYyyymm#
+		)
+			INSERT INTO LIONS_MONTH_EVENT (
+				 ORGAN_CODE
+				,EVENT_YYYYMM
+				,EVENT1
+				,EVENT2
+				,EVENT3
+				,INSERT_DATE
+				,INSERT_NAME
+				,UPDATE_DATE
+				,UPDATE_NAME
+			) VALUES (
+				 #organCode#
+				,#eventYyyymm#
+				,#event1#
+				,#event2#
+				,#event3#
+				,GETDATE()
+				,#insertName#
+				,GETDATE()
+				,#updateName#
+			)
+		ELSE
+			UPDATE LIONS_MONTH_EVENT 
+		       SET  EVENT1 = #event1#
+		           ,EVENT2 = #event2#
+		           ,EVENT3 = #event3#
+		           ,UPDATE_DATE =  GETDATE()
+		           ,UPDATE_NAME = #updateName#
+		     WHERE ORGAN_CODE = #organCode# 
+		       AND EVENT_YYYYMM = #eventYyyymm#
+        ]]>
+    </update>
+    
+ 	<update id="lionsclubs.com.MM1.MM1_1.MM1_07.Update">
+        <![CDATA[
+		IF NOT EXISTS (
+			SELECT ATTEND_DATE 
+			  FROM LIONS_EVENT_ATTEND 
+			 WHERE MEMBER_NO = #memberNo# 
+			   AND ATTEND_DATE = #attendDate#
+		)
+			INSERT INTO LIONS_EVENT_ATTEND (
+				 MEMBER_NO
+				,ATTEND_DATE
+				,MONTH_MEETING
+				,DIRECTOR_MEETING
+				,EVENT1_CHECK
+				,EVENT2_CHECK
+				,EVENT3_CHECK
+				,INSERT_DATE
+				,INSERT_NAME
+				,UPDATE_DATE
+				,UPDATE_NAME
+			) VALUES (
+				 #memberNo#
+				,#attendDate#
+				,#monthMeeting#
+				,#directorMeeting#
+				,#event1Check#
+				,#event2Check#
+				,#event3Check#
+				,GETDATE()
+				,#insertName#
+				,GETDATE()
+				,#updateName#
+			)
+		ELSE
+		    UPDATE LIONS_EVENT_ATTEND 
+		       SET  ATTEND_DATE = #attendDate#
+		    	   ,MONTH_MEETING = #monthMeeting#
+		    	   ,DIRECTOR_MEETING = #directorMeeting#
+		    	   ,EVENT1_CHECK = #event1Check#
+		    	   ,EVENT2_CHECK = #event2Check#
+		    	   ,EVENT3_CHECK = #event3Check#
+		           ,UPDATE_DATE =  GETDATE()
+		           ,UPDATE_NAME = #updateName#             
+		     WHERE MEMBER_NO = #memberNo# 
+		       AND ATTEND_DATE = #attendDate#
+        ]]>
+    </update>
+    
+    <delete id="lionsclubs.com.MM1.MM1_1.MM1_07.Delete">
+        <![CDATA[
+            DELETE FROM LIONS_EVENT_ATTEND 
+             WHERE MEMBER_NO = #memberNo# 
+               AND ATTEND_DATE = #attendDate#
+        ]]>
+    </delete>
+    
+    <delete id="lionsclubs.com.MM1.MM1_1.MM1_07.DeleteAll">
+        <![CDATA[
+            DELETE FROM LIONS_EVENT_ATTEND 
+             WHERE MEMBER_NO = #memberNo# 
+               AND ATTEND_DATE BETWEEN CAST(#sessionYear# - 1 AS NVARCHAR(4)) + '07' AND #sessionYear# + '06'
+        ]]>
+    </delete>
+</sqlMap>

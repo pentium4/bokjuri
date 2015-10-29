@@ -1,0 +1,158 @@
+/* margin */
+.mt20{margin-top: 20px !important;}
+.ml20{margin-left: 20px !important;}
+.mr20{margin-right: 20px !important;}
+.mb20{margin-bottom: 20px !important;}
+
+/* message */
+#message span{
+	font-weight: bold;
+	text-decoration: underline;
+}
+
+/* pagination */
+/* .pagination { */
+/* 	margin-top: 10px; */
+/* 	vertical-align:middle; */
+/* 	text-align: center; */
+/* } */
+/* .pagination a, .pagination strong { */
+/* 	display:-moz-inline-stack;	FF2 */
+/* 	display:inline-block; */
+/* 	vertical-align:top; */
+/* 	padding:4px; */
+/* 	margin-right:3px; */
+/* 	width:15px !important; */
+/* 	color:#000; */
+/* 	font:bold 12px tahoma; */
+/* 	border:1px solid #eee; */
+/* 	text-align:center; */
+/* 	text-decoration:none; */
+/* 	width:26px;	IE 5.5 */
+
+/* } */
+/* .pagination strong{ */
+/* 	color:#fff; */
+/* 	background-color:#f40; */
+/* 	border:1px solid #f40; */
+/* } */
+/* .pagination a:hover, .paginationi a:focus { */
+/* 	color:#fff; */
+/* 	border:1px solid #f40; */
+/* 	background-color:#f40; */
+/* } */
+
+/* this original for Autocomplete Combobox */
+.ui-button { border: #ffffff 1px;}
+.ui-button-icon-only .ui-button-text { padding: 0.35em; } 
+.ui-autocomplete-input { margin: 0; padding: 0.1em 0 0.1em 0.1em; }
+/* *** Add this for visible Scrolling ;) */
+.ui-autocomplete {
+	max-height: 350px;
+	overflow-y: auto;
+	/* prevent horizontal scrollbar */
+	overflow-x: hidden;
+	/* add padding to account for vertical scrollbar */
+	padding-right: 20px;
+}
+/* IE 6 doesn't support max-height
+ * we use height instead, but this forces the menu to always be this tall
+ */
+* html .ui-autocomplete {
+	height: 100px;
+}
+
+.table table{ table-layout:fixed; }
+.table table td { 
+	white-space:nowrap;
+	text-overflow:ellipsis;		/* IE, Safari */
+	-o-text-overflow:ellipsis;		/* Opera under 10.7 */
+	overflow:hidden;			/* "overflow" value must be different from "visible" */ 
+	-moz-binding: url('ellipsis.xml#ellipsis'); 
+}
+
+.popup_bg table{ table-layout:fixed; }
+.popup_bg table td { 
+	white-space:nowrap;
+	text-overflow:ellipsis;		/* IE, Safari */
+	-o-text-overflow:ellipsis;		/* Opera under 10.7 */
+	overflow:hidden;			/* "overflow" value must be different from "visible" */ 
+	-moz-binding: url('ellipsis.xml#ellipsis'); 
+}
+
+.table-fixed { table-layout:fixed; }
+.ellipsis {
+	white-space:nowrap;
+	text-overflow:ellipsis;		/* IE, Safari */
+	-o-text-overflow:ellipsis;		/* Opera under 10.7 */
+	overflow:hidden;			/* "overflow" value must be different from "visible" */ 
+	-moz-binding: url('ellipsis.xml#ellipsis');	
+}
+
+/**
+* 로딩중
+*/
+#loading {
+	width: 100%;   
+	height: 100%;   
+	top: 0px;
+	left: 0px;
+	position: fixed;   
+	display: none;   
+	opacity: 0.7;   
+	background-color: #fff;   
+	z-index: 99;   
+	text-align: center; 
+}  
+ 
+#loading-image {   
+	position: absolute;   
+	top: 50%; /* 이부분과 */
+	left: 50%;   /* 이부분을 50% 로 하면 화면 정 가운데에 로딩 이미지가 나타난다 */
+	z-index: 100; 
+}
+
+
+.upload{
+	position:relative; 
+	width:100px; 
+	height:31px; 
+	overflow:hidden; 
+	cursor:pointer; 
+	background-image:url('/images/lionsclubs/btn/btn_find.gif');
+	background-repeat:no-repeat; 
+	padding-top: 8px;
+}
+
+.fileUpload{
+	position:absolute;
+	margin-left:-10px; 
+	width:100px; 
+	height:31px; 
+	filter:alpha(opacity=0); 
+	opacity:0;
+	-moz-opacity:0;
+	cursor:pointer;	
+}
+
+input[type="radio"] {
+	margin: 0 5px 0 0;
+}
+
+input[type="checkbox"] {
+	margin: -2px 5px 0 0;	
+}
+
+.ui-datepicker-trigger{
+	margin-left: 2px;
+}
+
+.ui-monthpicker-trigger{
+	margin-left: 2px;
+}
+
+select{border:1px solid #bbb}
+
+.Height_0{margin-top: 2px;}
+
+.dialog{display: none;}

@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://www.ibatis.com/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="lionsclubs.com.cmm.web.member">
+
+	<typeAlias alias="memberVO" type="lionsclubs.com.cmm.web.member.MemberVO"/>
+	
+	<sql id="lionsclubs.com.cmm.web.member.memberQuery">
+		SELECT  MIV.MEMBER_NO AS memberNo	/* 회원번호 */
+			   ,MIV.NAME AS name	/* 성명 */
+			   ,MIV.BIRTH AS birth	/* 생년월일 */
+			   ,dbo.FN_GetIdxDataLikeSplit(MIV.PATH,3,'/') AS sectorDistrict	/* 소속지구 */
+			   ,MIV.SECTOR_CLUB_CODE AS sectorClubCode	/* 소속클럽 코드 */
+			   ,MIV.SECTOR_CLUB AS sectorClub	/* 소속클럽 */
+			   ,MIV.DIVISION_SECTOR AS divisionSector	/* 분과소속 */
+			   ,MIV.CLUB_TITLE AS clubTitle	/* 클럽직책 */
+			   ,MIV.DISTRICT_TITLE AS districtTilte	/* 지구직책 */ 
+			   ,MIV.QUIT_DATE AS quitDate /* 퇴회일자 */
+			   ,MIV.QUIT_DIVISION AS quitDivision /* 퇴회구분명 */
+			   ,MIV.EXPULSION_FLAG AS expulsionFlag	/* 제명구분 */
+			   ,MIV.HOME_TEL AS homeTel	/* 전화번호 */
+			   ,MIV.MOBILE AS mobile	/* HP번호 */
+			   ,MIV.FAX AS fax	/* 팩스번호 */
+			   ,MIV.MAIL_ADDRESS AS mailAddress	/* E-MAIL */
+		  FROM LIONS_MEMBER_INFO_VIEW MIV
+		<isEqual property="authYn" compareValue="Y">
+			INNER JOIN dbo.FN_LIONS_AUTH_MEMBER_LIST(#authMemberNo#) AUTH
+			   ON MIV.MEMBER_NO = AUTH.MEMBER_NO
+		</isEqual>
+	</sql>
+	
+	<select id="lionsclubs.com.cmm.web.member.memberList" resultClass="memberVO">
+		SELECT * FROM(
+			SELECT  COUNT(1)  OVER() AS totalRecordCount
+				   ,ROW_NUMBER() OVER(ORDER BY sectorClub, memberNo) AS rnum
+				   ,PAGING_WARP.*
+			  FROM(	
+				<include refid="lionsclubs.com.cmm.web.member.memberQuery"/>
+				<dynamic prepend="WHERE">
+					<isNotEmpty prepend="AND" property="memberNo">
+						MIV.MEMBER_NO LIKE '%' + #memberNo# + '%'	
+					</isNotEmpty>
+					<isNotEmpty prepend="AND" property="name">
+						MIV.NAME LIKE '%' + #name# + '%'
+					</isNotEmpty>
+					<isNotEmpty prepend="AND" property="sectorClubCode">
+						MIV.SECTOR_CLUB_CODE LIKE '%' + #sectorClubCode# + '%'	
+					</isNotEmpty>
+					<isEqual prepend="AND" property="quitYn" compareValue="Y">
+						MIV.QUIT_DATE IS NOT NULL
+					</isEqual>
+					<isEqual prepend="AND" property="quitYn" compareValue="N">
+						MIV.QUIT_DATE IS NULL
+					</isEqual>
+					<isNotEmpty prepend="AND" property="districtCode">
+						dbo.FN_GetIdxDataLikeSplit(MIV.PATH_CODE, 3, '/') = #districtCode#
+					</isNotEmpty>
+				</dynamic>
+			) PAGING_WARP
+		) PAGING
+		 WHERE RNUM BETWEEN #firstIndex# + 1 AND #firstIndex# + #recordCountPerPage#			
+	</select>
+	
+ 	<select id="lionsclubs.com.cmm.web.member.byMemberNoOrganCode" resultClass="memberVO">
+		DECLARE @memberNo NVARCHAR(8);
+		SET @memberNo = #memberNo#;
+
+		SELECT  dbo.FN_GetIdxDataLikeSplit(PATH_CODE, 1, '/') AS associationCode
+			   ,dbo.FN_GetIdxDataLikeSplit(PATH_CODE, 2, '/') AS complexCode
+			   ,dbo.FN_GetIdxDataLikeSplit(PATH_CODE, 3, '/') AS districtCode
+			   ,dbo.FN_GetIdxDataLikeSplit(PATH_CODE, 4, '/') AS clubCode
+		  FROM dbo.LIONS_MEMBER_INFO_VIEW
+		 WHERE MEMBER_NO = @memberNo
+ 	</select>	
+</sqlMap>

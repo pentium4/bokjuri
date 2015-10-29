@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://www.ibatis.com/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="lionsclubs.com.SM1.SM1_2.SM1_06">
+
+	<typeAlias alias="SM1_06VO" type="lionsclubs.com.SM1.SM1_2.SM1_06.SM1_06VO"/>
+
+	<sql id="lionsclubs.com.SM1.SM1_2.SM1_06.SM1_06_Query">
+		SELECT  GROUP_CODE AS groupCode
+			   ,GROUP_CODE_NAME AS groupCodeName
+			   ,GROUP_CODE_DESC AS groupCodeDesc
+			   ,ORD AS ord
+			   ,USE_YN AS useYn
+			   ,INSERT_DATE AS insertDate
+			   ,INSERT_NAME AS insertName
+			   ,UPDATE_DATE AS updateDate
+			   ,UPDATE_NAME AS updateName
+		  FROM LIONS_GROUP_CODE
+	</sql>
+	
+	<select id="lionsclubs.com.SM1.SM1_2.SM1_06.SM1_06" resultClass="SM1_06VO">
+		<include refid="lionsclubs.com.SM1.SM1_2.SM1_06.SM1_06_Query"/>
+		ORDER BY GROUP_CODE
+	</select>
+	
+	<select id="lionsclubs.com.SM1.SM1_2.SM1_06.SM1_06_Object" resultClass="SM1_06VO">
+		SELECT TOP 1 * FROM(
+			<include refid="lionsclubs.com.SM1.SM1_2.SM1_06.SM1_06_Query"/>
+		) SM1_06
+		<dynamic prepend="WHERE">
+			<isNotEmpty prepend="AND" property="groupCode">
+				groupCode = #groupCode#
+			</isNotEmpty>
+		</dynamic>
+	</select>
+
+	<insert id="lionsclubs.com.SM1.SM1_2.SM1_06.SM1_06_InputInsert">
+		INSERT INTO LIONS_GROUP_CODE(
+			GROUP_CODE
+		   ,GROUP_CODE_NAME
+		   ,GROUP_CODE_DESC
+		   ,ORD
+		   ,USE_YN
+		   ,INSERT_DATE
+		   ,INSERT_NAME
+		   ,UPDATE_DATE
+		   ,UPDATE_NAME
+		) VALUES (
+			#groupCode#	/* 그룹코드 */               
+		   ,#groupCodeName#	/* 크룹코드명칭 */         
+		   ,#groupCodeDesc#	/* 그룹코드명칭 설명 */      
+		   ,#ord#	/* 출력순서 */                       
+		   ,#useYn#	/* 그룹코드사용여부 */               
+		   ,GETDATE()	/* 생성일자 */               
+		   ,#insertName#	/* 생성자 */                
+		   ,GETDATE()	/* 수정일자 */               
+		   ,#updateName#	/* 수정자 */                			
+		)		   		
+	</insert>
+	
+	<update id="lionsclubs.com.SM1.SM1_2.SM1_06.SM1_06_EditUpdate">
+		UPDATE LIONS_GROUP_CODE SET 
+			GROUP_CODE_NAME = #groupCodeName#	/* 크룹코드명칭 */         
+		   ,GROUP_CODE_DESC = #groupCodeDesc#	/* 그룹코드명칭 설명 */      
+		   ,ORD = #ord#	/* 출력순서 */                       
+		   ,USE_YN = #useYn#	/* 그룹코드사용여부 */               
+		   ,UPDATE_DATE = GETDATE()	/* 수정일자 */               
+		   ,UPDATE_NAME = #updateName#	/* 수정자 */
+	     WHERE GROUP_CODE = #groupCode#
+	</update>
+	
+	<delete id="lionsclubs.com.SM1.SM1_2.SM1_06.SM1_06_Delete">
+		DELETE FROM LIONS_GROUP_CODE
+		 WHERE GROUP_CODE = #groupCode#
+	</delete>
+</sqlMap>

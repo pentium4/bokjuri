@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://www.ibatis.com/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="lionsclubs.com.MM3.MM3_12.MM3_50">
+
+	<typeAlias alias="MM3_50VO" type="lionsclubs.com.MM3.MM3_12.MM3_50.MM3_50VO"/>
+	
+	<sql id="lionsclubs.com.MM3.MM3_12.MM3_50.declare">
+		<![CDATA[
+		DECLARE @organCode NVARCHAR(10);
+		DECLARE @sessionYear INT;
+		DECLARE @month NVARCHAR(10);
+		DECLARE @startDate NVARCHAR(10);
+		DECLARE @endDate NVARCHAR(10);
+		
+		SET @organCode = #organCode#;
+		SET @sessionYear = #sessionYear#;		
+		SET @month = #month#;
+		SET @startDate = CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701';	
+		SET @endDate = CAST(@sessionYear AS NVARCHAR(4)) + '0630';
+		]]>		
+	</sql>
+		
+	<sql id="lionsclubs.com.MM3.MM3_12.MM3_50.query">
+		SELECT  IDN_NO AS idnNo
+			   ,INCOME_EXPEND_DATE AS expendDate	/* 지출일자 */	
+			   ,CLASS_ITEM_CODE AS classItemCode	/* 지출실적 분류항목 코드 */
+			   ,dbo.FN_LIONS_CODE_NAME('6600', CLASS_ITEM_CODE) AS classItemName	/* 지출실적 분류항목명 */
+			   ,DETAIL_ITEM_CODE AS detailItemCode	/* 지출실적 세부항목 코드 */
+			   ,dbo.FN_LIONS_DETAILCODE_NAME('6600', CLASS_ITEM_CODE, DETAIL_ITEM_CODE) AS detailItemName	/* 지출실적 세부항목명 */
+			   ,[DESC] AS [desc]	/* 지출내용 */
+			   ,UNIT * ATAND_AMOUNT AS amount	/* 금액 */
+			   ,INSERT_DATE AS insertDate	/* 생성일자 */
+			   ,INSERT_NAME AS insertName	/* 생성자 */
+			   ,UPDATE_DATE AS updateDate	/* 수정일자 */
+			   ,UPDATE_NAME AS updateName	/* 수정자 */
+		  FROM LIONS_DISTRICT_INCOME_EXPEND
+		 WHERE ORGAN_CODE = @organCode
+		   AND DIVISION_CODE = '1010'
+		<isNotEmpty property="sessionYear" prepend="AND">
+			<![CDATA[
+				INCOME_EXPEND_DATE >= @startDate
+			AND INCOME_EXPEND_DATE <= @endDate
+			]]>
+		</isNotEmpty>
+		<isNotEmpty property="month" prepend="AND">
+			SUBSTRING(INCOME_EXPEND_DATE, 5, 2) = @month
+		</isNotEmpty>
+	</sql>
+	
+	<select id="lionsclubs.com.MM3.MM3_12.MM3_50.MM3_50" resultClass="MM3_50VO">
+		<include refid="lionsclubs.com.MM3.MM3_12.MM3_50.declare" />
+		<include refid="lionsclubs.com.MM3.MM3_12.MM3_50.query" />
+		
+		<dynamic prepend="ORDER BY">
+			<isEqual property="order" compareValue="1">
+				 INCOME_EXPEND_DATE DESC
+				,dbo.FN_LIONS_CODE_NAME('6600', CLASS_ITEM_CODE)
+				,dbo.FN_LIONS_DETAILCODE_ORD('6600', CLASS_ITEM_CODE, DETAIL_ITEM_CODE)
+				,IDN_NO
+			</isEqual>
+			<isEqual property="order" compareValue="2">
+				 dbo.FN_LIONS_CODE_NAME('6600', CLASS_ITEM_CODE)
+				,dbo.FN_LIONS_DETAILCODE_ORD('6600', CLASS_ITEM_CODE, DETAIL_ITEM_CODE)
+				,INCOME_EXPEND_DATE
+				,IDN_NO
+			</isEqual>
+			<isEqual property="order" compareValue="3">
+				 INSERT_DATE DESC
+				,dbo.FN_LIONS_CODE_NAME('6600', CLASS_ITEM_CODE)
+				,dbo.FN_LIONS_DETAILCODE_ORD('6600', CLASS_ITEM_CODE, DETAIL_ITEM_CODE)
+				,INCOME_EXPEND_DATE
+				,IDN_NO
+			</isEqual>
+		</dynamic>		
+	</select>
+	
+	<select id="lionsclubs.com.MM3.MM3_12.MM3_50.amountSum" resultClass="MM3_50VO">
+		<include refid="lionsclubs.com.MM3.MM3_12.MM3_50.declare" />
+		SELECT SUM(amount) AS amount
+		  FROM(
+		  	<include refid="lionsclubs.com.MM3.MM3_12.MM3_50.query" />
+		  ) TOT
+	</select>
+	
+	<select id="lionsclubs.com.MM3.MM3_12.MM3_50.objectExpend" resultClass="MM3_50VO">
+		SELECT  IDN_NO AS idnNo	
+			   ,INCOME_EXPEND_DATE AS expendDate	/* 지출일자 */	
+			   ,ORGAN_CODE AS organCode
+			   ,CLASS_ITEM_CODE AS classItemCode	/* 지출실적 분류항목 */
+			   ,DETAIL_ITEM_CODE AS detailItemCode	/* 지출실적 세부항목 */
+			   ,[DESC] AS [desc]	/* 지출내용 */
+			   ,UNIT AS unit	/* 단위 */
+			   ,UNIT * ATAND_AMOUNT AS amount	/* 금액 */
+			   ,ATAND_AMOUNT AS atandAmount	/* 기준금액 */
+			   ,INSERT_DATE AS insertDate	/* 생성일자 */
+			   ,INSERT_NAME AS insertName	/* 생성자 */
+			   ,UPDATE_DATE AS updateDate	/* 수정일자 */
+			   ,UPDATE_NAME AS updateName	/* 수정자 */
+		  FROM LIONS_DISTRICT_INCOME_EXPEND
+		 WHERE IDN_NO = #idnNo#
+	</select>	
+	
+	<insert id="lionsclubs.com.MM3.MM3_12.MM3_50.insertExpend">
+		INSERT INTO LIONS_DISTRICT_INCOME_EXPEND(
+			 ORGAN_CODE	/* 조직코드 */
+			,DIVISION_CODE	/* 예산/실적 구분 코드 : 1000 - 예산, 1010 - 실적 */
+			,INCOME_EXPEND_DATE	/* 지출일자 */
+			,CLASS_ITEM_CODE	/* 지출실적 분류항목 */
+			,DETAIL_ITEM_CODE	/* 지출실적 세부항목 */
+			,[DESC]	/* 지출내용 */
+			,UNIT	/* 단위 */
+			,ATAND_AMOUNT	/* 금액 */
+			,INSERT_DATE	/* 생성일자 */
+			,INSERT_NAME	/* 생성자 */
+			,UPDATE_DATE	/* 수정일자 */
+			,UPDATE_NAME	/* 수정자 */
+		) VALUES (
+			 #organCode#	/* 조직코드 */
+			,'1010'	/* 예산/실적 구분 코드 : 1000 - 예산, 1010 - 실적 */
+			,REPLACE(#expendDate#, '.', '')
+			,#classItemCode#	/* 지출실적 분류항목 */
+			,#detailItemCode#	/* 지출실적 세부항목 */
+			,#desc#	/* 지출내용 */
+			,'1'	/* 단위 */
+			,REPLACE(#amount#, ',', '')	/* 금액 */
+			,GETDATE()	/* 생성일자 */
+			,#insertName#	/* 생성자 */
+			,GETDATE()	/* 수정일자 */
+			,#updateName#	/* 수정자 */
+		) 
+	</insert>
+	
+	<update id="lionsclubs.com.MM3.MM3_12.MM3_50.updateExpend">
+		UPDATE LIONS_DISTRICT_INCOME_EXPEND
+		   SET  INCOME_EXPEND_DATE = REPLACE(#expendDate#, '.', '')
+		   	   ,CLASS_ITEM_CODE = #classItemCode#
+		   	   ,DETAIL_ITEM_CODE = #detailItemCode#
+		   	   ,[DESC] = #desc#
+		   	   ,ATAND_AMOUNT = REPLACE(#amount#, ',', '')
+		 WHERE IDN_NO = #idnNo#
+	</update>
+	
+	<delete id="lionsclubs.com.MM3.MM3_12.MM3_50.deleteExpend">
+		DELETE FROM LIONS_DISTRICT_INCOME_EXPEND
+		 WHERE IDN_NO = #idnNo#
+	</delete>
+</sqlMap>

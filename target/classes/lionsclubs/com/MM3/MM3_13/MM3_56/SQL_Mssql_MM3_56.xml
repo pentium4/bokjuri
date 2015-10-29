@@ -1,0 +1,235 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://www.ibatis.com/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="lionsclubs.com.MM3.MM3_13.MM3_56">
+	<typeAlias alias="MM3_56VO" type="lionsclubs.com.MM3.MM3_13.MM3_56.MM3_56VO"/>
+	
+	<sql id="lionsclubs.com.MM3.MM3_13.MM3_56.declare">
+		DECLARE @organCode NVARCHAR(6);
+		DECLARE @subOrganCode NVARCHAR(6);
+		DECLARE @repOrganCode NVARCHAR(6);
+		DECLARE @sessionYear NVARCHAR(4);
+		DECLARE @startDate NVARCHAR(8);
+		DECLARE @endDate NVARCHAR(8);
+		
+		SET @organCode = REPLACE(#organCode#, '-', '');
+		SET @subOrganCode = 'M' + SUBSTRING(REPLACE(@organCode, '-', ''),2, 6);
+		SET @repOrganCode = REPLACE(#repOrganCode#, '-', '');
+		SET @sessionYear = #sessionYear#;
+		SET @startDate = CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701';	
+		SET @endDate = CAST(@sessionYear AS NVARCHAR(4)) + '0630';
+	</sql>
+
+	<sql id="lionsclubs.com.MM3.MM3_13.MM3_56.with">
+		<![CDATA[
+		/* 기본클럽 */
+		WITH BASE_CLUB AS(
+			SELECT @organCode AS ORGAN_CODE
+			
+			 UNION ALL
+			 
+			SELECT ORGAN_CODE 
+			  FROM dbo.FN_LIONS_SUB_TREE_YEAR_ORGAN(@sessionYear, @organCode)
+			 WHERE LVL = 2		
+		/* 기본정보 */
+		),BASE_INFO AS(
+			SELECT 	MIN(MCH.ORGAN_CODE) AS ORGAN_CODE
+				   ,INFO.MEMBER_NO
+				   ,MIN(INFO.NAME) AS NAME
+				   ,MIN(MCH.START_DATE) AS START_DATE
+				   ,MIN(INFO.WORK_TEL) AS WORK_TEL
+				   ,MIN(INFO.MOBILE) AS MOBILE
+				   ,MIN(INFO.FAX) AS FAX
+				   ,MIN(INFO.MAIL_ADDRESS) AS MAIL_ADDRESS
+				   ,MIN(INFO.GMAIL) AS GMAIL
+			  FROM LIONS_MEMBER_INFO INFO
+			 INNER JOIN LIONS_MEMBER_CLUB_HIST MCH
+				ON INFO.MEMBER_NO = MCH.MEMBER_NO
+			   AND MCH.ORGAN_CODE IN(
+					SELECT ORGAN_CODE 
+					  FROM dbo.FN_LIONS_SUB_TREE_YEAR_ORGAN(@sessionYear, @subOrganCode)
+					 WHERE LVL = 2
+			   ) AND (
+					   (MCH.START_DATE >= @startDate AND MCH.START_DATE <= @endDate)
+					OR (MCH.END_DATE >= @startDate AND MCH.END_DATE <= @endDate)
+					OR (MCH.START_DATE <= @startDate AND MCH.END_DATE >= @startDate) /* '20120701' >= START_DATE AND '20120701' <= END_DATE */
+					OR (MCH.START_DATE <= @endDate AND MCH.END_DATE >= @endDate)
+			   )
+			 GROUP BY INFO.MEMBER_NO
+		/* 클럽직책 */
+		),CLUB_TITLE AS(
+			SELECT  APP.MEMBER_NO
+				   ,APP.START_DATE
+				   ,APP.END_DATE
+				   ,APP.APP_KIND_CODE
+				   ,APP.APP_DESC_CODE
+				   ,(SELECT CODE_NAME
+					   FROM dbo.LIONS_CODE
+					  WHERE GROUP_CODE = (SELECT CODE1 FROM dbo.LIONS_CODE WHERE CODE = APP.APP_KIND_CODE AND GROUP_CODE = '2700')
+					    AND CODE = APP.APP_DESC_CODE	   
+					) + 
+					CASE WHEN LEN(APP.APP_DESC) > 0
+						 THEN '(' + APP.APP_DESC + ')'
+						 ELSE ''
+						  END
+				    + '(' + CONVERT(NVARCHAR(10), CONVERT(DATETIME, APP.START_DATE), 102) + ')' AS APP_DESC_CODE_NAME
+				   ,(SELECT ORD
+					   FROM dbo.LIONS_CODE
+					  WHERE GROUP_CODE = (SELECT CODE1 FROM dbo.LIONS_CODE WHERE CODE = APP.APP_KIND_CODE AND GROUP_CODE = '2700')
+					    AND CODE = APP.APP_DESC_CODE	   
+					) AS ORD
+			  FROM dbo.LIONS_APPOINTMENT APP
+		     WHERE (
+					   APP_KIND_CODE = '1000' AND APP_DESC_CODE = '9010'
+					OR APP_KIND_CODE = '1010' AND APP_DESC_CODE IN('9000', '9010', '9020')
+			   )
+		/* 퇴회정보 */
+		),RETIRE AS(
+			SELECT  MEMBER_NO
+				   ,KIND_FLAG
+				   ,END_DATE
+				   ,APP_DESC_CODE
+			  FROM LIONS_APPOINTMENT APP
+			 INNER JOIN(
+				SELECT IDN_NO FROM(
+					SELECT  ROW_NUMBER() OVER (PARTITION BY MEMBER_NO ORDER BY END_DATE DESC, START_DATE DESC, IDN_NO DESC) AS rnum
+						   ,IDN_NO
+						   ,APP_KIND_CODE						   
+					  FROM LIONS_APPOINTMENT
+					 WHERE (
+								   (START_DATE >= @startDate AND START_DATE <= @endDate)
+								OR (END_DATE >= @startDate AND END_DATE <= @endDate)
+								OR (START_DATE <= @startDate AND END_DATE >= @startDate) /* '20120701' >= START_DATE AND '20120701' <= END_DATE */
+								OR (START_DATE <= @endDate AND END_DATE >= @endDate)
+							)
+				) IDN
+				 WHERE IDN.rnum = 1
+				   AND IDN.APP_KIND_CODE = '1050'	/* 선임구분(2700) : 선임-퇴회 */
+			  ) X
+				 ON APP.IDN_NO = X.IDN_NO
+		)
+		]]>
+	</sql>
+	
+	<select id="lionsclubs.com.MM3.MM3_13.MM3_56.MM3_56" resultClass="MM3_56VO">
+		<include refid="lionsclubs.com.MM3.MM3_13.MM3_56.declare" />
+		<include refid="lionsclubs.com.MM3.MM3_13.MM3_56.with" />
+		
+		SELECT  BC.ORGAN_CODE AS repOrganCode	/* 담당조직 코드 */
+			   ,dbo.FN_LIONS_ORGAN_NAME(BC.ORGAN_CODE) AS repOrganName	/* 담당조직명 */
+			   ,MI.MEMBER_NO AS memberNo	/* 회원번호 */
+			   ,MI.NAME AS memberName	/* 회원명 */
+			   ,RO.REP_START_DATE AS repStartDate	/* 담당시작일 */
+			   ,ISNULL(
+				   STUFF((
+						 SELECT ',' + APP_DESC_CODE_NAME
+						   FROM CLUB_TITLE
+						  WHERE MEMBER_NO = MI.MEMBER_NO
+							FOR XML PATH('')
+					), 1, 1, '')
+				, '회원') AS sectorTitle			   
+			   ,MI.WORK_TEL AS workTel
+			   ,MI.MOBILE AS mobile
+			   ,MI.FAX AS fax
+			   ,MI.MAIL_ADDRESS AS mailAddress
+			   ,RO.WORK_PLACE AS workPlace
+		  FROM BASE_CLUB BC
+		  LEFT OUTER JOIN LIONS_REP_ORGAN RO
+		    ON BC.ORGAN_CODE = RO.REP_ORGAN_CODE
+		  LEFT OUTER JOIN RETIRE R
+		    ON RO.MEMBER_NO = R.MEMBER_NO
+		  LEFT OUTER JOIN CLUB_TITLE CT
+		    ON CT.MEMBER_NO = RO.MEMBER_NO
+		<![CDATA[
+		   AND (
+				   (CT.START_DATE >= @startDate AND CT.START_DATE <= @endDate)
+				OR (CT.END_DATE >= @startDate AND CT.END_DATE <= @endDate)
+				OR (CT.START_DATE <= @startDate AND CT.END_DATE >= @startDate) /* '20120701' >= START_DATE AND '20120701' <= END_DATE */
+				OR (CT.START_DATE <= @endDate AND CT.END_DATE >= @endDate)
+			)
+		]]>
+		  LEFT OUTER JOIN LIONS_MEMBER_INFO MI
+		    ON RO.MEMBER_NO = MI.MEMBER_NO
+		 WHERE R.KIND_FLAG != 'O'
+		    OR R.KIND_FLAG IS NULL
+		 <dynamic prepend="ORDER BY">
+		 	<isEqual property="ord" compareValue="1">
+				 dbo.FN_LIONS_CODE_ORD('2700', CT.APP_KIND_CODE) DESC
+				,CASE WHEN CT.APP_KIND_CODE = '1000'
+		 		      THEN dbo.FN_LIONS_DISTRICT_TITLE_ORD(@sessionYear, CT.APP_DESC_CODE)
+		 		      ELSE dbo.FN_LIONS_DETAILCODE_ORD('2700', CT.APP_KIND_CODE, CT.APP_DESC_CODE)
+		 		       END
+				,BC.ORGAN_CODE
+				,MI.MEMBER_NO
+		 	</isEqual>
+		 	<isEqual property="ord" compareValue="2">
+		 		 BC.ORGAN_CODE
+				,dbo.FN_LIONS_CODE_ORD('2700', CT.APP_KIND_CODE) DESC
+				,CASE WHEN CT.APP_KIND_CODE = '1000'
+		 		      THEN dbo.FN_LIONS_DISTRICT_TITLE_ORD(@sessionYear, CT.APP_DESC_CODE)
+		 		      ELSE dbo.FN_LIONS_DETAILCODE_ORD('2700', CT.APP_KIND_CODE, CT.APP_DESC_CODE)
+		 		       END
+		 		,MI.MEMBER_NO
+		 	</isEqual>
+		 	<isEqual property="ord" compareValue="3">
+		 		 dbo.FN_LIONS_ORGAN_NAME(RO.REP_ORGAN_CODE) DESC
+				,dbo.FN_LIONS_CODE_ORD('2700', CT.APP_KIND_CODE)
+				,CASE WHEN CT.APP_KIND_CODE = '1000'
+		 		      THEN dbo.FN_LIONS_DISTRICT_TITLE_ORD(@sessionYear, CT.APP_DESC_CODE)
+		 		      ELSE dbo.FN_LIONS_DETAILCODE_ORD('2700', CT.APP_KIND_CODE, CT.APP_DESC_CODE)
+		 		       END
+		 		,BC.ORGAN_CODE
+				,MI.MEMBER_NO
+		 	</isEqual>
+		 	<isEqual property="ord" compareValue="4">
+		 		 MI.NAME
+				,dbo.FN_LIONS_CODE_ORD('2700', CT.APP_KIND_CODE) DESC
+				,CASE WHEN CT.APP_KIND_CODE = '1000'
+		 		      THEN dbo.FN_LIONS_DISTRICT_TITLE_ORD(@sessionYear, CT.APP_DESC_CODE)
+		 		      ELSE dbo.FN_LIONS_DETAILCODE_ORD('2700', CT.APP_KIND_CODE, CT.APP_DESC_CODE)
+		 		       END
+		 		,BC.ORGAN_CODE
+				,MI.MEMBER_NO
+		 	</isEqual>
+		 </dynamic>
+	</select>
+
+	<select id="lionsclubs.com.MM3.MM3_13.MM3_56.listRepOrganHistory" resultClass="MM3_56VO">
+		<include refid="lionsclubs.com.MM3.MM3_13.MM3_56.declare" />
+		<include refid="lionsclubs.com.MM3.MM3_13.MM3_56.with" />
+
+		SELECT  RO.REP_ORGAN_CODE AS repOrganCode	/* 담당조직 코드 */
+			   ,dbo.FN_LIONS_ORGAN_NAME(RO.REP_ORGAN_CODE) AS repOrganName	/* 담당조직명 */
+			   ,MI.MEMBER_NO AS memberNo	/* 회원번호 */
+			   ,MI.NAME AS memberName	/* 회원명 */
+			   ,ISNULL(
+				   STUFF((
+						 SELECT ',' + APP_DESC_CODE_NAME
+						   FROM CLUB_TITLE
+						  WHERE MEMBER_NO = MI.MEMBER_NO
+							FOR XML PATH('')
+					), 1, 1, '')
+				, '회원') AS sectorTitle
+			   ,RO.REP_START_DATE AS repStartDate	/* 담당시작일 */
+			   ,MI.WORK_TEL AS workTel
+			   ,MI.MOBILE AS mobile
+			   ,MI.FAX AS fax
+			   ,MI.MAIL_ADDRESS AS mailAddress
+			   ,MI.GMAIL AS gmail
+			   ,RO.WORK_PLACE AS workPlace
+		  FROM LIONS_REP_ORGAN RO
+		  LEFT OUTER JOIN LIONS_MEMBER_INFO MI
+		    ON MI.MEMBER_NO = RO.MEMBER_NO
+		  LEFT OUTER JOIN CLUB_TITLE CT
+		    ON CT.MEMBER_NO = MI.MEMBER_NO
+	    <![CDATA[
+		   AND CT.START_DATE >= RO.REP_START_DATE
+		   AND CT.END_DATE <= RO.REP_START_DATE
+	    ]]>
+		 WHERE RO.REP_ORGAN_CODE = @repOrganCode
+		 ORDER BY  RO.REP_START_DATE DESC
+				  ,dbo.FN_LIONS_CODE_ORD('2700', CT.APP_KIND_CODE) DESC
+				  ,dbo.FN_LIONS_DETAILCODE_ORD('2700', CT.APP_KIND_CODE, CT.APP_DESC_CODE)
+				  ,MI.MEMBER_NO
+	</select>
+</sqlMap>

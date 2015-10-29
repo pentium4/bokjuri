@@ -1,0 +1,177 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://www.ibatis.com/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="lionsclubs.com.MM2.MM2_2.MM2_11">
+
+	<typeAlias alias="MM2_11VO" type="lionsclubs.com.MM2.MM2_2.MM2_11.MM2_11VO"/>
+	
+	<sql id="lionsclubs.com.MM2.MM2_2.MM2_11.declare">
+		DECLARE @organCode NVARCHAR(6);
+		DECLARE @sessionYear INT;
+		DECLARE @startDate INT;
+		DECLARE @endDate INT;
+		DECLARE @month INT;
+		
+		SET @organCode = REPLACE(#organCode#, '-', '');
+		SET @sessionYear = #sessionYear#;
+		SET @startDate = CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701';
+		SET @endDate = CAST(@sessionYear AS NVARCHAR(4)) + '0630';
+		SET @month = #month#;
+	</sql>	
+	
+	<sql id="lionsclubs.com.MM2.MM2_2.MM2_11.queryList">
+		SELECT  R.idnNo
+			   ,R.memberNo
+			   ,R.name
+			   ,R.paymentCount
+			   ,R.genDate
+			   ,R.classItemCode
+			   ,R.detailItemCode
+			   ,R.classItemName
+			   ,R.detailItemName
+			   ,R.impost
+			   ,R.payment
+			   ,R.paymentDefect
+			   ,ISNULL(R.impost, 0) - (ISNULL(R.payment, 0) + ISNULL(R.paymentDefect, 0)) AS balance
+			   ,R.reference
+	      FROM(
+				SELECT  P.IDN_NO AS idnNo
+					   ,MIN(P.MEMBER_NO) AS memberNo
+					   ,(SELECT NAME FROM LIONS_MEMBER_INFO WHERE MEMBER_NO = MIN(P.MEMBER_NO)) AS name
+					   ,NULL AS paymentCount
+					   ,MIN(P.GEN_DATE) AS genDate
+					   ,MIN(P.CLASS_ITEM_CODE) AS classItemCode
+					   ,MIN(P.DETAIL_ITEM_CODE) AS detailItemCode
+					   ,MIN(P.classItemName) AS classItemName
+					   ,MIN(P.detailItemName) AS detailItemName
+					   ,MIN(P.IMPOST) AS impost
+					   ,SUM(P.payment) AS payment
+					   ,SUM(P.paymentDefect) AS paymentDefect
+					   ,MIN(P.reference) AS reference
+				  FROM(
+					SELECT  MM.IDN_NO	/* 번호 */
+						   ,MM.MEMBER_NO	/* 회원번호 */
+						   ,MM.GEN_DATE	/* 발생일자 */
+						   ,MM.CLASS_ITEM_CODE	/* 분류항목코드 */
+						   ,MM.DETAIL_ITEM_CODE	/* 세부항목코드 */
+						   ,dbo.FN_LIONS_CODE_NAME('4100', MM.CLASS_ITEM_CODE) AS classItemName	/* 분류항목명 */
+						   ,dbo.FN_LIONS_DETAILCODE_NAME('4100', MM.CLASS_ITEM_CODE, MM.DETAIL_ITEM_CODE) AS detailItemName	/* 세부항목명 */
+						   ,MI.IMPOST	/* 부과금 */
+						   ,CASE WHEN MP.PAYMENT_DEFECT != 'Y'
+								 THEN MP.PAYMENT
+								  END AS payment	/* 납부금 */
+						   ,CASE WHEN MP.PAYMENT_DEFECT = 'Y'
+								 THEN MP.PAYMENT
+								  END AS paymentDefect	/* 결손금 */
+						   ,MI.REFERENCE	/* 참고사항 */
+					  FROM LIONS_MONEY_MASTER MM
+					  LEFT OUTER JOIN LIONS_MONEY_IMPOST MI
+						ON MM.IDN_NO = MI.IDN_NO
+					  LEFT OUTER JOIN LIONS_MONEY_PAYMENT MP
+						ON MM.IDN_NO = MP.IDN_NO
+					 WHERE MM.ORGAN_CODE = @organCode
+					   AND MM.CLASS_ITEM_CODE NOT IN('1030', '1040')
+					<isNotEmpty prepend="AND" property="sessionYear">
+					<![CDATA[
+						    MM.GEN_DATE >= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701'
+						AND MM.GEN_DATE <= CAST(@sessionYear AS NVARCHAR(4)) + '0630'
+					]]>
+					</isNotEmpty>
+					<isNotEmpty prepend="AND" property="month">
+						SUBSTRING(MM.GEN_DATE,5,2) = @month
+					</isNotEmpty>
+				) P
+				 GROUP BY P.IDN_NO
+				 
+				 UNION ALL
+				 
+				SELECT  MM.IDN_NO AS idnNo	/* 번호 */
+					   ,MM.MEMBER_NO AS memberNo
+					   ,(SELECT NAME FROM LIONS_MEMBER_INFO WHERE MEMBER_NO = MM.MEMBER_NO) AS name
+					   ,MP.PAYMENT_COUNT AS paymentCount	/* 납부카운트 */
+					   ,MP.PAYMENT_DATE AS genDate	/* 부과일자 */
+					   ,MM.CLASS_ITEM_CODE AS classItemCode	/* 분류항목코드 */
+					   ,MM.DETAIL_ITEM_CODE AS detailItemCode	/* 세부항목코드 */
+					   ,dbo.FN_LIONS_CODE_NAME('4100', MM.CLASS_ITEM_CODE) AS classItemName	/* 분류항목명 */
+					   ,dbo.FN_LIONS_DETAILCODE_NAME('4100', MM.CLASS_ITEM_CODE, MM.DETAIL_ITEM_CODE) AS detailItemName	/* 세부항목명 */
+					   ,MP.PAYMENT AS impost	/* 부과금 */
+					   ,CASE WHEN MP.PAYMENT_DEFECT != 'Y'
+							 THEN MP.PAYMENT
+							  END AS payment	/* 납부금 */
+					   ,CASE WHEN MP.PAYMENT_DEFECT = 'Y'
+							 THEN MP.PAYMENT
+							  END AS paymentDefect	/* 결손금 */
+					   ,MI.REFERENCE AS reference	/* 참고사항 */
+				  FROM LIONS_MONEY_MASTER MM
+				 INNER JOIN LIONS_MONEY_IMPOST MI
+					ON MM.IDN_NO = MI.IDN_NO
+				 INNER JOIN LIONS_MONEY_PAYMENT MP
+					ON MM.IDN_NO = MP.IDN_NO
+				 WHERE MM.ORGAN_CODE = @organCode
+				   AND MM.CLASS_ITEM_CODE IN('1030', '1040')
+				<isNotEmpty prepend="AND" property="sessionYear">
+				<![CDATA[
+					    MP.PAYMENT_DATE >= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701'
+					AND MP.PAYMENT_DATE <= CAST(@sessionYear AS NVARCHAR(4)) + '0630'
+				]]>
+				</isNotEmpty>
+				<isNotEmpty prepend="AND" property="month">
+					SUBSTRING(MM.GEN_DATE,5,2) = @month
+				</isNotEmpty>	      
+	      ) R
+	    WHERE 1 = 1
+		<isNotEmpty prepend="AND" property="classItemCode">
+			R.classItemCode = #classItemCode#
+		</isNotEmpty>
+		<isNotEmpty prepend="AND" property="detailItemCode">
+			R.detailItemCode = #detailItemCode#
+		</isNotEmpty>
+		<dynamic prepend="AND" open="(" close=")">
+			<isNotEmpty prepend="OR" property="fullPayment">
+				ISNULL(R.impost, 0) - (ISNULL(R.payment, 0) + ISNULL(R.paymentDefect, 0)) = 0
+			</isNotEmpty>
+			<isNotEmpty prepend="OR" property="defaultPayment">
+				ISNULL(R.impost, 0) - (ISNULL(R.payment, 0) + ISNULL(R.paymentDefect, 0)) > 0
+			</isNotEmpty>
+		</dynamic>
+	</sql>
+	
+	<select id="lionsclubs.com.MM2.MM2_2.MM2_11.selectList" resultClass="MM2_11VO">
+		<include refid="lionsclubs.com.MM2.MM2_2.MM2_11.declare"/>
+		<include refid="lionsclubs.com.MM2.MM2_2.MM2_11.queryList" />
+ 		<dynamic prepend="ORDER BY">
+	 		<isEqual prepend="," property="orderGenDate" compareValue="1">
+	 			R.genDate DESC
+	 		</isEqual>
+			<isEqual prepend="," property="orderName" compareValue="1">
+	 			R.name
+	 		</isEqual>
+ 		</dynamic>
+	</select>
+	
+	<select id="lionsclubs.com.MM2.MM2_2.MM2_11.paymentSum" resultClass="MM2_11VO">
+		<include refid="lionsclubs.com.MM2.MM2_2.MM2_11.declare"/>
+		SELECT  SUM(impost) AS impost
+			   ,SUM(payment) AS payment
+			   ,SUM(paymentDefect) AS paymentDefect
+			   ,SUM(balance) AS balance
+		  FROM(
+			<include refid="lionsclubs.com.MM2.MM2_2.MM2_11.queryList"/>
+		) SUM
+	</select>
+
+	<select id="lionsclubs.com.MM2.MM2_2.MM2_11.cDate" resultClass="String">
+		SELECT MAX(CONFIRM_DATE) AS confirmDate
+		  FROM LIONS_CALCULATE
+		 WHERE ORGAN_CODE = #organCode#
+		<isNotEmpty prepend="AND" property="sessionYear">
+		<![CDATA[
+			    CA_YM >= CAST(#sessionYear# - 1 AS NVARCHAR(4)) + '07'
+			AND CA_YM <= CAST(#sessionYear# AS NVARCHAR(4)) + '06'
+		]]>
+		</isNotEmpty>
+		<isNotEmpty prepend="AND" property="month">
+			SUBSTRING(CA_YM, 5, 2) = #month#
+		</isNotEmpty>
+	</select>
+</sqlMap>

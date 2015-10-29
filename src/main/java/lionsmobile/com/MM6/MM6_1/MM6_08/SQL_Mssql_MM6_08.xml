@@ -1,0 +1,246 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://www.ibatis.com/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="lionsmobile.com.MM6.MM6_1.MM6_08">
+
+	<typeAlias alias="MM6_08VO" type="lionsmobile.com.MM6.MM6_1.MM6_08.MM6_08VO"/>
+	
+	<sql id="lionsmobile.com.MM6.MM6_1.MM6_08.declare">
+		<![CDATA[
+		DECLARE @SQL NVARCHAR(MAX);
+		DECLARE @Prod NVARCHAR(MAX);
+		DECLARE @organCode NVARCHAR(6);
+		DECLARE @memberNo NVARCHAR(8);
+		DECLARE @sessionYear INT;
+		DECLARE @month NVARCHAR(2);
+		DECLARE @sessionYearMonth NVARCHAR(6);
+		DECLARE @startDate NVARCHAR(8);
+		DECLARE @endDate NVARCHAR(8);
+		
+		SET @Prod = '';
+		SET @organCode = #organCode#;
+		SET @memberNo = #memberNo#;
+		SET @sessionYear = #sessionYear#;
+		SET @month = #month#;
+		SET @sessionYearMonth = CASE WHEN CAST(@month AS INT) < 7
+									 THEN CAST(@sessionYear AS NVARCHAR(4)) + @month
+									 ELSE CAST(@sessionYear - 1 AS NVARCHAR(4)) + @month
+									  END;
+		SET @startDate = CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701';
+		SET @endDate = CAST(@sessionYear AS NVARCHAR(4)) + '0630';
+		]]>
+	</sql>
+	
+	<sql id="lionsmobile.com.MM6.MM6_1.MM6_08.with">
+		WITH PAYMENT_BASIC AS(
+			SELECT  ROW_NUMBER() OVER (
+						PARTITION BY MM.IDN_NO
+							ORDER BY  MP.PAYMENT_DATE
+									 ,MP.PAYMENT_COUNT
+					) AS rnum
+				   ,(SELECT COUNT(PAYMENT) FROM LIONS_MONEY_PAYMENT WHERE IDN_NO = MM.IDN_NO) AS pcount
+				   ,MM.MEMBER_NO AS memberNo
+				   ,(SELECT NAME FROM LIONS_MEMBER_INFO WHERE MEMBER_NO = MM.MEMBER_NO) AS name
+				   ,MM.GEN_DATE AS genDate
+				   ,MM.CLASS_ITEM_CODE AS classItemCode
+				   ,MM.DETAIL_ITEM_CODE AS detailItemCode
+				   ,dbo.FN_LIONS_CODE_NAME('4100', MM.CLASS_ITEM_CODE) AS classItemName
+				   ,dbo.FN_LIONS_DETAILCODE_NAME('4100', MM.CLASS_ITEM_CODE, MM.DETAIL_ITEM_CODE) AS detailItemName
+				   ,MP.PAYMENT_DATE AS paymentDate
+				   ,ISNULL(MP.PAYMENT_COUNT, 0) AS paymentCount
+				   ,ISNULL(MI.IMPOST, 0) AS impost
+				   ,(ISNULL(MI.IMPOST, 0) / (SELECT WON FROM LIONS_RATES WHERE YYYYMM = SUBSTRING(MM.GEN_DATE, 1, 6))) AS impostDollar
+				   ,CASE WHEN MP.PAYMENT_DEFECT = 'Y' 
+			   			 THEN 0
+			  			 ELSE ISNULL(MP.PAYMENT, 0) 
+			  			  END AS payment
+				   ,CASE WHEN MP.PAYMENT_DEFECT = 'Y' 
+			   			 THEN ISNULL(MP.PAYMENT, 0)
+			 	  		 ELSE 0 
+			 	  		  END AS defect
+				   ,CASE WHEN MP.PAYMENT_DEFECT = 'Y' 
+			   			 THEN 0
+			  			 ELSE ISNULL(MP.DOLLAR, 0)
+			  			  END AS paymentDollar
+				   ,CASE WHEN MP.PAYMENT_DEFECT = 'Y' 
+			   			 THEN ISNULL(MP.DOLLAR, 0)
+			 	  		 ELSE 0
+			 	  		  END AS defectDollar
+				   ,ISNULL(MI.IMPOST,0) - (SELECT ISNULL(SUM(PAYMENT),0) FROM LIONS_MONEY_PAYMENT WHERE IDN_NO = MM.IDN_NO) AS balance
+				   ,(ISNULL(MI.IMPOST, 0) / (SELECT WON FROM LIONS_RATES WHERE YYYYMM = SUBSTRING(MM.GEN_DATE, 1, 6))) - (SELECT ISNULL(SUM(DOLLAR),0) FROM LIONS_MONEY_PAYMENT WHERE IDN_NO = MM.IDN_NO) AS balanceDollar
+				   ,(SELECT CODE3 FROM LIONS_CODE WHERE GROUP_CODE = (SELECT CODE1 FROM LIONS_CODE WHERE GROUP_CODE = '4100' AND CODE = MM.CLASS_ITEM_CODE) AND CODE = MM.DETAIL_ITEM_CODE) AS dollarKind	/* 달러구분 */
+				   ,MP.PAYMENT_DEFECT AS paymentDefect
+				   ,MI.REFERENCE AS reference	/* 참고사항 */
+			  FROM LIONS_MONEY_MASTER MM
+			  LEFT OUTER JOIN LIONS_MONEY_IMPOST MI
+				ON MM.IDN_NO = MI.IDN_NO
+			  LEFT OUTER JOIN LIONS_MONEY_PAYMENT MP
+				ON MI.IDN_NO = MP.IDN_NO
+			<dynamic prepend="WHERE">
+				<isNotEmpty prepend="AND" property="memberNo">
+					MM.MEMBER_NO = @memberNo
+				</isNotEmpty>
+				<isNotEmpty prepend="AND" property="organCode">
+					MM.ORGAN_CODE = @organCode
+				</isNotEmpty>
+				<isEqual prepend="AND" property="classItemType" compareValue="1">
+					MM.CLASS_ITEM_CODE NOT IN('1030', '1040')
+				</isEqual>
+				<isEqual prepend="AND" property="classItemType" compareValue="2">
+					MM.CLASS_ITEM_CODE IN('1030', '1040')
+				</isEqual>
+			</dynamic>
+		)
+	</sql>
+	
+	<select id="lionsmobile.com.MM6.MM6_1.MM6_08.listServicePersonal" resultClass="MM6_08VO">
+		<include refid="lionsmobile.com.MM6.MM6_1.MM6_08.declare" />
+		<include refid="lionsmobile.com.MM6.MM6_1.MM6_08.with" />
+		/* 미수금 */
+		SELECT  'A' AS type
+			   ,rnum
+			   ,pcount
+			   ,genDate	/* 부과일자 */
+			   ,classItemCode
+			   ,detailItemCode
+			   ,classItemName	/* 수입분류항목 */	
+			   ,detailItemName	/* 수입세부항목 */
+			   ,impost	/* 부과금 */
+			   ,paymentDate	/* 납부일 */
+			   ,payment	/* 납부금 */
+			   ,defect	/* 결손금 */
+			   ,balance	/* 미수금 */
+			   ,reference	/* 참고사항 */
+		  FROM PAYMENT_BASIC
+		 WHERE balance > 0
+		 <isNotEmpty prepend="AND" property="month">
+		 	<![CDATA[
+		 	SUBSTRING(genDate, 1, 6) < @sessionYearMonth
+		 	]]>
+		 </isNotEmpty>
+		
+		 UNION ALL
+		
+		/* 검색결과 */
+		SELECT  'B' AS type
+			   ,rnum
+			   ,pcount
+			   ,genDate	/* 부과일자 */
+			   ,classItemCode
+			   ,detailItemCode
+			   ,classItemName	/* 수입분류항목 */	
+			   ,detailItemName	/* 수입세부항목 */
+			   ,impost	/* 부과금 */
+			   ,paymentDate	/* 납부일 */
+			   ,payment	/* 납부금 */
+			   ,defect	/* 결손금 */
+			   ,balance	/* 미수금 */
+			   ,reference	/* 참고사항 */
+		  FROM PAYMENT_BASIC
+		 WHERE SUBSTRING(genDate, 1, 6) = @sessionYearMonth
+		 ORDER BY  type
+				  ,genDate
+				  ,classItemCode
+				  ,detailItemCode
+				  ,rnum
+	</select>
+ 	
+	<select id="lionsmobile.com.MM6.MM6_1.MM6_08.sumServicePersonal" resultClass="MM6_08VO">
+		<include refid="lionsmobile.com.MM6.MM6_1.MM6_08.declare" />
+		<include refid="lionsmobile.com.MM6.MM6_1.MM6_08.with" />
+		
+		SELECT  SUM(R.impost) AS impost
+			   ,SUM(R.payment) AS payment
+			   ,SUM(R.defect) AS defect
+			   ,SUM(R.balance) AS balance
+		  FROM(
+			/* 미수금 */
+			SELECT  CASE WHEN rnum = 1
+						 THEN impost
+						 ELSE 0
+						  END AS impost	/* 부과금 */
+				   ,payment	/* 납부금 */
+				   ,defect	/* 결손금 */
+				   ,balance	/* 미수금 */
+			  FROM PAYMENT_BASIC
+			 WHERE balance > 0
+			 <isNotEmpty prepend="AND" property="month">
+			 	<![CDATA[
+			 	SUBSTRING(genDate, 1, 6) < @sessionYearMonth
+			 	]]>
+			 </isNotEmpty>
+			
+			 UNION ALL
+			
+			/* 검색결과 */
+			SELECT  CASE WHEN rnum = 1
+						 THEN impost
+						 ELSE 0
+						  END AS impost	/* 부과금 */
+				   ,payment	/* 납부금 */
+				   ,defect	/* 결손금 */
+				   ,balance	/* 미수금 */
+			  FROM PAYMENT_BASIC
+			 WHERE SUBSTRING(genDate, 1, 6) = @sessionYearMonth		
+		  ) R
+	</select>
+	
+	<select id="lionsmobile.com.MM6.MM6_1.MM6_08.listServiceCommitmentOfficer" resultClass="MM6_08VO">
+		<include refid="lionsmobile.com.MM6.MM6_1.MM6_08.declare" />
+		<include refid="lionsmobile.com.MM6.MM6_1.MM6_08.with" />
+		SELECT  R.memberNo
+			   ,MIN(R.name) AS name
+			   ,MIN(R.classItemName) AS classItemName
+			   ,MIN(R.detailItemName) AS detailItemName
+			   ,SUM(R.impost) AS impost
+			   ,SUM(R.impostDollar) AS impostDollar
+			   ,SUM(R.payment) AS payment
+			   ,SUM(R.paymentDollar) AS paymentDollar
+			   ,SUM(R.defect) AS defect
+			   ,SUM(R.defectDollar) AS defectDollar
+			   ,SUM(R.balance) AS balance
+			   ,SUM(R.balanceDollar) AS balanceDollar
+			   ,MIN(R.dollarKind) AS dollarKind
+		  FROM(
+			SELECT  'A' AS type
+				   ,memberNo
+				   ,name
+				   ,classItemCode
+				   ,detailItemCode
+				   ,classItemName
+				   ,detailItemName
+				   ,CASE WHEN rnum = 1
+						 THEN impost
+						 ELSE 0
+						  END AS impost	/* 부과금 */
+				   ,CASE WHEN rnum = 1
+						 THEN impostDollar
+						 ELSE 0
+						  END AS impostDollar	/* 부과금 달러 */
+				   ,payment	/* 납부금 */
+				   ,paymentDollar	/* 납부금 달러 */
+				   ,defect	/* 결손금 */
+				   ,defectDollar	/* 결손금 달러 */
+				   ,balance	/* 미수금 */
+				   ,balanceDollar	/* 미수금 달러 */
+				   ,dollarKind
+			  FROM PAYMENT_BASIC
+			 <![CDATA[
+			 WHERE genDate >= @startDate
+			   AND genDate <= @endDate
+			 ]]>
+			<isNotEmpty prepend="AND" property="month">
+				<![CDATA[
+				SUBSTRING(genDate, 1, 6) = @sessionYearMonth
+				]]>
+			</isNotEmpty>
+		  ) R
+		 GROUP BY  R.memberNo
+				  ,R.classItemCode
+				  ,R.detailItemCode
+		 ORDER BY  R.memberNo
+		 		  ,dbo.FN_LIONS_CODE_ORD('4100', R.classItemCode)
+				  ,dbo.FN_LIONS_DETAILCODE_ORD('4100', R.classItemCode, R.detailItemCode)
+	</select>
+ 	
+</sqlMap>

@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://www.ibatis.com/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="lionsclubs.com.cmm.web.organ">
+
+	<typeAlias alias="organVO" type="lionsclubs.com.cmm.web.organ.OrganVO"/>
+
+	<sql id="lionsclubs.com.cmm.web.organ.organQuery">
+		SELECT  TREE.ORGAN_CODE AS organCode
+			<dynamic prepend=",">
+				<isEqual property="forMobileOrder" compareValue="Y">
+					<isEqual property="shortenName" compareValue="true">
+						RIGHT(TREE.ORGAN_CODE,3) + '. ' + TREE.KO_ABBR as koName
+					</isEqual>
+					<isNotEqual property="shortenName" compareValue="true">
+						RIGHT(TREE.ORGAN_CODE,3) + '. ' + TREE.KO_NAME as koName
+					</isNotEqual>
+	
+				</isEqual>
+				<isNotEqual property="forMobileOrder" compareValue="Y">
+					<isEqual property="shortenName" compareValue="true">
+						TREE.KO_ABBR as koName
+					</isEqual>
+					<isNotEqual property="shortenName" compareValue="true">
+						TREE.KO_NAME as koName
+					</isNotEqual>
+				</isNotEqual>
+			</dynamic>
+		<isNotEmpty prepend="FROM" property="sessionYear">
+			dbo.FN_LIONS_ORGAN_TREE_YEAR(#sessionYear#) TREE
+		</isNotEmpty>
+		<isEmpty prepend="FROM" property="sessionYear">
+			LIONS_ORGAN_TREE_VIEW TREE
+		</isEmpty>
+		<isEqual property="auth" compareValue="true">
+		 INNER JOIN (
+		 	SELECT ORGAN_CODE
+		 	  FROM dbo.FN_LIONS_AUTH_ORGAN_CODE_LIST(#authMemberNo#)
+		 	 
+		 	 UNION
+		 	 
+		 	SELECT #associationCode#
+		 	 
+		 	 UNION
+		 	 
+		 	SELECT #complexCode#
+		 	 
+		 	 UNION
+		 	 
+		 	SELECT #districtCode#
+		 	 
+		 	 UNION
+		 	 
+		 	SELECT 'K' + SUBSTRING(REPLACE(#associationCode#, '-', ''), 2, 6)
+		 	 
+		 	 UNION
+		 	 
+		 	SELECT 'K' + SUBSTRING(REPLACE(#complexCode#, '-', ''), 2, 6)
+		 	 
+		 	 UNION
+		 	 
+		 	SELECT 'K' + SUBSTRING(REPLACE(#districtCode#, '-', ''), 2, 6)
+	 	) AUTH
+			ON TREE.ORGAN_CODE = AUTH.ORGAN_CODE		  
+	 	</isEqual>
+		<dynamic prepend="WHERE">
+			<isNotEmpty prepend="AND" property="lvl">
+				TREE.LVL = #lvl#
+			</isNotEmpty>
+			<isNotEmpty prepend="AND" property="lvlStart">
+				<![CDATA[
+				TREE.LVL >= #lvlStart#
+				]]>
+			</isNotEmpty>
+			<isNotEmpty prepend="AND" property="lvlEnd">
+				<![CDATA[
+				TREE.LVL <= #lvlEnd#
+				]]>
+			</isNotEmpty>
+			<isNotEmpty prepend="AND" property="upperOrganCode">
+				TREE.UPPER_ORGAN_CODE = REPLACE(#upperOrganCode#, '-', '')
+			</isNotEmpty>
+			<isNotEmpty prepend="AND" property="koName">
+				TREE.KO_NAME LIKE '%' + #koName# + '%'
+			</isNotEmpty>
+		</dynamic>
+		ORDER BY  TREE.LVL
+				 ,TREE.ORGAN_CODE
+	</sql>
+
+	<select id="lionsclubs.com.cmm.web.organ.organTreeList" resultClass="organVO">
+		<include refid="lionsclubs.com.cmm.web.organ.organQuery"/>
+	</select>
+	
+ 	<select id="lionsclubs.com.cmm.web.organ.getOrgLevel" resultClass="java.lang.String" parameterClass="java.lang.String">
+		<![CDATA[
+		SELECT LVL AS lvl 
+		  FROM dbo.LIONS_ORGAN_TREE_VIEW
+		 WHERE ORGAN_CODE = REPLACE(#organCode#, '-', '')
+		]]>
+ 	</select>
+ 	
+ 	<select id="lionsclubs.com.cmm.web.organ.getDistrictCode" resultClass="java.lang.String" parameterClass="java.lang.String">
+		<![CDATA[
+		DECLARE @organCode NVARCHAR(6);
+		SET @organCode = REPLACE(#organCode#, '-', '');
+		
+		SELECT dbo.FN_GetIdxDataLikeSplit(PATH_CODE,3,'/') AS districtCode
+		  FROM dbo.LIONS_ORGAN_TREE_VIEW
+		 WHERE ORGAN_CODE = @organCode
+		]]>
+ 	</select>
+ 	
+ 	<select id="lionsclubs.com.cmm.web.organ.byLvlOrganCode" resultClass="organVO">
+		DECLARE @organCode NVARCHAR(6);
+		SET @organCode = REPLACE(#searchOrganCode#, '-', '');
+
+		SELECT  dbo.FN_GetIdxDataLikeSplit(PATH_CODE, 1, '/') AS associationCode
+			   ,dbo.FN_GetIdxDataLikeSplit(PATH_CODE, 2, '/') AS complexCode
+			   ,dbo.FN_GetIdxDataLikeSplit(PATH_CODE, 3, '/') AS districtCode
+			   ,dbo.FN_GetIdxDataLikeSplit(PATH_CODE, 4, '/') AS clubCode
+		  FROM dbo.LIONS_ORGAN_TREE_VIEW
+		 WHERE ORGAN_CODE = @organCode 	
+ 	</select>
+ 	
+	<select id="lionsclubs.com.cmm.web.organ.organSearch" resultClass="organVO">
+		SELECT  A.ORGAN_CODE AS organCode       
+			   ,A.KO_NAME AS koName       
+			   ,C.NAME AS organOfficerMemberName
+		  FROM LIONS_ORGAN_TREE_VIEW A
+		<isEqual property="auth" compareValue="true">		  
+		 INNER JOIN dbo.FN_LIONS_AUTH_ORGAN_CODE_LIST(#authMemberNo#) B
+		    ON A.ORGAN_CODE = B.ORGAN_CODE
+		</isEqual>
+		  LEFT OUTER JOIN dbo.LIONS_MEMBER_INFO C
+		    ON C.MEMBER_NO = A.ORGAN_OFFICER_MEMBER_NO
+	    <dynamic prepend="WHERE">
+			<isNotEmpty prepend="AND" property="lvl">
+				LVL = #lvl#
+			</isNotEmpty>
+			<isNotEmpty prepend="AND" property="lvlStart">
+				<![CDATA[
+				LVL >= #lvlStart#
+				]]>
+			</isNotEmpty>
+			<isNotEmpty prepend="AND" property="lvlEnd">
+				<![CDATA[
+				LVL <= #lvlEnd#
+				]]>
+			</isNotEmpty>
+			<isNotEmpty prepend="AND" property="organCode">
+				A.ORGAN_CODE LIKE UPPER(REPLACE(#organCode#, '-', ''))
+			</isNotEmpty>
+			<isNotEmpty prepend="AND" property="koName">
+				A.KO_NAME LIKE '%' + #koName# + '%'
+			</isNotEmpty>
+		</dynamic>				
+		 ORDER BY  LVL
+				  ,A.ORGAN_CODE
+	</select>
+	
+	<select id="lionsclubs.com.cmm.web.organ.organCodetoName" resultClass="string">
+		SELECT KO_NAME AS koName
+		  FROM LIONS_ORGAN_CODE
+		 WHERE ORGAN_CODE = #organCode#
+	</select>
+</sqlMap>

@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://www.ibatis.com/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="lionsmobile.com.MM6.MM6_1.MM6_04">
+	<typeAlias alias="MM6_04VO_MENU" type="lionsmobile.com.MM6.MM6_1.MM6_04.MM6_04VO_MENU"/>
+	<typeAlias alias="MM6_04VO_MEMBER" type="lionsmobile.com.MM6.MM6_1.MM6_04.MM6_04VO_MEMBER"/>
+	<typeAlias alias="MM6_04VO_PARAM" type="lionsmobile.com.MM6.MM6_1.MM6_04.MM6_04VO_PARAM"/>
+ 	
+ 	<select id="lionsmobile.com.MM6.MM6_1.MM6_04.selectMenuList" resultClass="MM6_04VO_MENU" parameterClass="MM6_04VO_PARAM">
+		<![CDATA[
+			SELECT
+			DISTINCT
+			 T_AREA_NO as menuName
+			FROM dbo.LIONS_DUMMY_MEMBER_INFO
+			WHERE
+			    AGE_CODE = #ageCode#
+			AND ORGAN_CODE = #orgCode#
+			AND APP_KIND_CODE='9020' AND APP_DESC_CODE='1010'
+			ORDER BY 1
+		]]>
+ 	</select>
+ 	
+ 	<select id="lionsmobile.com.MM6.MM6_1.MM6_04.selectMemberList" resultClass="MM6_04VO_MEMBER" parameterClass="MM6_04VO_PARAM">
+		<![CDATA[
+	SELECT
+	 A.MEMBER_NAME as memberName
+	,A.T_POS		 as tPos
+	,A.T_CLUB_NAME	as tClubName
+	,A.T_CO_POS	as tCoPos
+	,A.T_PHONE	as tPhone
+	,A.T_AREA_NO	as tAreaNo
+	,A.T_BOUND_NO	as tBoundNo
+	,A.T_CLUB_F_NO	as tClubFNo
+	,'/lionsclubs/upload/' + SUBSTRING(F.FILE_MASK,1,6) + '/' + SUBSTRING(F.FILE_MASK,7,2) + '/' + F.FILE_MASK + '.thumb' as picFile
+	FROM dbo.LIONS_DUMMY_MEMBER_INFO A
+	LEFT OUTER JOIN dbo.LIONS_MEMBER_INFO B
+	ON B.MEMBER_NO = A.MEMBER_NO
+	LEFT OUTER JOIN dbo.J_ATTACHFILE F
+	ON F.FILE_ID = B.MEMBER_PICTURE_FILE
+	WHERE
+		A.AGE_CODE = #ageCode#
+	AND A.ORGAN_CODE = #orgCode#
+	AND A.APP_KIND_CODE='9020' AND A.APP_DESC_CODE='1010'
+	AND A.T_AREA_NO = #menuName#
+	ORDER BY A.T_BOUND_NO,A.T_CLUB_F_NO,A.ORD
+		]]>
+ 	</select>
+</sqlMap>

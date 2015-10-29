@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ehcache xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:noNamespaceSchemaLocation="http://ehcache.org/ehcache.xsd"
+	updateCheck="false">
+
+	<diskStore path="java.io.tmpdir" />
+
+	<!-- TCP 방식 -->
+	<cacheManagerPeerProviderFactory
+		class="net.sf.ehcache.distribution.RMICacheManagerPeerProviderFactory"
+		properties="peerDiscovery=manual, rmiUrls=//127.0.0.1:40001/sampleCache|//127.0.0.1:40002/sampleCache"
+		propertySeparator=","
+	/>
+
+	<cacheManagerPeerListenerFactory
+		class="net.sf.ehcache.distribution.RMICacheManagerPeerListenerFactory"
+		properties="hostName=127.0.0.1, port=40001, socketTimeoutMillis=2000"
+	/>
+
+	<!-- UDP 방식 -->
+	<!--
+	<cacheManagerPeerProviderFactory
+        class="net.sf.ehcache.distribution.RMICacheManagerPeerProviderFactory"
+        properties="peerDiscovery=automatic, multicastGroupAddress=224.0.0.1, multicastGroupPort=8209, timeToLive=32" 
+    />
+            
+	<cacheManagerPeerListenerFactory
+        class="net.sf.ehcache.distribution.RMICacheManagerPeerListenerFactory" 
+        properties="port=8208, socketTimeoutMillis=120000" 
+    />
+    -->
+
+
+	<!--
+		timeToIdleSeconds : 설정한 시간동안 Idle 상태가 지속되면 갱신 (5분)
+		timeToLiveSeconds : 설정한 시간동안 캐쉬를 유지시킨다. (10분)
+		overflowToDisk, diskPersistent : 디스크 저장 옵션은 사용하지 않는다.
+	-->
+	<!-- 
+	 	replicatePuts : 캐시에 새로운 요소가 추가됐을 때 다른 노드에 복사할지의 여부
+	 	replicateUpdates : 캐시 요소의 값이 변경되었을 때 다른 노드에 값을 복사할지의 여부
+	 	replicateRemovals : 캐시 요소가 삭제되었을 때 다른 노드에 반영할지의 여부
+	 	replicateAsynchronously : 비동기로 값을 복사할지의 여부
+	 	replicateUpdatesViaCopy : 새로운 요소를 다른 노드에 복사할 지 아니면 삭제 메시지를 보낼지의 여부
+	-->
+	  	 
+	<defaultCache
+		maxElementsInMemory="20000"
+		eternal="false"
+		timeToIdleSeconds="300"
+		timeToLiveSeconds="600"
+		overflowToDisk="false"
+		diskPersistent="false"
+		diskExpiryThreadIntervalSeconds="120"
+		memoryStoreEvictionPolicy="LRU" statistics="true">
+	</defaultCache>
+
+	<!-- 메뉴 리스트 cache -->
+	<cache name="menu"
+		maxElementsInMemory="20000"
+		eternal="false"
+		timeToIdleSeconds="300"
+		timeToLiveSeconds="600"
+		overflowToDisk="false"
+		diskPersistent="false"
+		diskExpiryThreadIntervalSeconds="120"
+		memoryStoreEvictionPolicy="LRU" statistics="true">
+		<cacheEventListenerFactory
+			class="net.sf.ehcache.distribution.RMICacheReplicatorFactory"
+			properties="replicateAsynchronously=false, replicateUpdatesViaCopy=true, replicatePuts=true, replicateUpdates=true, replicateRemovals=true"
+		/>
+	</cache>
+
+	<!-- 메뉴 title cache -->
+	<cache name="menuTitle"
+		maxElementsInMemory="20000"
+		eternal="false"
+		timeToIdleSeconds="300"
+		timeToLiveSeconds="600"
+		overflowToDisk="false"
+		diskPersistent="false"
+		diskExpiryThreadIntervalSeconds="120"
+		memoryStoreEvictionPolicy="LRU" statistics="true">
+		<cacheEventListenerFactory
+			class="net.sf.ehcache.distribution.RMICacheReplicatorFactory"
+			properties="replicateAsynchronously=false, replicateUpdatesViaCopy=true, replicatePuts=true, replicateUpdates=true, replicateRemovals=true"
+		/>
+	</cache>
+	
+	<!-- 메뉴 권한 cache -->
+	<cache name="menuAuthenticated"
+		maxElementsInMemory="20000"
+		eternal="false"
+		timeToIdleSeconds="300"
+		timeToLiveSeconds="600"
+		overflowToDisk="false"
+		diskPersistent="false"
+		diskExpiryThreadIntervalSeconds="120"
+		memoryStoreEvictionPolicy="LRU" statistics="true">
+		<cacheEventListenerFactory
+			class="net.sf.ehcache.distribution.RMICacheReplicatorFactory"
+			properties="replicateAsynchronously=false, replicateUpdatesViaCopy=true, replicatePuts=true, replicateUpdates=true, replicateRemovals=true"
+		/>
+	</cache>
+</ehcache>
+

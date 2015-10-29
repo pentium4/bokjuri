@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://www.ibatis.com/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="lionsclubs.com.MM3.MM3_9.MM3_38">
+	<typeAlias alias="MM3_38VO" type="lionsclubs.com.MM3.MM3_9.MM3_38.MM3_38VO"/>
+	
+	<sql id="lionsclubs.com.MM3.MM3_9.MM3_38.declare">
+		DECLARE @clubCode NVARCHAR(6);
+		DECLARE @sessionYear NVARCHAR(4);
+		
+		SET @clubCode = REPLACE(#clubCode#, '-', '');
+		SET @sessionYear = #sessionYear#;
+	</sql>
+	
+	<sql id="lionsclubs.com.MM3.MM3_9.MM3_38.merit">
+		<![CDATA[
+		SELECT *
+		  FROM (
+			SELECT  BM.DISTRICT_CODE AS districtCode
+				   ,BM.EVENT_CODE AS eventCode	/* 행사코드 */
+				   ,dbo.FN_LIONS_CODE_NAME(('36' + CAST(SUBSTRING(BM.DISTRICT_CODE, 2, 2) AS NVARCHAR(2))), BM.EVENT_CODE) AS eventName	/* 행사명 */
+				   ,BM.EVENT_DATE AS eventDate	/* 행사일자 */
+				   ,MIN(BM.EVENT_PLACE) AS eventPlace	/* 행사장소 */
+				   ,MIN(BM.EVENT_DESC) AS eventDesc	/* 행사내용 */
+				   ,SUM(CAST(ISNULL(CM.SUBJECTIVE_SCORE, 0) AS BIGINT)) + SUM(CAST(ISNULL(CM.JOIN_SCORE, 0) AS BIGINT)) + SUM(CAST(ISNULL(CM.SERVICE_SCORE, 0) AS BIGINT)) AS totalScore	/* 점수계 */
+			  FROM LIONS_BASIC_MERIT BM
+			 INNER JOIN LIONS_CLUB_MERIT CM
+			    ON BM.DISTRICT_CODE = CM.DISTRICT_CODE
+			   AND BM.EVENT_CODE = CM.EVENT_CODE
+			   AND BM.EVENT_DATE = CM.EVENT_DATE
+			 WHERE CM.CLUB_CODE = @clubCode
+			   AND BM.EVENT_DATE >= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701'
+			   AND BM.EVENT_DATE <= CAST(@sessionYear AS NVARCHAR(4)) + '0630'
+			 GROUP BY  BM.DISTRICT_CODE
+					  ,BM.EVENT_CODE
+					  ,BM.EVENT_DATE
+		  ) R
+		 WHERE totalScore > 0 
+		]]>
+	</sql>
+	
+	<select id="lionsclubs.com.MM3.MM3_9.MM3_38.MM3_38" resultClass="MM3_38VO">
+		<include refid="lionsclubs.com.MM3.MM3_9.MM3_38.declare" />
+		<include refid="lionsclubs.com.MM3.MM3_9.MM3_38.merit" />
+	</select>
+	
+	<select id="lionsclubs.com.MM3.MM3_9.MM3_38.sum" resultClass="long">
+		<include refid="lionsclubs.com.MM3.MM3_9.MM3_38.declare" />
+		SELECT SUM(totalScore)
+		  FROM(
+		  	<include refid="lionsclubs.com.MM3.MM3_9.MM3_38.merit" />
+		  ) SUM
+	</select>
+</sqlMap>

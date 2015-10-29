@@ -1,0 +1,372 @@
+@charset "utf-8";
+
+body{min-width:1200px; overflow-y:hidden;}
+*:first-child+html body{overflow:auto;}
+
+
+#Wrap{overflow:hidden;margin:0;padding:0;}
+
+/* 메뉴온오프 */
+#LNB{overflow:hidden;width:185px;height:100%;margin:0;padding:0 0 0 5px;background:url("/images/lionsclubs/left_bg.gif") 0 0 no-repeat;float:left;font-size:14px !important;}
+#LNB p{margin:0;padding:5px 0 0 0;}
+#LNB h1{width:180px;height:60px;margin:0;padding:5px 0 0 0;background:url("/images/lionsclubs/sub/sub_bg.gif") 0 0 no-repeat}
+#LNB h1 div{margin:0;padding:10px 0;font-size:16px;line-height:16px;font-weight:bold;color:#333;text-align:center}
+#LNB h1 div span{font-size:10px;text-transform:uppercase;color:#999}
+#LNB h1 img{position:absolute;top:65px;left:190px;z-index:1000}
+
+
+#LNB > div{background:url("/images/lionsclubs/link_bg.gif") 0 0 repeat-y;}
+#LNB > div div{padding:0 0 0 9px;}
+#LNB h3{width:138px;height:30px;line-height:30px;font-weight:bold;letter-spacing:-1px;
+	padding:0 0 0 18px;background:url("/images/lionsclubs/sub/icon_lnb.png") 0 7px no-repeat;cursor:pointer}
+#LNB h3.On,h3 a,h3 a:hover{display:block;width:138px;height:30px;font-weight:bold;color:#0057a0;
+	padding:0 0 0 18px;background:url("/images/lionsclubs/sub/icon_lnb_on.png") 0 7px no-repeat;cursor:pointer}
+#LNB h3 a{background:none;padding:0;}
+#LNB ul{ display:none;}
+#LNB li{width:140px;height:24px;line-height:24px;margin:0;padding:0 0 0 15px;border-bottom:1px dotted #aaa;border-left:0;border-right:0;letter-spacing:-0.5px;
+	background:url("/images/lionsclubs/sub/icon_arrow.png") 5px 8px no-repeat;}
+#LNB li.Select{background:#5cbaf3 url("/images/lionsclubs/sub/icon_arrow_on.png") 5px 8px no-repeat;padding:1px 0 0 16px;}
+#LNB li.Select a{color:#fff;font-size:14px;}
+#LNB h2{display:none;position:absolute;top:65px;left:5px;z-index:1000}
+
+
+#Contetns_Area{overflow:hidden;margin:0;padding:0;}
+#Contetns_Area table{border-collapse:collapse;}
+#Contetns_Area h3{position:relative;height:30px;line-height:30px;margin:0 0 5px 20px;padding:0 0 0 0;background:url("/images/lionsclubs/sub/h3_bg.png") 0 0 repeat-x;clear:both}
+#Contetns_Area h3 div{height:30px;margin:0;padding:0 0 0 22px;color:#333;font-size:18px;font-weight:bold;letter-spacing:-0.5px;
+	background:url("/images/lionsclubs/sub/icon_h3.png") 0 0 no-repeat;}
+#Contetns_Area h3 .date{position:absolute;top:8px;right:25px;padding:0 0 0 22px;font:normal 14px 굴림;color:#555;letter-spacing:0;}
+
+#Contetns_Area div h4{height:14px;position:relative;margin:10px 0 0 0 !important;padding:5px 0 5px 12px;color:#333;font-size:14px;font-weight:bold;letter-spacing:-0.5px;background:url("/images/lionsclubs/sub/icon_h4.png") 0 3px no-repeat;clear:both}
+
+#Contetns_Area h5{height:30px;margin:10px 0 0 0;padding:0;background:url("/images/lionsclubs/sub/me_bg1.gif") 0 0 repeat-x;}
+#Contetns_Area h5 div{line-height:30px;font:normal 14px 굴림;margin:0;padding:9px 0 0 110px;background:url("/images/lionsclubs/sub/me_bg2.gif") 20px 5px no-repeat}
+
+/* 메뉴경로 */
+div#position{height:25px;margin:5px 0 0 20px;padding:0;background:url("/images/lionsclubs/sub/icon_home.gif") 0 0 no-repeat;font-size:12px;color:#767676}
+div#position p{margin:0;padding:0 0 0 15px}
+div#position span{color:#0093e0;font-weight:bold}
+
+
+
+/* 테이블 */
+div.table{position:relative;margin:0;padding:0 20px;}
+div.table0{position:relative;margin:0;padding:0;}
+
+div.border{position:relative;margin:0;padding:20px 0 20px 20px;border-bottom:1px solid #aaa;clear:both;}
+div.borderArrow{position:absolute;top:0;right:15px;width:30px;height:100%;margin:0;padding:0;border-left:1px solid #aaa;}
+div.borderArrow p{margin:0;padding:20px 0 0 6px;}
+
+
+/* 테이블 속 버튼 */
+div.btnTBox{position:absolute;top:10px;left:200px;z-index:1000}
+div.btnBox{position:absolute;top:0;right:20px;z-index:1000}
+div.btnBox1{position:absolute;top:10px;right:20px;z-index:1000}
+div.btnBox2{margin:0;padding:2px 0;text-align:right;}
+div.btnBox3{margin:0;padding:5px 20px 0 5px;text-align:right}
+div.btnBox4{position:absolute;top:0;left:250px;z-index:1000}
+div.dateBox{position:absolute;top:0;left:40%;width:80%;font-size:12px;letter-spacing:0.5px;z-index:1000}
+div.dateBox input{margin:0;padding:0 10px;}
+div.dateBox2{position:absolute;top:0;left:30%;width:80%;font-size:12px;letter-spacing:0.5px;z-index:1000}
+div.dateBox2 input{margin:0;padding:0 5px;}
+div.calBox{position:absolute;top:1px;left:361px;font-size:12px;letter-spacing:0.5px;z-index:1000}
+div.radioBox{position:absolute;top:2px;left:30%;width:90%;font-size:12px;font-weight:normal;letter-spacing:0;z-index:1000}
+div.radioBox input{margin:0 0 0 20px;}
+div.tblTitleBtn{position:absolute;top:-25px;right:10px;z-index:1000}
+div.fLBtn{position:absolute;top:0;right:5px;z-index:1000}
+div.fLBtn2{position:absolute;top:10px;right:0;z-index:1000}
+
+div.pregident{height:20px;font-weight:bold;font-size:13px;margin:0 10px 0 0;padding:0 0 4px 27px;
+	background:url("/images/lionsclubs/icon_logo.gif") 0 1px no-repeat;float:right}
+div.arrow{position:absolute;top:2px;left:50%;margin-left:-75px;z-index:1000}
+div.arrowY{position:absolute;top:2px;left:50%;margin-left:-135px;z-index:1000}
+div.arrowR{position:absolute;top:2px;right:0;margin-right:145px;z-index:1000}
+div.arrowL{position:absolute;top:26px;left:50%;margin-left:-75px;z-index:1000}
+div.tdW20{width:100px;;float:left;}
+div.money{margin:-20px 0 5px 0;text-align:right;}
+
+
+/* 환율 */
+div.btnExchange{position:absolute;top:10px;right:35px;z-index:1000}
+div.calendar{width:140px;margin:0 auto;padding:10px 0 20px 10px;text-align:center}
+div.calTbl{width:50%;margin:0;padding:0;}
+div.calTbl table{width:95%;margin:0 auto;padding:0;}
+
+/* 팝업폼 */
+div#popup{position:absolute;top:0;left:0;margin:0;padding:10px;overflow:hidden;width: 98%;}
+
+.ui-dialog div#popup{
+	width: auto;
+}
+
+div#popup h3{position:relative;height:30px;line-height:30px;margin:0;padding:0;background:url("/images/lionsclubs/sub/h3_bg.png") 0 0 repeat-x;clear:both;}
+div#popup h3 div{margin:0;padding:2px 0 0 22px;color:#333;font-size:18px;font-weight:bold;letter-spacing:-0.5px;
+	background:url("/images/lionsclubs/sub/icon_h3.png") 0 0 no-repeat;}
+div#popup h4{height:14px;position:relative;margin:10px 0 0 0 !important;padding:5px 0 5px 12px;color:#333;font-size:14px;font-weight:bold;letter-spacing:-0.5px;background:url("/images/lionsclubs/sub/icon_h4.png") 0 3px no-repeat;clear:both}
+div.popup_bg{width:100%;margin:0;padding:10px 5px 0 0;overflow:auto}
+div.searchBox{position:relative;margin:0 0 10px 0;padding:6px 0;text-align:center;background:#fff;border:2px solid #0093e0}
+div.searchBox2{position:relative;margin:0 0 5px 0;padding:6px 10px;text-align:left;background:#fff;border:2px solid #0093e0}
+div.popupBtn{margin:0;padding:10px 0;text-align:center;clear:both}
+div.popupBtn input{margin:0 30px;padding:0}
+div.popupBtn img{margin:0 15px;padding:0}
+div.popupBtn2{margin:0;padding:10px 0;text-align:center;clear:both}
+div.popupBtn2 input{margin:0 5px;padding:0}
+div.popupBtn2 img{margin:0 5px;padding:0}
+div.tblPopupH2{height:276px;overflow-y:auto;overflow-x:hidden;}
+div.tblPopupH2 table{width:100%;border-top:1px solid #aaa}
+
+div#popup h5{height:29px;line-height:30px;padding:1px 0 0 0;border:1px solid #aaa;margin-top: 10px;}
+div#popup h5 div{font-size:13px;font-weight:normal;text-align:center;color:#333;margin:0;padding:0 0 0 10px;}
+
+/* 신규회원 */
+div.profileBox{margin:0 5px 0 0;padding:0;float:right;}
+div.profileBox p.title{margin:0;padding:10px 0 7px 0;color:#fff;font-weight:bold;text-align:center;background:url("/images/lionsclubs/sub/profile_bg.gif") 0 0 no-repeat}
+div.profileBox p.photo img{
+	width:130px;
+	height:150px;
+	margin:5px 0 10px 0;
+	padding:2px;
+	border:1px solid #ccc;
+}
+
+/* 생년월일 동일자 */
+div.popupPhoto{width:690px;height:380px !important;margin:10px 0 0 0;padding:0 0 0 10px}
+div.popupPhoto table{width:100%;margin:10px 0;padding:0;border:0}
+div.popupPhoto td{margin:0;padding:0 !important;border:0;}
+div.popupPhoto p.photo{
+	width:100px;
+	border:1px solid #aaa;
+	margin:0 30px 0 30px;
+	padding:2px;
+}
+div.popupPhoto p.txt{width:100%;margin: 5px 0 0 0;padding:0;line-height:18px;text-align:center}
+
+
+/* 팝업테이블 */
+.tblPopup{width:100%;margin:0;padding:0;border-top:1px solid #aaa;border-left:1px solid #aaa;}
+.tblPopup th{height:24px;line-height:24px;padding:0;font-size:14px;text-align:center;border-right:1px solid #aaa;border-bottom:1px solid #aaa;background:#f1f1f1;color:#333}
+.tblPopup th.Gbg{background:#f1f1f1;}
+.tblPopup td{height:24px;line-height:24px;padding:0;font-size:14px;text-align:center;border-right:1px solid #aaa;border-bottom:1px solid #aaa;}
+.tblPopup input{height:18px;line-height:18px;}
+
+
+/* 개인정보팝업 */
+div#profile{width:493px;margin:0;padding:5px 0 0 5px}
+div.profile_pregident{position:absolute;top:28px;left:50%;width:99px;height:18px;font-weight:bold;font-size:12px;color:#333;margin:3px 0 0 -95px;padding:2px 0 0 30px;
+	background:url("/images/lionsclubs/icon_logo.gif") 0 0 no-repeat;z-index:1000}
+div.profile_arrow{width:50px;position:absolute;top:2px;right:10px;z-index:1000}
+
+
+
+
+
+/* 갤러리 */
+.tbl{width:100%;margin:0;padding:0;border:0 !important}
+.tblPhoto{width:100%;margin:10px 0 0 20px;padding:0;border:0}
+.tblPhoto td{margin:0;padding:0 0 10px 0 !important;border:0;text-align:left}
+.tblPhoto p.title{height:20px;padding:0;color:blue;font-weight:bold;text-align:center}
+.tblPhoto p.photo{
+	width:100px;
+	border:1px solid #aaa;
+	margin:0 30px 0 30px;
+	padding:2px;
+	display: block;
+	margin-left: auto;
+	margin-right: auto;
+}
+.tblPhoto p.photo img{
+	width:100px;
+	height:120px;
+}
+.tblPhoto p.photoBig{width:140px;height:180px;border:1px solid #aaa;margin:0 auto;padding:2px}
+.tblPhoto p.photoBig img{width:140px;height:180px;}
+.tblPhoto p.txt{
+	width:100%;
+	margin:5px 0;
+	padding:0;
+	line-height:18px;
+	text-align:center
+}
+.tblPhoto p.txtBig{width:140px;margin:5px auto;padding:0;line-height:16px;text-align:center}
+.tblPhoto .ness{width:80%;margin:0 10px 0 0;padding:0;border:0}
+
+/* 우편번호 찾기 */
+.zips{width:100%;margin:0;padding:0}
+.zips td{font-size:12px;font-family:Dotum,굴림;padding:5px 0}
+
+/* 직원조회 */
+div.employee{width:100%;margin:0;padding:10px 0;border:1px solid #aaa}
+div.employee h6{color:#333;font-size:14px}
+.border{width:100%;border:0}
+.border td{color:#333;}
+
+/* 가로달력 */
+.tblCal{width:410px !important;margin:0;padding:0}
+.tblCal{width:100%;border-top:1px solid #aaa;border-left:1px solid #aaa;}
+.tblCal th{width:90px;height:22px;background:#f1f1f1;border-right:1px solid #aaa}
+.tblCal td{width:22px;height:22px;text-align:center;padding:0;border-right:1px solid #aaa;}
+
+/* 회기선택 */
+.tblCal2{width:60%;margin:0;padding:0;}
+.tblCal2 th{height:22px;}
+.tblCal2 td{height:22px;text-align:center;padding:0 10px;color:#438FE6;}
+
+
+/* 테이블 속 사진갤러리 */
+div.tblPhoto2{height:390px !important;margin:0;padding:0;overflow-y:auto;overflow-x:hidden}
+div.tblPhoto2 table{width:100%;margin:10px 0 0 10px;padding:0;border:0}
+div.tblPhoto2 td{margin:0;padding:0 !important;border:0}
+div.tblPhoto2 p.photo{width:100%;margin:0;padding:2px;text-align:center}
+div.tblPhoto2 p.txt{width:100%;margin:5px 0 10px 0;padding:0;line-height:18px;text-align:center}
+div.tblPhoto2 p.photo img{width:100px; height:120px;border:1px solid #aaa;}
+
+/* 테이블 */
+div.tblTitle{position:relative;margin:0 0 2px 0;padding:0;}
+div.tblTitle table{width:100%;margin:0 !important;padding:0 !important}
+div.innerTitle{margin:0 0 2px 0;padding:0;}
+div.innerTitle table{width:100%;margin:0 !important;padding:0 !important;}
+
+
+/* Height_script */
+div.Height_1{overflow-y:auto;overflow-x:hidden}
+#Scroll_Area{overflow-y:auto;border:1px solid #aaa;padding-right:2px}
+#Scroll_Area table{border-left:none; border-top:none;}
+div.Scroll_Title{border:1px solid #aaa;}
+div.Scroll_Title table{border-left:none !important;border-top:none !important}
+div.Scroll_Title th{background:#f1f1f1;}
+
+
+/* 회색테이블 td 왼쪽정렬 */
+.tblType1{width:100%;margin:0;border:1px solid #aaa}
+.tblType1 th{height:24px;line-height:24px;padding:0;border-right:1px solid #aaa;border-bottom:1px solid #aaa;background:#f1f1f1;color:#444}
+.tblType1 th.Gbg{background:#f1f1f1;border-bottom:1px solid #aaa}
+.tblType1 td{height:24px;line-height:24px;padding:0 5px;border-right:1px solid #aaa;border-bottom:1px solid #aaa;color:#555}
+.tblType1 td.Profile_img{margin:0;padding:2px}
+.tblType1 td.Profile_img img{width:100px; height:120px;}
+
+/* 회색테이블 td 중앙정렬 */
+.tblType1_1{width:100%;margin:0;border:1px solid #aaa}
+.tblType1_1 th{height:24px;line-height:24px;padding:0;border-right:1px solid #aaa;border-bottom:1px solid #aaa;background:#f1f1f1;color:#000}
+.tblType1_1 th.Gbg{background:#f1f1f1;border-bottom:1px solid #aaa}
+.tblType1_1 td{height:24px;line-height:24px;padding:0;text-align:center;border-right:1px solid #aaa;border-bottom:1px solid #aaa;color:#555}
+.tblType1_1 td.Profile_img{margin:0;padding:2px}
+.tblType1_1 td.Profile_img img{width:100px; height:120px;}
+
+/* 회색테이블 td 왼쪽정렬 */
+.tblType2{width:100%;border-top:1px solid #aaa;border-left:1px solid #aaa;}
+.tblType2 th{height:24px;line-height:24px;padding:0;border-right:1px solid #aaa;border-bottom:1px solid #aaa;background:#f1f1f1;color:#333}
+.tblType2 th.Gbg{background:#f1f1f1;border-bottom:1px solid #aaa}
+.tblType2 td{height:24px;padding:0 5px;border-right:1px solid #aaa;border-bottom:1px solid #aaa;color:#555;}
+
+
+/* 회색테이블 td 중앙정렬 */
+.tblType2_1{width:100%;border-top:1px solid #aaa;border-left:1px solid #aaa;}
+.tblType2_1 th{height:24px;line-height:24px;padding:0;border-right:1px solid #aaa;border-bottom:1px solid #aaa;background:#f1f1f1;color:#333}
+.tblType2_1 th.Gbg{background:#f1f1f1;border-bottom:1px solid #aaa}
+.tblType2_1 td{height:24px;line-height:24px;padding:0;border-right:1px solid #aaa;border-bottom:1px solid #aaa;color:#555;text-align:center}
+.tblType2_1 td.left{text-align:left;padding:0 0 0 10px}
+
+
+/* 정산테이블 td 오른정렬 */
+.tblType3{width:100%;border-top:1px solid #aaa;border-left:1px solid #aaa;}
+.tblType3 th{height:24px;padding:0;border:1px solid #aaa;background:#fffac0;color:#333}
+.tblType3 th.Gbg{background:#f1f1f1}
+.tblType3 th.Rbg{background:#ff8800}
+.tblType3 td{height:24px;padding:0 10px 0 0;border:1px solid #aaa;color:#555;text-align:right}
+.tblType3 td.left{text-align:left;padding:0 5px}
+
+
+/* 쓰기 */
+.wrtType1{width:100%;border-top:1px solid #aaa;border-left:1px solid #aaa;}
+.wrtType1 th{height:24px;border-right:1px solid #aaa;border-bottom:1px solid #aaa;background:#f1f1f1;color:#333}
+.wrtType1 td{height:24px;padding:0 5px;border-right:1px solid #aaa;border-bottom:1px solid #aaa;color:#555;}
+
+
+/* 이너 테이블 */
+.innerTbl{margin:0;padding:0 !important;vertical-align:top !important;border:none}
+.innerTbl div.center{position:relative;height:24px;line-height:24px;padding:0;font-size:13px;font-weight:bold;color:#0093e0;}
+.innerTbl div.Scroll_Title{border-left:none !important;}
+.innerTbl div table{width:100%;border:none !important;}
+.innerTbl th{height:24px;border-right:1px solid #aaa;border-bottom:1px solid #aaa;}
+.innerTbl td{height:24px;border-right:1px solid #aaa;border-bottom:1px solid #aaa;text-align:center;}
+
+
+/* MM1_개인기록 */
+.innerTbl div.Inner{overflow-y:auto;height:125px;border:0;padding:0}
+.innerTbl div.Inner table{width:100%;border-left:none !important;border-top:1px solid #aaa !important}
+.innerTbl div.Inner td{padding:0;}
+*:first-child+html .innerTbl div.Inner{height:145px;overflow-x:hidden}
+.innerTbl div.Inner table.tblCenter td{text-align:center;padding:0}
+
+/* MM4_복합지구 */
+.innerTbl div.Inner2{overflow-y:auto;height:325px;border:0;padding:0}
+.innerTbl div.Inner2 table{width:100%;border-left:none !important;border-top:1px solid #aaa !important}
+.innerTbl div.Inner2 td{padding:0 0 0 10px;text-align:left}
+
+/* MM5_지구근무자 */
+.innerTbl div.Inner3{overflow-y:auto;height:248px;border:0;padding:0}
+.innerTbl div.Inner3 table{width:100%;border-left:none !important;border-top:1px solid #aaa !important}
+.innerTbl div.Inner3 td{padding:0 0 0 10px;text-align:left}
+.innerTbl div.Inner3 table.tblCenter td{text-align:center;padding:0}
+
+/* SM1_3개인별권한관리자 */
+.tblInnerH1{overflow-y:auto;overflow-x:hidden;height:77px;border:0;padding:0}
+.tblInnerH3{overflow-y:auto;overflow-x:hidden;height:201px;border:0;padding:0}
+.tblInnerH4{overflow-y:auto;overflow-x:hidden;height:426px;border:0;padding:0}
+
+
+
+/* 페이지 번호 */
+div.pagination{margin:10px 0 0 0;padding:0;text-align:center;clear:both;}
+div.pagination a,
+div.pagination strong{
+    display:inline-block;
+    width:20px;
+    margin:0 0 0 -2px;
+    padding:3px 2px;
+    border:1px solid #dfdfdf;
+    font-size:11px;
+    vertical-align:middle;
+}
+div.pagination strong{background:#fff;border:2px solid #555;color:#333;}
+div.pagination img{vertical-align:middle;}
+div.pagination .paging-prev{padding:0;margin:0 8px 0 0;border:0;}
+div.pagination .paging-next{padding:0;margin:0 0 0 6px;border:0;}
+
+
+/* 게시판 버튼 */
+div.boardBtn{text-align:center;margin-top:10px;clear:both;} 
+div.boardBtn span a{display:inline-block;height:26px;line-height:26px;border:1px solid #333;background:#555;color:#fff;padding:0 20px;margin:0 3px;font-weight:bold;}
+div.boardBtn span.btn a{display:inline-block;height:26px;line-height:26px;border:1px solid #aaa;background:#f1f1f1;color:#333;padding:0 20px;}
+div.boardBtn span input{display:inline-block;height:26px;line-height:26px;border:1px solid #aaa;background:#f1f1f1;color:#333;padding:0 20px;font-weight:bold;}
+div.boardBtn label{width:1px;height:1px;font-size:0;line-height:0;visibility:hidden;position:absolute;}
+ 
+
+/* input style */
+#content input{height:24px;line-height:24px;vertical-align:middle}
+.instyle{height:24px;line-height:24px;vertical-align:middle}
+
+
+/*form*/
+.input_sch{border:solid 1px #d8d8d8;background:#ececec;height:19px;padding-top:1px;margin-top:1px}
+.input_check{border:solid 1px #d8d8d8;background:#ececec;height:18px;padding-top:1px;margin-top:1px}
+.select_sch{border:solid 1px #aaaaaa;height:24px;padding:2px;margin-top:1px} 
+.input_write{border:solid 1px #d8d8d8;background:#ececec;height:16px} 
+.select_write{border:solid 1px #aaaaaa;height:18px} 
+.file_write{border:solid 0 #d8d8d8;background:#ececec;height:20px} 
+.textarea_write{border:solid 1px #d8d8d8;background:#ececec;line-height:150%;height:290px;width:470px}
+.textarea_comment{border:solid 1px #d8d8d8;background:#ececec;line-height:150%;height:70px;width:470px}
+.checkbox{border:none}
+
+.dialogClose{cursor:pointer;}
+
+/* 사이트맵 */
+.site_wrap{width:200px;margin:20px;padding:0; float:left;}
+.site_wrap .title{width:200px;margin:0;padding:10px 0 7px 0;color:#fff;font-weight:bold;text-align:center;background:url("/images/lionsclubs/sub/sitemap_bg.gif") 0 0 no-repeat}
+.site_wrap .title a{color:#fff;font-weight:bold;text-align:center;font-size:14px;}
+.site_wrap ul{margin:0;padding:0;list-style-type:none;overflow:hidden;display:block;}
+.site_wrap ul.depth1{margin:10px 0 50px 0;padding:0;}
+.site_wrap ul.depth1 li{margin:0;padding:0 0 0 15px;line-height:35px;background: url("/images/lionsclubs/sub/icon_arrow2.gif") 6px 12px  no-repeat;
+	border-bottom:1px solid #e1e1e1;font-weight:bold;}
+.site_wrap ul.depth2{margin:0 0 10px 0;padding:10px 0;background:#fbfbfb;border:1px solid #efefef;}
+.site_wrap ul.depth2 li{margin:0;padding:0 0 0 20px;line-height:22px;text-align:justify; border:none; background: url("/images/lionsclubs/sub/icon_arrow3.gif") 10px 6px no-repeat;font-weight:normal;}

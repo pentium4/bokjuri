@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://www.ibatis.com/dtd/sql-map-2.dtd">
+<!-- 
+	수정일                 수정자                          수정내용
+  =========     =======    =================================================
+  2011.8.26   	서준식     	 	SSO 로그인을 위한 쿼리 추가
+  2011.09.27    서준식              컬럼 변경 SUB_DN 을  CRTFC_DN_VALUE 로 변경
+  2011.09.28    서준식              컬럼 변경 entrprsmber_id 을  ENTRPRS_MBER_ID 로 변경
+-->
+<sqlMap namespace="lionsclubs.com.login">
+
+	<typeAlias  alias="loginVO" type="lionsclubs.com.login.LoginVO"/>
+	<!-- 일반 로그인 -->
+	<select id="lionsclubs.com.login.sessionChange" resultClass="loginVO">
+		<![CDATA[
+		
+		SELECT  MEMBER_NO AS id
+			   ,MEMBER_NO AS searchId
+			   ,PASSWORD AS password
+			   ,1 AS enabled
+			   ,NAME AS name
+			   ,dbo.FN_GetIdxDataLikeSplit(PATH, 1, '/') AS associationName
+			   ,dbo.FN_GetIdxDataLikeSplit(PATH, 2, '/') AS complexName
+			   ,dbo.FN_GetIdxDataLikeSplit(PATH, 3, '/') AS districtName
+			   ,dbo.FN_GetIdxDataLikeSplit(PATH, 4, '/') AS clubName
+			   ,dbo.FN_GetIdxDataLikeSplit(PATH_CODE, 1, '/') AS associationCode
+			   ,dbo.FN_GetIdxDataLikeSplit(PATH_CODE, 1, '/') AS searchAssociationCode
+			   ,dbo.FN_GetIdxDataLikeSplit(PATH_CODE, 2, '/') AS complexCode
+			   ,dbo.FN_GetIdxDataLikeSplit(PATH_CODE, 2, '/') AS searchComplexCode
+			   ,dbo.FN_GetIdxDataLikeSplit(PATH_CODE, 3, '/') AS districtCode
+			   ,dbo.FN_GetIdxDataLikeSplit(PATH_CODE, 3, '/') AS searchDistrictCode
+			   ,dbo.FN_GetIdxDataLikeSplit(PATH_CODE, 4, '/') AS clubCode
+			   ,dbo.FN_GetIdxDataLikeSplit(PATH_CODE, 4, '/') AS searchClubCode
+			   ,dbo.FN_GetIdxDataLikeSplit(PATH_CODE, 4, '/') AS searchOrganCode
+			   ,CLUB_TITLE AS clubTitleName
+			   ,CLUB_TITLE_CODE AS clubTitleCode
+			   ,DISTRICT_TITLE AS districtTitleName
+			   ,DISTRICT_TITLE_CODE AS districtTitleCode
+			   ,MOBILE AS mobile
+		  FROM LIONS_MEMBER_INFO_VIEW
+		 WHERE MEMBER_NO = #id#
+		]]>
+	</select>
+</sqlMap>

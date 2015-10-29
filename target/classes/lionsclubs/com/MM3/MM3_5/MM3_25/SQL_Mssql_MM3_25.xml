@@ -1,0 +1,247 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://www.ibatis.com/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="lionsclubs.com.MM3.MM3_5.MM3_25">
+
+	<typeAlias alias="MM3_25VO" type="lionsclubs.com.MM3.MM3_5.MM3_25.MM3_25VO"/>
+	<sql id="lionsclubs.com.MM3.MM3_5.MM3_25.queryList">
+	<![CDATA[
+	SELECT IDN_NO as idnNo
+		   , dbo.FN_LIONS_ORGAN_NAME(ORGAN_CODE) as organName
+		   , ORGAN_CODE as organCode
+		   , DISTRICT_EVENT_CODE as districtEcode
+		   , dbo.FN_LIONS_CODE_NAME('36'+CAST(SUBSTRING(#upperCode#,2,2) as varchar),DISTRICT_EVENT_CODE) as districtEventName
+		   , SUBJECT_CODE as subjectCode
+		   , dbo.FN_LIONS_CODE_NAME('3980', SUBJECT_CODE) as subjectCodeName
+		   , TAKE_DATE as takeDate
+		   , LOCATION as location
+		   
+		FROM LIONS_CLUB_DISTRICT_EVENT_SCORE
+		WHERE TAKE_DATE BETWEEN STR(#thisYear# - 1,4,0) + (SELECT CODE1 FROM LIONS_CODE WHERE GROUP_CODE = '8010' AND CODE = '1000') AND STR(#thisYear#,4,0) + (SELECT CODE1 FROM LIONS_CODE WHERE GROUP_CODE = '8010' AND CODE = '1010')
+		AND ORGAN_CODE = #upperCode#
+	]]>
+	</sql>	
+	<select id="lionsclubs.com.MM3.MM3_5.MM3_25.List" resultClass="MM3_25VO">
+ 			<include refid="lionsclubs.com.MM3.MM3_5.MM3_25.queryList"/> 				
+ 	</select>
+ 	
+ 	<select id="lionsclubs.com.MM3.MM3_5.MM3_25.Select" resultClass="MM3_25VO">
+	 	SELECT 
+		   	SCORE_IDN_NO as scoreIdnNo
+		   	, IDN_NO as idnNo
+		   	, ORGAN_CODE as organCode
+			, SUBJECT_MEMBER as subjectMember
+			, SUBJECT_MOD as subjectMod
+			, SUBJECT_SCORE as subjectScore
+			, ENTRY_MEMBER as entryMember
+			, ENTRY_MOD as entryMod
+			, ENTRY_SCORE as entryScore
+			, SERVE_AMOUNT as serveAmount
+			, SERVE_AMOUNT_STAND as serveAmountStand
+			, SERVE_AMOUNT_SCORE as serveAmountScore
+		FROM
+		  	LIONS_CLUB_EVENT_SCORE
+		WHERE
+		  	SCORE_IDN_NO = #scoreIdnNo#
+ 	</select>
+ 	
+	<select id="lionsclubs.com.MM3.MM3_5.MM3_25.SelectEvent" resultClass="MM3_25VO">
+	<![CDATA[
+		SELECT IDN_NO as idnNO
+		 	  ,ORGAN_CODE as organCode
+		 	  ,DISTRICT_EVENT_CODE as districtEcode
+		 	  ,SUBJECT_CODE as subjectCode
+		 	  ,TAKE_DATE as takeDate
+		 	  ,LOCATION as location
+			  ,INSERT_DATE as insertDate
+			  ,INSERT_NAME as insertName
+		 	  ,UPDATE_DATE as updateDate
+			  ,UPDATE_NAME as updateName
+		   
+		FROM LIONS_CLUB_DISTRICT_EVENT_SCORE
+		WHERE IDN_NO = #idnNo#
+		]]>
+	</select>
+	
+	<insert id = "lionsclubs.com.MM3.MM3_5.MM3_25.mInsert" >
+	<![CDATA[
+	INSERT INTO LIONS_CLUB_DISTRICT_EVENT_SCORE(
+		    ORGAN_CODE
+		   ,DISTRICT_EVENT_CODE 
+		   ,SUBJECT_CODE 
+		   ,TAKE_DATE 
+		   ,LOCATION 
+		   ,INSERT_DATE 
+		   ,INSERT_NAME 
+		   ,UPDATE_DATE 
+		   ,UPDATE_NAME 
+		) VALUES (
+			 #organCode#	
+			,#districtEcode#	
+			,#subjectCode#	
+			,REPLACE(#takeDate#, '.', '')	
+			,#location#
+			,GETDATE()	
+			,#insertName#	
+			,GETDATE()	
+			,#updateName#	
+		)	
+	  ]]>
+	</insert>
+	
+	<update id = "lionsclubs.com.MM3.MM3_5.MM3_25.mUpdate">
+	<![CDATA[
+		UPDATE LIONS_CLUB_DISTRICT_EVENT_SCORE SET 				
+			    DISTRICT_EVENT_CODE = #districtEcode#	
+			   , SUBJECT_CODE = #subjectCode#	
+			   , TAKE_DATE = REPLACE(#takeDate#, '.', '')	
+			   , LOCATION = #location#		   
+			   , UPDATE_DATE = GETDATE()	
+			   , UPDATE_NAME = #updateName#	
+		WHERE IDN_NO = #idnNo#
+	]]>
+	</update>
+	
+	<delete id="lionsclubs.com.MM3.MM3_5.MM3_25.mDelete">
+	<![CDATA[
+		DELETE FROM LIONS_CLUB_DISTRICT_EVENT_SCORE 
+		WHERE IDN_NO = #idnNo#
+	]]>
+	</delete>
+	
+	<delete id="lionsclubs.com.MM3.MM3_5.MM3_25.mDeleteClub">
+	<![CDATA[
+		DELETE FROM LIONS_CLUB_EVENT_SCORE 
+		WHERE IDN_NO = #idnNo#
+	]]>
+	</delete>
+	
+	<insert id="lionsclubs.com.MM3.MM3_5.MM3_25.clubInsert">
+	<![CDATA[
+			INSERT INTO LIONS_CLUB_EVENT_SCORE(
+               IDN_NO
+          		,ORGAN_CODE
+          		,SUBJECT_MEMBER
+          		,SUBJECT_MOD
+          		,SUBJECT_SCORE
+          		,ENTRY_MEMBER
+          		,ENTRY_MOD
+          		,ENTRY_SCORE
+          		,SERVE_AMOUNT
+          		,SERVE_AMOUNT_STAND
+          		,SERVE_AMOUNT_SCORE
+          		,INSERT_DATE
+          		,INSERT_NAME
+          		,UPDATE_DATE
+          		,UPDATE_NAME
+               )  
+		        	VALUES (
+             	 #idnNo#
+          		,#organCode#
+          		,#subjectMember#
+          		,#subjectMod#
+          		,#subjectScore#
+          		,#entryMember#
+          		,#entryMod#
+          		,#entryScore#
+          		,#serveAmount#
+          		,#serveAmountStand#
+          		,#serveAmountScore#
+          		,GETDATE()
+          		,#insertName#
+          		,GETDATE()
+          		,#updateName#
+              ) 
+	]]>
+	</insert>	
+	
+	<update id= "lionsclubs.com.MM3.MM3_5.MM3_25.clubUpdate">
+	<![CDATA[
+		UPDATE LIONS_CLUB_EVENT_SCORE 
+            SET 
+    			   SUBJECT_MEMBER = #subjectMember#	
+    			   ,SUBJECT_MOD = #subjectMod#	
+    			   ,SUBJECT_SCORE = #subjectScore#	
+    			   ,ENTRY_MEMBER = #entryMember#		   
+    			   ,ENTRY_MOD = #entryMod#	
+    			   ,ENTRY_SCORE = #entryScore#
+    			   ,SERVE_AMOUNT = CAST(REPLACE(#serveAmount#,',','') as varChar)
+    			   ,SERVE_AMOUNT_STAND = CAST(REPLACE(#serveAmountStand#,',','') as varChar)
+    			   ,SERVE_AMOUNT_SCORE = #serveAmountScore#
+    			   ,UPDATE_DATE = GETDATE()
+    			   ,UPDATE_NAME = #updateName#
+            WHERE 
+                   SCORE_IDN_NO = #scoreIdnNo#
+	]]>
+	</update>
+	
+	<sql id = "lionsclubs.com.MM3.MM3_5.MM3_25.QueryListDetail" >	
+	<![CDATA[
+		select 
+			O.KO_NAME as organName
+			, O.ORGAN_CODE as organCode
+			, ISNULL(S.SCORE_IDN_NO,0) as scoreIdnNo
+			, S.SUBJECT_MEMBER as subjectMember
+			, S.SUBJECT_MOD as subjectMod
+			, S.SUBJECT_SCORE as subjectScore
+			, S.ENTRY_MEMBER  as entryMember	
+			, S.ENTRY_MOD as entryMod
+			, S.ENTRY_SCORE as entryScore
+			, ISNULL(CAST(S.SERVE_AMOUNT as int), 0) as serveAmount
+			, ISNULL(CAST(S.SERVE_AMOUNT_STAND as int), 0) as serveAmountStand
+			, S.SERVE_AMOUNT_SCORE as serveAmountScore
+			, ISNULL((
+					   CASE WHEN  
+					   ISNULL(CAST(SUBJECT_MOD as int),0) <= 0 AND ISNULL(CAST(ENTRY_MOD as int),0)  <=0 then ((ISNULL(CAST(SUBJECT_MEMBER as int),0)*ISNULL(CAST(SUBJECT_SCORE as int),0)) + (ISNULL(CAST(ENTRY_MEMBER as int),0)*ISNULL(CAST(ENTRY_SCORE as int),0)) +ISNULL((CASE WHEN CAST(SERVE_AMOUNT_STAND as int) = 0 THEN 0 ELSE CAST(SERVE_AMOUNT as int)/CAST(SERVE_AMOUNT_STAND as int) END),0)*ISNULL(CAST(SERVE_AMOUNT_SCORE as int),0))
+					   WHEN 
+					   ISNULL(CAST(SUBJECT_MOD as int),0) > 0  AND   ISNULL(CAST(ENTRY_MOD as int),0) <=0 then ((ISNULL(CAST(SUBJECT_MOD as int),0)*ISNULL(CAST(SUBJECT_SCORE as int),0)) + (ISNULL(CAST(ENTRY_MEMBER as int),0)*ISNULL(CAST(ENTRY_SCORE as int),0)) +ISNULL((CASE WHEN CAST(SERVE_AMOUNT_STAND as int) = 0 THEN 0 ELSE CAST(SERVE_AMOUNT as int)/CAST(SERVE_AMOUNT_STAND as int) END),0)*ISNULL(CAST(SERVE_AMOUNT_SCORE as int),0))
+					   WHEN 
+					   ISNULL(CAST(SUBJECT_MOD as int),0) <= 0 AND  ISNULL(CAST(ENTRY_MOD as int),0)  >0  then ((ISNULL(CAST(SUBJECT_MEMBER as int),0)*ISNULL(CAST(ENTRY_SCORE as int),0)) + (ISNULL(CAST(ENTRY_MOD as int),0)*ISNULL(CAST(ENTRY_SCORE as int),0)) +ISNULL((CASE WHEN CAST(SERVE_AMOUNT_STAND as int) = 0 THEN 0 ELSE CAST(SERVE_AMOUNT as int)/CAST(SERVE_AMOUNT_STAND as int) END),0)*ISNULL(CAST(SERVE_AMOUNT_SCORE as int),0))
+					   WHEN 
+					   ISNULL(CAST(SUBJECT_MOD as int),0) > 0 AND  ISNULL(CAST(ENTRY_MOD as int),0)  >0  then ((ISNULL(CAST(SUBJECT_MOD as int),0)*ISNULL(CAST(ENTRY_SCORE as int),0)) + (ISNULL(CAST(ENTRY_MOD as int),0)*ISNULL(CAST(ENTRY_SCORE as int),0)) +ISNULL((CASE WHEN CAST(SERVE_AMOUNT_STAND as int) = 0 THEN 0 ELSE CAST(SERVE_AMOUNT as int)/CAST(SERVE_AMOUNT_STAND as int) END),0)*ISNULL(CAST(SERVE_AMOUNT_SCORE as int),0))
+              ELSE ((ISNULL(CAST(SUBJECT_MOD as int),0)*ISNULL(CAST(ENTRY_SCORE as int),0)) + (ISNULL(CAST(ENTRY_MOD as int),0)*ISNULL(CAST(ENTRY_SCORE as int),0)) +ISNULL((CASE WHEN CAST(SERVE_AMOUNT_STAND as int) = 0 THEN 0 ELSE CAST(SERVE_AMOUNT as int)/CAST(SERVE_AMOUNT_STAND as int) END),0)*ISNULL(CAST(SERVE_AMOUNT_SCORE as int),0)) end ),'') as totalScore
+			
+		from dbo.FN_LIONS_ORGAN_TREE_YEAR(#thisYear#) as O
+		left outer join LIONS_CLUB_EVENT_SCORE as S on S.ORGAN_CODE=O.ORGAN_CODE 
+		and S.IDN_NO = #idnNo#
+		where O.UPPER_ORGAN_CODE = #eventOrgan#
+		]]>
+	</sql>	
+	<select id="lionsclubs.com.MM3.MM3_5.MM3_25.detailList" resultClass="MM3_25VO">
+		SELECT * FROM (
+		<include refid="lionsclubs.com.MM3.MM3_5.MM3_25.QueryListDetail"/> 	
+		) AS alist			
+		<dynamic prepend="ORDER BY ">
+  	 		<isEqual property="order" compareValue="1">
+	 			alist.organCode
+	 		</isEqual>
+	 		
+	 		<isEqual property="order" compareValue="2">
+	 			alist.organName
+	 		</isEqual>
+	 		
+	 		<isEqual  property="order" compareValue="3">
+	 			alist.totalScore desc, alist.organName 
+	 		</isEqual>
+ 		</dynamic>
+ 	</select>
+ 	
+	<typeAlias alias="MM3_25HeadVO" type="lionsclubs.com.MM3.MM3_5.MM3_25.MM3_25HeadVO"/>
+
+	<select id="lionsclubs.com.MM3.MM3_5.MM3_25.headInfo" resultClass="MM3_25HeadVO">
+	
+		 	SELECT	IDN_NO as idnNo
+		 			,dbo.FN_LIONS_ORGAN_NAME(dbo.FN_LIONS_SECTOR_ORGAN_CODE(ORGAN_CODE,3)) as upperCodeName
+		 			,ORGAN_CODE as eventOrgan
+		 			,dbo.FN_LIONS_SECTOR_ORGAN_CODE(ORGAN_CODE,2) as upperCode 
+		 	        ,ORGAN_CODE as organCode
+		 		    ,dbo.FN_LIONS_CODE_NAME('4020',DISTRICT_EVENT_CODE) as districtEventCode
+		 		    ,TAKE_DATE as takeDate
+		 		    ,LOCATION as location
+		  	 FROM  LIONS_CLUB_DISTRICT_EVENT_SCORE
+		  	 WHERE 1=1 			
+			 AND	IDN_NO = #idnNo#		
+			 
+ 	</select> 
+	
+</sqlMap>

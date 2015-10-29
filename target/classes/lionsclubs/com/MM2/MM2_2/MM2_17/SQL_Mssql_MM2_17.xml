@@ -1,0 +1,1369 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://www.ibatis.com/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="lionsclubs.com.MM2.MM2_2.MM2_17">
+	<typeAlias alias="MM2_17VO_PARAM" type="lionsclubs.com.MM2.MM2_2.MM2_17.MM2_17VO_PARAM"/>
+	<typeAlias alias="MM2_17VO_INCOME" type="lionsclubs.com.MM2.MM2_2.MM2_17.MM2_17VO_INCOME"/>
+	<typeAlias alias="MM2_17VO" type="lionsclubs.com.MM2.MM2_2.MM2_17.MM2_17VO"/>
+	
+	<select id="lionsclubs.com.MM2.MM2_2.MM2_17.getBaseMemberInfo" parameterClass="MM2_17VO_PARAM" resultClass="java.util.HashMap">
+	<![CDATA[
+		DECLARE @organCode NVARCHAR(10)
+		DECLARE @sessionYear INT
+		DECLARE @month NVARCHAR(10)
+		DECLARE @sessionYearMonth NVARCHAR(10)
+		DECLARE @startDate NVARCHAR(10)
+		DECLARE @endDate NVARCHAR(10)
+		
+		SET @organCode = REPLACE(#organCode#, '-', '');
+		SET @sessionYear = #sessionYear#;
+		SET @month = #month#;
+		SET @sessionYearMonth = CASE WHEN CAST(@month AS INT) < 7 
+								  THEN CAST(@sessionYear AS NVARCHAR(4)) + @month 
+								  ELSE CAST(@sessionYear - 1 AS NVARCHAR(4)) + @month
+								   END;
+		SET @startDate = CASE WHEN @month = '' 
+							  THEN CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701' 
+							  ELSE @sessionYearMonth + '01' 
+							   END;
+		SET @endDate = CASE WHEN @month = '' 
+							THEN CAST(@sessionYear AS NVARCHAR(4)) + '0630' 
+							ELSE @sessionYearMonth + '31' 
+							 END;
+		/*
+			클럽관리_정산현황.임원명단
+		*/
+		SELECT  ISNULL([1000], '') AS [1000] /*회장*/
+			   ,ISNULL([1060], '') AS [1060] /*총무*/
+			   ,ISNULL([1070], '') AS [1070] /*재무*/
+		  FROM (
+			SELECT  C.NAME
+				   ,A.APP_DESC_CODE
+			  FROM dbo.LIONS_APPOINTMENT A
+			 INNER JOIN (
+				SELECT  APP_KIND_CODE
+					   ,APP_DESC_CODE
+					   ,MAX(START_DATE) as START_DATE
+				  FROM dbo.LIONS_APPOINTMENT
+				 WHERE ORGAN_CODE = @organCode
+				   AND APP_KIND_CODE = '1000'	/* 선임구분(2700) : 선임(클럽임원선임) */
+				   AND APP_DESC_CODE IN('1000','1060','1070')				 	
+				   AND (
+						   (START_DATE >= @startDate AND START_DATE <= @endDate)
+						OR (END_DATE >= @startDate AND END_DATE <= @endDate)
+						OR (START_DATE <= @startDate AND END_DATE >= @startDate)
+						OR (START_DATE <= @endDate AND END_DATE >= @endDate)
+					)
+			 GROUP BY  APP_KIND_CODE
+					  ,APP_DESC_CODE
+				) B
+				ON B.APP_KIND_CODE = A.APP_KIND_CODE AND B.APP_DESC_CODE = A.APP_DESC_CODE AND B.START_DATE = A.START_DATE
+			 INNER JOIN dbo.LIONS_MEMBER_INFO C
+				ON C.MEMBER_NO = A.MEMBER_NO
+			 WHERE A.ORGAN_CODE = @organCode
+			   AND A.APP_KIND_CODE = '1000'	/* 선임구분(2700) : 선임(클럽임원선임) */
+			   AND A.APP_DESC_CODE IN('1000','1060','1070')				 	
+			   AND (
+					   (A.START_DATE >= @startDate AND A.START_DATE <= @endDate)
+					OR (A.END_DATE >= @startDate AND A.END_DATE <= @endDate)
+					OR (A.START_DATE <= @startDate AND A.END_DATE >= @startDate)
+					OR (A.START_DATE <= @endDate AND A.END_DATE >= @endDate)
+				)
+		) A
+		PIVOT(MAX(A.NAME) FOR A.APP_DESC_CODE IN ([1000],[1060],[1070])) AS PVT
+	]]>
+	</select>
+
+	<select id="lionsclubs.com.MM2.MM2_2.MM2_17.getBaseCalcInfo" parameterClass="MM2_17VO_PARAM" resultClass="java.util.HashMap">
+	<![CDATA[
+		DECLARE @organCode NVARCHAR(10)
+		DECLARE @sessionYear INT
+		DECLARE @month NVARCHAR(10)
+		DECLARE @sessionYearMonth NVARCHAR(10)
+		
+		SET @organCode = REPLACE(#organCode#, '-', '');
+		SET @sessionYear = #sessionYear#;
+		SET @month = #month#;
+		SET @sessionYearMonth = CASE WHEN @month = '' 
+								  THEN CAST(@sessionYear AS NVARCHAR(4)) + '06' 
+								  ELSE CASE WHEN CAST(@month as INT) < 7
+											THEN CAST(@sessionYear AS NVARCHAR(4)) + @month
+											ELSE CAST(@sessionYear - 1 AS NVARCHAR(4)) + @month
+											 END
+								   END;
+		
+		SELECT  ISNULL(A.CONFIRM_YN,'') AS CONFIRM_YN
+			   ,ISNULL(A.CONFIRM_COUNT,0) AS CONFIRM_COUNT
+			   ,ISNULL(A.CONFIRM_LOCK_DATE,'') AS CONFIRM_LOCK_DATE
+			   ,ISNULL(A.CONFIRM_LOCK_YN,'') AS CONFIRM_LOCK_YN
+			   ,B.CONFIRM_DATE AS CONFIRM_DATE
+			   ,ISNULL(A.MONTH_TOTAL,0) AS MONTH_TOTAL
+			   ,ISNULL(A.MONTH_REMAIN,0) AS MONTH_REMAIN
+			   ,ISNULL(A.DEPOSIT_TOTAL,0) AS DEPOSIT_TOTAL
+			   ,ISNULL(A.NOT_INCOME_1000_TOTAL,0) AS NOT_INCOME_1000_TOTAL
+			   ,ISNULL(A.NOT_INCOME_ETC_TOTAL,0) AS NOT_INCOME_ETC_TOTAL
+		  FROM (
+			SELECT MAX(CONFIRM_DATE) AS CONFIRM_DATE
+			  FROM dbo.LIONS_CALCULATE B
+			 WHERE B.ORGAN_CODE = @organCode
+			   AND B.CA_YM <= @sessionYearMonth
+		) B
+		  LEFT OUTER JOIN dbo.LIONS_CALCULATE A
+		    ON A.ORGAN_CODE = @organCode
+		   AND A.CA_YM = @sessionYearMonth
+	]]>
+	</select>
+
+	<insert id="lionsclubs.com.MM2.MM2_2.MM2_17.calculateConfirm" parameterClass="MM2_17VO_PARAM" >
+	<![CDATA[
+		DECLARE @confirmYn NVARCHAR(1)
+		DECLARE @monthTotal BIGINT	/* 총액 */
+		DECLARE @monthRemain BIGINT	/* 잔액 */
+		DECLARE @depositTotal BIGINT	/* 정기예금 */
+		DECLARE @notIncome1000Total	BIGINT	/* 회비미수금 */
+		DECLARE @notIncomeEtcTotal	BIGINT	/* 기타미수금 */
+		
+		SET @confirmYn = #confirmYn#;
+		SET @monthTotal = (
+								CASE WHEN @confirmYn = 'Y' 
+									 THEN #monthTotal# 
+									 ELSE 0 
+									  END
+							);
+		SET @monthRemain = (
+								CASE WHEN @confirmYn = 'Y' 
+									 THEN #monthRemain# 
+									 ELSE 0 
+									  END
+							);
+		SET @depositTotal = (
+								CASE WHEN @confirmYn = 'Y' 
+									 THEN #depositTotal# 
+									 ELSE 0 
+									  END
+							);
+		SET @notIncome1000Total = (
+										CASE WHEN @confirmYn = 'Y' 
+											 THEN #notIncome1000Total# 
+											 ELSE 0 
+											 END
+									);
+		SET @notIncomeEtcTotal = (
+										CASE WHEN @confirmYn = 'Y' 
+											 THEN #notIncomeEtcTotal# 
+											 ELSE 0 
+											  END
+									);
+		
+		MERGE LIONS_CALCULATE AS T
+			USING (SELECT REPLACE(#organCode#, '-', ''), REPLACE(#caYm#, '.', ''), @confirmYn, #insertId#) 
+			   AS S (ORGAN_CODE, CA_YM, CONFIRM_YN, MEMBER_NO)
+			   ON T.ORGAN_CODE = S.ORGAN_CODE
+			  AND T.CA_YM = S.CA_YM
+				 WHEN NOT MATCHED BY TARGET 
+				 THEN
+					INSERT (
+						 ORGAN_CODE
+						,CA_YM
+						,CONFIRM_DATE
+						,CONFIRM_COUNT
+						,CONFIRM_YN
+						,MONTH_TOTAL
+						,MONTH_REMAIN
+						,DEPOSIT_TOTAL
+						,NOT_INCOME_1000_TOTAL
+						,NOT_INCOME_ETC_TOTAL
+						,INSERT_DATE
+						,INSERT_NAME
+						,UPDATE_DATE
+						,UPDATE_NAME
+					) VALUES (
+						 S.ORGAN_CODE /* 조직코드 */
+						,S.CA_YM	/* 회기 */
+						,(CASE WHEN S.CONFIRM_YN='Y' 
+							   THEN CONVERT(NVARCHAR(8),GETDATE(),112)
+							   ELSE '' 
+								END
+						 )	/* 정산확정일 */
+						,1	/* 정산확정횟수 */
+						,S.CONFIRM_YN	/* 정산확정여부 */
+						,@monthTotal
+						,@monthRemain
+						,@depositTotal
+						,@notIncome1000Total
+						,@notIncomeEtcTotal
+						,GETDATE()	/* 생성일자 */
+						,S.MEMBER_NO	/* 생성자 */
+						,GETDATE()	/* 수정일자 */
+						,S.MEMBER_NO	/* 수정자 */
+					)
+				 WHEN MATCHED 
+				 THEN 
+					 UPDATE 
+						SET  T.CONFIRM_DATE = (CASE WHEN S.CONFIRM_YN='Y' 
+													THEN CONVERT(NVARCHAR(8),GETDATE(),112)
+		     										ELSE '' 
+		     										 END
+												)
+							,T.CONFIRM_COUNT = CASE WHEN S.CONFIRM_YN='Y' 
+													THEN ISNULL(T.CONFIRM_COUNT,0) + 1 
+													ELSE ISNULL(T.CONFIRM_COUNT,0) 
+													 END
+							,T.CONFIRM_YN = S.CONFIRM_YN  
+							,T.UPDATE_DATE = GETDATE()
+							,T.UPDATE_NAME = S.MEMBER_NO
+							,T.MONTH_TOTAL = @monthTotal  
+							,T.MONTH_REMAIN = @monthRemain
+	   						,T.DEPOSIT_TOTAL = @depositTotal
+	   		  				,T.NOT_INCOME_1000_TOTAL = @notIncome1000Total
+	   		  				,T.NOT_INCOME_ETC_TOTAL = @notIncomeEtcTotal;
+	]]>
+	</insert>
+	
+	<insert id="lionsclubs.com.MM2.MM2_2.MM2_17.calculateConfirmLock" parameterClass="MM2_17VO_PARAM" >
+	<![CDATA[
+		DECLARE @monthTotal BIGINT	/* 총액 */
+		DECLARE @monthRemain 	BIGINT	/* 잔액 */
+		DECLARE @depositTotal	BIGINT	/* 정기예금 */
+		DECLARE @notIncome1000Total	BIGINT	/* 회비미수금 */
+		DECLARE @notIncomeEtcTotal	BIGINT	/* 기타미수금 */
+		
+		SET @monthTotal = #monthTotal#;
+		SET @monthRemain = #monthRemain#;
+		SET @depositTotal = #depositTotal#;
+		SET @notIncome1000Total = #notIncome1000Total#;
+		SET @notIncomeEtcTotal = #notIncomeEtcTotal#;
+		
+		MERGE LIONS_CALCULATE AS T
+			USING (SELECT REPLACE(#organCode#, '-', ''), #caYm#,  #insertId# ) 
+			   AS S (ORGAN_CODE, CA_YM, MEMBER_NO)
+		       ON T.ORGAN_CODE = S.ORGAN_CODE
+		      AND T.CA_YM = S.CA_YM
+				WHEN NOT MATCHED BY TARGET 
+				THEN
+					INSERT (
+						 ORGAN_CODE
+						,CA_YM
+						,CONFIRM_DATE
+						,CONFIRM_COUNT
+						,CONFIRM_YN
+						,CONFIRM_LOCK_DATE
+						,CONFIRM_LOCK_YN
+						,MONTH_TOTAL
+						,MONTH_REMAIN
+						,DEPOSIT_TOTAL
+						,NOT_INCOME_1000_TOTAL
+						,NOT_INCOME_ETC_TOTAL
+						,INSERT_DATE
+						,INSERT_NAME
+						,UPDATE_DATE
+						,UPDATE_NAME
+					) VALUES (
+						 S.ORGAN_CODE /* 조직코드 */
+						,S.CA_YM	/* 회기 */
+						,CONVERT(NVARCHAR(8),GETDATE(),112)
+						,1	/* 정산확정횟수 */
+						,'Y'	/* 정산확정여부 */
+						,CONVERT(NVARCHAR(8),GETDATE(),112)
+						,'Y'
+						,@monthTotal
+						,@monthRemain
+						,@depositTotal
+						,@notIncome1000Total
+						,@notIncomeEtcTotal
+						,GETDATE()	/* 생성일자 */
+						,S.MEMBER_NO	/* 생성자 */
+						,GETDATE()	/* 수정일자 */
+						,S.MEMBER_NO	/* 수정자 */
+					)
+				WHEN MATCHED 
+		     	THEN 
+		     		UPDATE 
+		     		   SET  T.CONFIRM_DATE = CASE WHEN T.CONFIRM_YN != 'Y' 
+		     									  THEN CONVERT(NVARCHAR(8),GETDATE(),112) 
+		     									  ELSE T.CONFIRM_DATE 
+		     									   END
+						   ,T.CONFIRM_COUNT = CASE WHEN T.CONFIRM_YN != 'Y' 
+												   THEN ISNULL(T.CONFIRM_COUNT,0) + 1 
+												   ELSE ISNULL(T.CONFIRM_COUNT,0) 
+												    END
+						   ,T.CONFIRM_YN  = 'Y'  
+						   ,T.UPDATE_DATE = GETDATE()
+						   ,T.UPDATE_NAME = S.MEMBER_NO  
+						   ,T.CONFIRM_LOCK_DATE = CONVERT(NVARCHAR(8),GETDATE(),112)
+						   ,T.CONFIRM_LOCK_YN = 'Y'
+						   ,T.MONTH_TOTAL = @monthTotal
+						   ,T.MONTH_REMAIN = @monthRemain
+						   ,T.DEPOSIT_TOTAL = @depositTotal
+						   ,T.NOT_INCOME_1000_TOTAL = @notIncome1000Total
+						   ,T.NOT_INCOME_ETC_TOTAL = @notIncomeEtcTotal;
+		]]>
+	</insert>
+	
+	<select id="lionsclubs.com.MM2.MM2_2.MM2_17.selectIncomeList" parameterClass="MM2_17VO_PARAM" resultClass="MM2_17VO_INCOME">
+		<![CDATA[
+		DECLARE @organCode NVARCHAR(10)
+		DECLARE @sessionYear INT
+		DECLARE @month NVARCHAR(10)
+		DECLARE @sessionYearMonth NVARCHAR(10)
+		DECLARE @startDate NVARCHAR(10)
+		DECLARE @endDate NVARCHAR(10)
+		
+		SET @organCode = REPLACE(#organCode#, '-', '');
+		SET @sessionYear = #sessionYear#;
+		SET @month = #month#;
+		SET @sessionYearMonth = CASE WHEN CAST(@month AS INT) < 7
+									 THEN CAST(@sessionYear AS NVARCHAR(4)) + @month
+									 ELSE CAST(@sessionYear - 1 AS NVARCHAR(4)) + @month
+									  END;
+		SET @startDate = CASE WHEN @month = ''
+							  THEN CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701'
+							  ELSE @sessionYearMonth + '01'
+							   END;
+		SET @endDate = CASE WHEN @month = ''
+							THEN CAST(@sessionYear AS NVARCHAR(4)) + '0630'
+							ELSE @sessionYearMonth + '31'
+							 END;
+		/*
+			클럽관리.정산현황.수입항목
+		*/
+		SELECT  A.CLASS_ITEM_CODE AS classItemCode
+			   ,B.CODE_NAME AS classItemCodeName
+			   ,SUM(A.AMOUNT_SUM) AS amountSum
+		  FROM (
+				SELECT  A.CLASS_ITEM_CODE
+					   ,SUM(ISNULL(B.PAYMENT,0)) AS AMOUNT_SUM
+				  FROM dbo.LIONS_MONEY_MASTER A
+				 INNER JOIN dbo.LIONS_MONEY_PAYMENT B
+				    ON B.IDN_NO = A.IDN_NO 
+				   AND B.PAYMENT_DEFECT != 'Y' 
+				 WHERE A.ORGAN_CODE = @organCode 
+				   AND B.PAYMENT_DATE BETWEEN @startDate AND @endDate
+				 GROUP BY A.CLASS_ITEM_CODE
+				 
+				 UNION ALL
+				 
+				SELECT  '1070' AS CLASS_ITEM_CODE /* 기타수입은 그룹코드가 '1070' */
+					   ,SUM(ISNULL(AMOUNT,0)) AS AMOUNT_SUM
+				  FROM LIONS_INCOME_EXPEND
+				 WHERE ORGAN_CODE = @organCode
+				   AND INEX_CODE = '1000'
+				   AND INEX_DATE BETWEEN @startDate AND @endDate
+				 GROUP BY CLASS_ITEM_CODE
+				 
+				 UNION ALL
+				 
+				SELECT  '1100' AS CLASS_ITEM_CODE /* 4100 : 정기예탁금(1100) */
+					   ,SUM(ISNULL(EXPIRE_AMOUNT,0)) AS AMOUNT_SUM
+				  FROM LIONS_DEPOSIT
+				 WHERE ORGAN_CODE = @organCode
+				   AND END_DATE BETWEEN @startDate AND @endDate
+				   AND WITHDRAW_YN = 'Y'
+				 GROUP BY ORGAN_CODE
+		) A
+		 INNER JOIN dbo.LIONS_CODE B
+			ON B.GROUP_CODE = '4100' 
+		   AND B.CODE = A.CLASS_ITEM_CODE
+		 GROUP BY  A.CLASS_ITEM_CODE
+				  ,B.CODE_NAME
+				  ,B.CODE2
+		 ORDER BY CAST(CODE2 AS INT) ASC
+		]]>
+	</select>
+	
+	<select id="lionsclubs.com.MM2.MM2_2.MM2_17.getIncomeTotal" parameterClass="MM2_17VO_PARAM" resultClass="java.lang.Long">
+		<![CDATA[
+		DECLARE @organCode NVARCHAR(10)
+		DECLARE @sessionYear INT
+		DECLARE @month NVARCHAR(10)
+		DECLARE @sessionYearMonth NVARCHAR(10)
+		DECLARE @startDate NVARCHAR(10)
+		DECLARE @endDate NVARCHAR(10)
+		
+		SET @organCode = REPLACE(#organCode#, '-', '');
+		SET @sessionYear = #sessionYear#;		
+		SET @month = #month#;
+		SET @sessionYearMonth = CASE WHEN CAST(@month AS INT) < 7 
+								  	 THEN CAST(@sessionYear AS NVARCHAR(4)) + @month 
+								  	 ELSE CAST(@sessionYear - 1 AS NVARCHAR(4)) + @month 
+								   	  END;
+		SET @startDate = CASE WHEN @month = '' 
+							  THEN CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701' 
+							  ELSE @sessionYearMonth + '01' 
+							   END;
+		SET @endDate = CASE WHEN @month = '' 
+							THEN CAST(@sessionYear AS NVARCHAR(4)) + '0630' 
+							ELSE @sessionYearMonth + '31' 
+							 END;
+							 
+		/*
+			클럽관리.정산현황.수입항목
+		*/
+		/* 합계 */
+		SELECT SUM(A.AMOUNT_SUM) AS amountSum
+		  FROM (
+			SELECT SUM(ISNULL(B.PAYMENT,0)) AS AMOUNT_SUM
+			  FROM dbo.LIONS_MONEY_MASTER A
+			 INNER JOIN dbo.LIONS_MONEY_PAYMENT B
+			    ON B.IDN_NO = A.IDN_NO 
+			   AND B.PAYMENT_DEFECT != 'Y' 
+			 WHERE A.ORGAN_CODE = @organCode 
+			   AND B.PAYMENT_DATE BETWEEN @startDate AND @endDate
+			   
+			 UNION ALL
+			 
+			SELECT SUM(ISNULL(AMOUNT,0)) AS AMOUNT_SUM
+			  FROM LIONS_INCOME_EXPEND
+			 WHERE ORGAN_CODE = @organCode
+			   AND INEX_CODE = '1000'
+			   AND INEX_DATE BETWEEN @startDate AND @endDate
+			   
+			 UNION ALL
+				 
+			SELECT SUM(ISNULL(EXPIRE_AMOUNT,0)) AS AMOUNT_SUM
+			  FROM LIONS_DEPOSIT
+			 WHERE ORGAN_CODE = @organCode
+			   AND END_DATE BETWEEN @startDate AND @endDate
+			   AND WITHDRAW_YN = 'Y'
+		) A
+		]]>
+	</select>
+	
+	
+	<select id="lionsclubs.com.MM2.MM2_2.MM2_17.selectExpList" parameterClass="MM2_17VO_PARAM" resultClass="MM2_17VO_INCOME">
+		<![CDATA[
+		DECLARE @organCode NVARCHAR(10)
+		DECLARE @sessionYear INT
+		DECLARE @month NVARCHAR(10)
+		DECLARE @sessionYearMonth NVARCHAR(10)
+		DECLARE @startDate NVARCHAR(10)
+		DECLARE @endDate NVARCHAR(10)
+		
+		SET @organCode = REPLACE(#organCode#, '-', '');
+		SET @sessionYear = #sessionYear#;		
+		SET @month = #month#;
+		SET @sessionYearMonth = CASE WHEN CAST(@month AS INT) < 7 
+									 THEN CAST(@sessionYear AS NVARCHAR(4)) + @month 
+									 ELSE CAST(@sessionYear - 1 AS NVARCHAR(4)) + @month 
+									  END;
+		SET @startDate = CASE WHEN @month = '' 
+							  THEN CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701' 
+							  ELSE @sessionYearMonth + '01' 
+							   END;
+		SET @endDate = CASE WHEN @month = '' 
+							THEN CAST(@sessionYear AS NVARCHAR(4)) + '0630' 
+							ELSE @sessionYearMonth + '31' 
+							 END;
+		/*
+			클럽관리.정산현황.지출항목
+		*/
+		SELECT * FROM(
+			SELECT  A.CLASS_ITEM_CODE AS classItemCode
+				   ,B.CODE_NAME AS classItemCodeName
+				   ,SUM(ISNULL(A.AMOUNT,0)) AS amountSum
+				   ,CAST(B.CODE2 AS INT) AS CODE2
+			  FROM dbo.LIONS_INCOME_EXPEND A
+			 INNER JOIN dbo.LIONS_CODE B
+			    ON B.GROUP_CODE = '6000' 
+			   AND B.CODE = A.CLASS_ITEM_CODE
+			 WHERE A.ORGAN_CODE = @organCode
+			   AND A.INEX_CODE = '1010'
+			   AND A.INEX_DATE BETWEEN @startDate AND @endDate
+			 GROUP BY  A.CLASS_ITEM_CODE
+					  ,B.CODE_NAME
+					  ,B.CODE2
+		) R
+		 ORDER BY CAST(R.CODE2 AS INT)
+		]]>
+	</select>
+	
+	<select id="lionsclubs.com.MM2.MM2_2.MM2_17.getExpTotal" parameterClass="MM2_17VO_PARAM" resultClass="java.lang.Long">
+		<![CDATA[
+		DECLARE @organCode NVARCHAR(10)
+		DECLARE @sessionYear INT
+		DECLARE @month NVARCHAR(10)
+		DECLARE @sessionYearMonth NVARCHAR(10)
+		DECLARE @startDate NVARCHAR(10)
+		DECLARE @endDate NVARCHAR(10)
+		
+		SET @organCode = REPLACE(#organCode#, '-', '');
+		SET @sessionYear = #sessionYear#;		
+		SET @month = #month#;
+		SET @sessionYearMonth = CASE WHEN CAST(@month AS INT) < 7 
+									 THEN CAST(@sessionYear AS NVARCHAR(4)) + @month 
+									 ELSE CAST(@sessionYear - 1 AS NVARCHAR(4)) + @month 
+									  END;
+		SET @startDate = CASE WHEN @month = '' 
+							  THEN CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701' 
+							  ELSE @sessionYearMonth + '01' 
+							   END;
+		SET @endDate = CASE WHEN @month = '' 
+							THEN CAST(@sessionYear AS NVARCHAR(4)) + '0630' 
+							ELSE @sessionYearMonth + '31' 
+							 END;
+							 
+		/* 합계 */
+		SELECT SUM(AMOUNT_SUM)
+		  FROM(
+			SELECT SUM(ISNULL(A.AMOUNT,0)) AS AMOUNT_SUM
+			  FROM dbo.LIONS_INCOME_EXPEND A
+			 INNER JOIN dbo.LIONS_CODE B
+			    ON B.GROUP_CODE = '6000' AND B.CODE = A.CLASS_ITEM_CODE
+			 WHERE A.ORGAN_CODE = @organCode
+			   AND A.INEX_CODE = '1010'
+			   AND A.INEX_DATE BETWEEN @startDate AND @endDate
+		) T
+		]]>
+	</select>
+	
+	<select id="lionsclubs.com.MM2.MM2_2.MM2_17.getDepTotalInfo" parameterClass="MM2_17VO_PARAM" resultClass="java.util.HashMap">
+		<![CDATA[
+		DECLARE @organCode NVARCHAR(10)
+		DECLARE @sessionYear INT
+		DECLARE @month NVARCHAR(10)
+		DECLARE @sessionYearMonth NVARCHAR(10)
+		DECLARE @startDate NVARCHAR(10)
+		DECLARE @endDate NVARCHAR(10)
+		
+		SET @organCode = REPLACE(#organCode#, '-', '');
+		SET @sessionYear = #sessionYear#;		
+		SET @month = #month#;
+		SET @sessionYearMonth = CASE WHEN CAST(@month AS INT) < 7 
+									 THEN CAST(@sessionYear AS NVARCHAR(4)) + @month 
+									 ELSE CAST(@sessionYear - 1 AS NVARCHAR(4)) + @month 
+									  END;
+		SET @startDate = CASE WHEN @month = '' 
+							  THEN CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701' 
+							  ELSE @sessionYearMonth + '01' 
+							   END;
+		SET @endDate = CASE WHEN @month = '' 
+							THEN CAST(@sessionYear AS NVARCHAR(4)) + '0630' 
+							ELSE @sessionYearMonth + '31' 
+							 END;
+							 
+		/*
+			클럽관리.정산현황.결손처리
+		*/
+		/* 합계 */
+		SELECT  ISNULL(SUM(CASE WHEN (A.CLASS_ITEM_CODE = '1010' AND A.DETAIL_ITEM_CODE = '1010') 
+								THEN B.PAYMENT
+								ELSE 0
+								 END), 0) AS AMOUNT_1000	/* 회비결손금 */
+			   ,ISNULL(SUM(CASE WHEN A.CLASS_ITEM_CODE + '/' + A.DETAIL_ITEM_CODE != '1010/1010' AND C.CODE3 != 'D'
+								THEN B.PAYMENT
+								ELSE 0 
+								 END), 0) AS AMOUNT_CLUB /* 클럽결손금 */
+			   ,ISNULL(SUM(CASE WHEN C.CODE3 = 'D'
+								THEN B.PAYMENT
+								ELSE 0 
+								 END), 0) AS AMOUNT_ETC /* 기타결손금 */
+			   ,ISNULL(SUM(B.PAYMENT), 0) AS TOTAL	/*결손금총액 */
+			   ,COUNT(*) AS CNT	/* 회비결손수 */
+		  FROM dbo.LIONS_MONEY_MASTER A
+		 INNER JOIN dbo.LIONS_MONEY_PAYMENT B
+		    ON B.IDN_NO = A.IDN_NO 
+		   AND B.PAYMENT_DEFECT = 'Y' 
+		 INNER JOIN LIONS_CODE C
+		    ON C.GROUP_CODE  = '4100'
+		   AND C.CODE = A.CLASS_ITEM_CODE
+		 WHERE A.ORGAN_CODE = @organCode 
+		   AND B.PAYMENT_DATE BETWEEN @startDate AND @endDate
+		]]>
+	</select>
+ 	
+	<select id="lionsclubs.com.MM2.MM2_2.MM2_17.getDepositTotal" parameterClass="MM2_17VO_PARAM" resultClass="java.lang.Long">
+		<![CDATA[
+		DECLARE @organCode NVARCHAR(10)
+		DECLARE @sessionYear INT
+		DECLARE @month NVARCHAR(10)
+		DECLARE @sessionYearMonth NVARCHAR(10)
+		DECLARE @startDate NVARCHAR(10)
+		DECLARE @endDate NVARCHAR(10)
+		
+		SET @organCode = REPLACE(#organCode#, '-', '');
+		SET @sessionYear = #sessionYear#;		
+		SET @month = #month#;
+		SET @sessionYearMonth = CASE WHEN CAST(@month AS INT) < 7 
+									 THEN CAST(@sessionYear AS NVARCHAR(4)) + @month 
+									 ELSE CAST(@sessionYear - 1 AS NVARCHAR(4)) + @month 
+									  END;
+		SET @startDate = CASE WHEN @month = '' 
+							  THEN CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701' 
+							  ELSE @sessionYearMonth + '01' 
+							   END;
+		SET @endDate = CASE WHEN @month = '' 
+							THEN CAST(@sessionYear AS NVARCHAR(4)) + '0630' 
+							ELSE @sessionYearMonth + '31' 
+							 END;
+
+		/*
+			클럽관리.정산현황.예금현황
+		*/
+		SELECT SUM(R.amount)
+		  FROM(
+			SELECT CASE WHEN SUBSTRING(END_DATE, 5, 2) = @month AND WITHDRAW_YN = 'Y'
+						THEN 0
+						ELSE ISNULL(AMOUNT,0)
+						 END AS amount
+			  FROM LIONS_DEPOSIT
+			 WHERE ORGAN_CODE = @organCode
+			   AND (
+						(START_DATE >= @startDate AND START_DATE <= @endDate)
+					 OR (END_DATE >= @startDate AND END_DATE <= @endDate)
+					 OR (START_DATE <= @startDate AND END_DATE >= @startDate) 
+					 OR (START_DATE <= @endDate AND END_DATE >= @endDate)
+				)
+		  ) R
+		]]>
+	</select>
+	
+	<select id="lionsclubs.com.MM2.MM2_2.MM2_17.getNotIncome1000Total" parameterClass="MM2_17VO_PARAM" resultClass="java.lang.Long">
+		<![CDATA[
+		DECLARE @organCode NVARCHAR(10)
+		DECLARE @sessionYear INT
+		DECLARE @month NVARCHAR(10)
+		DECLARE @sessionYearMonth NVARCHAR(10)
+		DECLARE @startDate NVARCHAR(10)
+		DECLARE @endDate NVARCHAR(10)
+		
+		SET @organCode = REPLACE(#organCode#, '-', '');
+		SET @sessionYear = #sessionYear#;		
+		SET @month = #month#;
+		SET @sessionYearMonth = CASE WHEN CAST(@month AS INT) < 7 
+									 THEN CAST(@sessionYear AS NVARCHAR(4)) + @month 
+									 ELSE CAST(@sessionYear - 1 AS NVARCHAR(4)) + @month 
+									  END;
+		SET @startDate = CASE WHEN @month = '' 
+							  THEN CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701' 
+							  ELSE @sessionYearMonth + '01' 
+							   END;
+		SET @endDate = CASE WHEN @month = '' 
+							THEN CAST(@sessionYear AS NVARCHAR(4)) + '0630' 
+							ELSE @sessionYearMonth + '31' 
+							 END;
+
+		WITH IMPOST AS(
+			SELECT SUM(MI.IMPOST) AS impost
+			  FROM LIONS_MONEY_MASTER MM
+			 INNER JOIN LIONS_MONEY_IMPOST MI
+				ON MM.IDN_NO = MI.IDN_NO
+			 WHERE MM.GEN_DATE <= @endDate
+			   AND MM.CLASS_ITEM_CODE = '1010'
+			   AND MM.ORGAN_CODE = @organCode		
+		), PAYMENT AS(
+			SELECT SUM(MP.PAYMENT) AS payment
+			  FROM LIONS_MONEY_MASTER MM
+			 INNER JOIN LIONS_MONEY_IMPOST MI
+				ON MM.IDN_NO = MI.IDN_NO
+			 INNER JOIN LIONS_MONEY_PAYMENT MP
+				ON MM.IDN_NO = MP.IDN_NO
+			   AND MP.PAYMENT_DATE <= @endDate
+			 WHERE MM.GEN_DATE <= @endDate
+			   AND MM.CLASS_ITEM_CODE = '1010'
+			   AND MM.ORGAN_CODE = @organCode
+		)
+		
+		SELECT (SELECT ISNULL(impost, 0) FROM IMPOST) - (SELECT ISNULL(payment, 0) FROM PAYMENT) AS duesAttempt
+		]]>
+	</select>
+
+	<select id="lionsclubs.com.MM2.MM2_2.MM2_17.getNotIncomeEtcTotal" parameterClass="MM2_17VO_PARAM" resultClass="java.lang.Long">
+	<![CDATA[
+		DECLARE @organCode NVARCHAR(10)
+		DECLARE @sessionYear INT
+		DECLARE @month NVARCHAR(10)
+		DECLARE @sessionYearMonth NVARCHAR(10)
+		DECLARE @startDate NVARCHAR(10)
+		DECLARE @endDate NVARCHAR(10)
+		
+		SET @organCode = REPLACE(#organCode#, '-', '');
+		SET @sessionYear = #sessionYear#;		
+		SET @month = #month#;
+		SET @sessionYearMonth = CASE WHEN CAST(@month AS INT) < 7 
+									 THEN CAST(@sessionYear AS NVARCHAR(4)) + @month 
+									 ELSE CAST(@sessionYear - 1 AS NVARCHAR(4)) + @month 
+									  END;
+		SET @startDate = CASE WHEN @month = '' 
+							  THEN CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701' 
+							  ELSE @sessionYearMonth + '01' 
+							   END;
+		SET @endDate = CASE WHEN @month = '' 
+							THEN CAST(@sessionYear AS NVARCHAR(4)) + '0630' 
+							ELSE @sessionYearMonth + '31' 
+							 END;
+							 
+		WITH IMPOST AS(
+			SELECT SUM(MI.IMPOST) AS impost
+			  FROM LIONS_MONEY_MASTER MM
+			 INNER JOIN LIONS_MONEY_IMPOST MI
+				ON MM.IDN_NO = MI.IDN_NO
+			 WHERE MM.GEN_DATE <= @endDate
+			   AND MM.CLASS_ITEM_CODE NOT IN('1010', '1030', '1040')	/* 회의비, 약정금, 지구임원분담금 제외 */
+			   AND MM.ORGAN_CODE = @organCode		
+		), PAYMENT AS(
+			SELECT SUM(MP.PAYMENT) AS payment
+			  FROM LIONS_MONEY_MASTER MM
+			 INNER JOIN LIONS_MONEY_IMPOST MI
+				ON MM.IDN_NO = MI.IDN_NO
+			 INNER JOIN LIONS_MONEY_PAYMENT MP
+				ON MM.IDN_NO = MP.IDN_NO
+			   AND MP.PAYMENT_DATE <= @endDate
+			 WHERE MM.GEN_DATE <= @endDate
+			   AND MM.CLASS_ITEM_CODE NOT IN('1010', '1030', '1040')	/* 회의비, 약정금, 지구임원분담금 제외 */
+			   AND MM.ORGAN_CODE = @organCode
+		)
+		
+		SELECT (SELECT ISNULL(impost, 0) FROM IMPOST) - (SELECT ISNULL(payment, 0) FROM PAYMENT) AS etcAttempt
+	]]>
+	</select>	
+
+	<select id="lionsclubs.com.MM2.MM2_2.MM2_17.ExpendList" resultClass="MM2_17VO">
+	<![CDATA[	
+		DECLARE @organCode NVARCHAR(10)
+		DECLARE @sessionYear INT
+		DECLARE @month NVARCHAR(10)
+		DECLARE @sessionYearMonth NVARCHAR(10)
+		DECLARE @startDate NVARCHAR(10)
+		DECLARE @endDate NVARCHAR(10)
+		
+		SET @organCode = REPLACE(#organCode#, '-', '');
+		SET @sessionYear = #sessionYear#;		
+		SET @month = #month#;
+		SET @sessionYearMonth = CASE WHEN CAST(@month AS INT) < 7 
+									 THEN CAST(@sessionYear AS NVARCHAR(4)) + @month 
+									 ELSE CAST(@sessionYear - 1 AS NVARCHAR(4)) + @month 
+									  END;
+		SET @startDate = CASE WHEN @month = '' 
+							  THEN CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701' 
+							  ELSE @sessionYearMonth + '01' 
+							   END;
+		SET @endDate = CASE WHEN @month = '' 
+							THEN CAST(@sessionYear AS NVARCHAR(4)) + '0630' 
+							ELSE @sessionYearMonth + '31' 
+							 END;
+
+		SELECT  caYm
+			   ,organCode
+			   ,classItemCode
+			   ,classItemName
+			   ,SUM(amount) AS realAmount
+		FROM (
+			SELECT  INFO.CA_YM AS caYm		
+				   ,INFO.ORGAN_CODE AS organCode		
+				   ,INFO.CLASS_ITEM_CODE AS classItemCode		
+				   ,CD.CODE_NAME AS classItemName
+				   ,CAST(INFO.AMOUNT AS INT) AS amount
+			  FROM LIONS_INCOME_EXPEND INFO
+			  LEFT OUTER JOIN  LIONS_CALCULATE CAL
+			    ON INFO.CA_YM = CAL.CA_YM
+			   AND INFO.ORGAN_CODE = CAL.ORGAN_CODE
+			 INNER JOIN LIONS_CODE CD
+			    ON INFO.CLASS_ITEM_CODE = CD.CODE
+			   AND CD.GROUP_CODE = '6000'
+			   AND INFO.INEX_CODE = '1010'	/*지출*/
+			   AND INFO.ORGAN_CODE = @organCode
+			   AND INFO.INEX_DATE BETWEEN @startDate AND @endDate
+		) TOT
+		 GROUP BY  caYm
+				  ,organCode
+				  ,classItemCode
+				  ,classItemName
+	]]>
+	</select>
+			
+	<sql id="lionsclubs.com.MM2.MM2_2.MM2_17.deposit">
+	<![CDATA[
+		SELECT  INFO.IDN_NO AS idnNo
+			   ,INFO.CA_YM AS caYm
+			   ,INFO.ORGAN_CODE AS organCode
+			   ,INFO.KIND_CODE AS kindCode
+			   ,CD.CODE_NAME AS kindName
+			   ,INFO.START_DATE AS startDate
+			   ,INFO.END_DATE AS endDate
+			   ,INFO.AMOUNT AS realAmount
+			   ,INFO.EXPIRE_AMOUNT AS expireAmount
+			   ,INFO.FINANCIAL_INS AS financialIns
+			   ,INFO.HOLDER AS holder
+			   ,INFO.INSERT_DATE AS insertDate
+			   ,INFO.INSERT_NAME AS insertName
+			   ,INFO.UPDATE_DATE AS updateDate
+			   ,INFO.UPDATE_NAME AS updateName
+		  FROM LIONS_DEPOSIT INFO
+		 INNER JOIN LIONS_CODE CD 
+			ON CD.GROUP_CODE = '7570' 
+		   AND CD.CODE = INFO.KIND_CODE
+		 WHERE INFO.ORGAN_CODE = @organCode
+		   AND (
+				   (INFO.START_DATE >= @startDate AND INFO.START_DATE <= @endDate)
+				OR (INFO.END_DATE   >= @startDate AND INFO.END_DATE <= @endDate)
+				OR (INFO.START_DATE <= @startDate AND INFO.END_DATE >= @startDate) 
+				OR (INFO.START_DATE <= @endDate AND INFO.END_DATE >= @endDate)
+			)
+		   AND INFO.WITHDRAW_YN = 'N'
+		 ]]>
+	</sql>
+	
+	<select id="lionsclubs.com.MM2.MM2_2.MM2_17.DepositList" resultClass="MM2_17VO">
+	<![CDATA[
+		DECLARE @organCode NVARCHAR(10)
+		DECLARE @sessionYear INT
+		DECLARE @month NVARCHAR(10)
+		DECLARE @sessionYearMonth NVARCHAR(10)
+		DECLARE @startDate NVARCHAR(10)
+		DECLARE @endDate NVARCHAR(10)
+		
+		SET @organCode = REPLACE(#organCode#, '-', '');
+		SET @sessionYear = #sessionYear#;		
+		SET @month = #month#;
+		SET @sessionYearMonth = CASE WHEN CAST(@month AS INT) < 7 
+									 THEN CAST(@sessionYear AS NVARCHAR(4)) + @month 
+									 ELSE CAST(@sessionYear - 1 AS NVARCHAR(4)) + @month 
+									  END;
+		SET @startDate = CASE WHEN @month = '' 
+							  THEN CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701' 
+							  ELSE @sessionYearMonth + '01' 
+							   END;
+		SET @endDate = CASE WHEN @month = '' 
+							THEN CAST(@sessionYear AS NVARCHAR(4)) + '0630' 
+							ELSE @sessionYearMonth + '31' 
+							 END;
+	]]>
+		<include refid="lionsclubs.com.MM2.MM2_2.MM2_17.deposit"/>
+	</select>
+	
+	<select id="lionsclubs.com.MM2.MM2_2.MM2_17.DepositSum" resultClass="MM2_17VO">
+	<![CDATA[
+		DECLARE @organCode NVARCHAR(10)
+		DECLARE @sessionYear INT
+		DECLARE @month NVARCHAR(10)
+		DECLARE @sessionYearMonth NVARCHAR(10)
+		DECLARE @startDate NVARCHAR(10)
+		DECLARE @endDate NVARCHAR(10)
+		
+		SET @organCode = REPLACE(#organCode#, '-', '');
+		SET @sessionYear = #sessionYear#;		
+		SET @month = #month#;
+		SET @sessionYearMonth = CASE WHEN CAST(@month AS INT) < 7 
+									 THEN CAST(@sessionYear AS NVARCHAR(4)) + @month 
+									 ELSE CAST(@sessionYear - 1 AS NVARCHAR(4)) + @month 
+									  END;
+		SET @startDate = CASE WHEN @month = '' 
+							  THEN CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701' 
+							  ELSE @sessionYearMonth + '01' 
+							   END;
+		SET @endDate = CASE WHEN @month = '' 
+							THEN CAST(@sessionYear AS NVARCHAR(4)) + '0630' 
+							ELSE @sessionYearMonth + '31' 
+							 END;
+	]]>
+		SELECT  SUM(realAmount) AS depositSum
+			   ,SUM(expireAmount) AS expireSum
+		FROM (
+ 			<include refid="lionsclubs.com.MM2.MM2_2.MM2_17.deposit"/>
+ 		) DEF
+	</select>
+	
+	<sql id="lionsclubs.com.MM2.MM2_2.MM2_17.notGetDeclare">
+		<![CDATA[	
+		DECLARE @organCode NVARCHAR(10)
+		DECLARE @sessionYear INT
+		DECLARE @month NVARCHAR(10)
+		DECLARE @sessionYearMonth NVARCHAR(10)
+		DECLARE @startDate NVARCHAR(10)
+		DECLARE @endDate NVARCHAR(10)
+		
+		SET @organCode = REPLACE(#organCode#, '-', '');
+		SET @sessionYear = #sessionYear#;		
+		SET @month = #month#;
+		SET @sessionYearMonth = CASE WHEN CAST(@month AS INT) < 7 
+									 THEN CAST(@sessionYear AS NVARCHAR(4)) + @month 
+									 ELSE CAST(@sessionYear - 1 AS NVARCHAR(4)) + @month 
+									  END;
+		SET @startDate = CASE WHEN @month = '' 
+							  THEN CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701' 
+							  ELSE @sessionYearMonth + '01' 
+							   END;
+		SET @endDate = CASE WHEN @month = '' 
+							THEN CAST(@sessionYear AS NVARCHAR(4)) + '0630' 
+							ELSE @sessionYearMonth + '31' 
+							 END;
+		]]>	
+	</sql>
+	
+	<sql id="lionsclubs.com.MM2.MM2_2.MM2_17.notGet">
+		<![CDATA[	
+		SELECT * 
+		  FROM(
+			SELECT  MIN(MB.NAME) AS memberName
+				   ,MIN(MM.GEN_DATE) AS genDate	/* 부과일자 */
+				   ,MIN(MM.CLASS_ITEM_CODE) AS classItemCode
+				   ,MIN(MM.DETAIL_ITEM_CODE) AS detailItemCode
+				   ,dbo.FN_LIONS_CODE_NAME('4100', MIN(MM.CLASS_ITEM_CODE)) AS classItemName	/* 수입분류항목명 */
+				   ,dbo.FN_LIONS_DETAILCODE_NAME('4100', MIN(MM.CLASS_ITEM_CODE), MIN(MM.DETAIL_ITEM_CODE)) AS detailItemName	/* 수입세부항목명 */
+				   ,ISNULL(MIN(MI.IMPOST), 0) - ISNULL(SUM(MP.PAYMENT), 0) AS realAmount
+				   ,MIN(MI.REFERENCE) AS inexDesc
+			  FROM LIONS_MONEY_MASTER MM
+			 INNER JOIN LIONS_MEMBER_INFO MB
+				ON MM.MEMBER_NO = MB.MEMBER_NO
+			 INNER JOIN LIONS_MONEY_IMPOST MI
+				ON MM.IDN_NO = MI.IDN_NO
+			  LEFT OUTER JOIN LIONS_MONEY_PAYMENT MP
+				ON MM.IDN_NO = MP.IDN_NO
+			   AND MP.PAYMENT_DATE <= @endDate
+			 WHERE MM.ORGAN_CODE = @organCode
+			   AND MM.GEN_DATE <= @endDate
+			   AND MM.CLASS_ITEM_CODE NOT IN('1030', '1040')	/* 약정금, 지구임원분담금 제외 */
+		]]>
+			<isEqual prepend="AND" property="notGetGubun" compareValue="1">
+				MM.CLASS_ITEM_CODE = '1010'
+			</isEqual>
+			<isEqual prepend="AND" property="notGetGubun" compareValue="2">
+				MM.CLASS_ITEM_CODE != '1010'	/* 회의비 제외 */
+			</isEqual>
+			 GROUP BY MM.IDN_NO
+		) RESULT
+		 WHERE RESULT.realAmount > 0
+	</sql>
+	<select id="lionsclubs.com.MM2.MM2_2.MM2_17.NotGetList" resultClass="MM2_17VO">
+		<include refid="lionsclubs.com.MM2.MM2_2.MM2_17.notGetDeclare"/>
+		<include refid="lionsclubs.com.MM2.MM2_2.MM2_17.notGet"/>
+		ORDER BY  dbo.FN_LIONS_CODE_ORD('4100', RESULT.classItemCode)
+				 ,dbo.FN_LIONS_DETAILCODE_ORD('4100', RESULT.classItemCode, RESULT.detailItemCode)
+				 ,RESULT.genDate
+	</select>
+	
+	<select id="lionsclubs.com.MM2.MM2_2.MM2_17.NotGetSum" resultClass="MM2_17VO">
+		<include refid="lionsclubs.com.MM2.MM2_2.MM2_17.notGetDeclare"/>
+	
+		SELECT SUM(realAmount) AS notGetSum
+		  FROM (
+ 			<include refid="lionsclubs.com.MM2.MM2_2.MM2_17.notGet"/>
+ 		) DEF
+	</select>
+	
+	<sql id="lionsclubs.com.MM2.MM2_2.MM2_17.deficitDeclare">
+		<![CDATA[
+		DECLARE @organCode NVARCHAR(10)
+		DECLARE @sessionYear INT
+		DECLARE @month NVARCHAR(10)
+		DECLARE @sessionYearMonth NVARCHAR(10)
+		DECLARE @startDate NVARCHAR(10)
+		DECLARE @endDate NVARCHAR(10)
+		
+		SET @organCode = REPLACE(#organCode#, '-', '');
+		SET @sessionYear = #sessionYear#;		
+		SET @month = #month#;
+		SET @sessionYearMonth = CASE WHEN CAST(@month AS INT) < 7 
+									 THEN CAST(@sessionYear AS NVARCHAR(4)) + @month 
+									 ELSE CAST(@sessionYear - 1 AS NVARCHAR(4)) + @month 
+									  END;
+		SET @startDate = CASE WHEN @month = '' 
+							  THEN CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701' 
+							  ELSE @sessionYearMonth + '01' 
+							   END;
+		SET @endDate = CASE WHEN @month = '' 
+							THEN CAST(@sessionYear AS NVARCHAR(4)) + '0630' 
+							ELSE @sessionYearMonth + '31' 
+							 END;	
+		]]>
+	</sql>
+	
+	<sql id="lionsclubs.com.MM2.MM2_2.MM2_17.deficit">
+		<![CDATA[
+		SELECT  MM.CA_YM AS caYm
+			   ,MM.ORGAN_CODE AS organCode
+			   ,MM.CLASS_ITEM_CODE AS classItemCode
+			   ,MM.DETAIL_ITEM_CODE AS detailItemCode
+			   ,C.CODE_NAME AS classItemName
+			   ,dbo.FN_LIONS_CODE_NAME(C.CODE1, MM.DETAIL_ITEM_CODE) AS detailItemName
+			   ,MP.PAYMENT_DATE AS inexDate
+			   ,MP.REFERENCE  AS inexDesc	
+			   ,MP.PAYMENT AS realAmount		/*결손금액*/
+			   ,(SELECT NAME FROM LIONS_MEMBER_INFO WHERE MEMBER_NO = MM.MEMBER_NO) AS memberName
+  			   ,MP.PAYMENT_DATE as incomeInsertDate
+		  FROM dbo.LIONS_MONEY_MASTER MM
+		 INNER JOIN dbo.LIONS_MONEY_PAYMENT MP
+		    ON MM.IDN_NO = MP.IDN_NO
+		   AND MP.PAYMENT_DEFECT = 'Y' 
+		 INNER JOIN dbo.LIONS_CODE C
+		    ON C.CODE = MM.CLASS_ITEM_CODE 
+		   AND C.GROUP_CODE = '4100'
+		 WHERE MM.ORGAN_CODE = @organCode
+		   AND MP.PAYMENT_DATE BETWEEN @startDate AND @endDate
+		]]>
+		<isEqual prepend="AND" property="deficitGubun" compareValue="1">
+			(
+					MM.CLASS_ITEM_CODE = '1010' 
+				AND MM.DETAIL_ITEM_CODE = '1010'
+			) 
+	 	</isEqual>
+	 	<isEqual prepend="AND" property="deficitGubun" compareValue="2">
+				MM.ORGAN_CODE = @organCode 
+			AND MM.CLASS_ITEM_CODE + '/' + MM.DETAIL_ITEM_CODE != '1010/1010'
+			AND C.CODE3 != 'D'								 
+	 	</isEqual>
+		<isEqual prepend="AND" property="deficitGubun" compareValue="3">
+			C.CODE3 = 'D'
+	 	</isEqual>
+	 	<isEmpty prepend="AND" property="deficitGubun">
+	 		C.CODE3 != 'D'
+	 	</isEmpty>
+	</sql>
+	
+	<select id="lionsclubs.com.MM2.MM2_2.MM2_17.DeficitList" resultClass="MM2_17VO">
+		<include refid="lionsclubs.com.MM2.MM2_2.MM2_17.deficitDeclare"/>
+ 		<include refid="lionsclubs.com.MM2.MM2_2.MM2_17.deficit"/>
+	</select>
+	
+	<select id="lionsclubs.com.MM2.MM2_2.MM2_17.DeficitSum" resultClass="MM2_17VO">
+		<include refid="lionsclubs.com.MM2.MM2_2.MM2_17.deficitDeclare"/>
+		
+		SELECT SUM(realAmount) AS deficitSum
+		  FROM (
+ 			<include refid="lionsclubs.com.MM2.MM2_2.MM2_17.deficit" />
+ 		) DEF
+ 		 GROUP BY organCode
+	</select>
+	
+	<sql id="lionsclubs.com.MM2.MM2_2.MM2_17.incomeDetail">
+		<![CDATA[	
+		SELECT  caYm
+			   ,organCode
+			   ,classItemCode
+			   ,detailItemCode
+			   ,classItemName
+			   ,detailItemName
+			   ,detailGroupCode
+			   ,inexDate
+			   ,inexDesc
+			   ,incomeInsertDate
+			   ,amount AS realAmount
+			   ,C.NAME AS memberName
+		  FROM (
+			SELECT  INFO.CA_YM AS caYm		
+				   ,INFO.ORGAN_CODE AS organCode		
+				   ,INFO.CLASS_ITEM_CODE AS classItemCode		
+				   ,INFO.DETAIL_ITEM_CODE AS detailItemCode	
+				   ,CD.CODE_NAME AS classItemName
+				   ,dbo.FN_LIONS_CODE_NAME(CD.CODE1, INFO.DETAIL_ITEM_CODE) AS detailItemName
+				   ,CD.CODE1 AS detailGroupCode
+				   ,CAST(INFO.IDN_NO AS INT) AS idnNo
+				   ,INFO.INEX_DATE AS inexDate
+				   ,INFO.INEX_DESC AS inexDesc	
+				   ,INFO.INCOME_INSERT_DATE AS incomeInsertDate
+				   ,CAST(INFO.AMOUNT AS INT) AS amount
+				   ,'' AS MEMBER_NO
+			  FROM  LIONS_INCOME_EXPEND INFO
+				   ,LIONS_CODE CD
+			 WHERE INFO.CLASS_ITEM_CODE = CD.CODE
+			   AND CD.GROUP_CODE = '4100'	/*수입그룹*/
+			   AND INFO.INEX_CODE = '1000'	/*수입*/
+			   AND INFO.CLASS_ITEM_CODE != '1000'	/*수입항목 중 이월항목 제외*/
+			   AND INFO.ORGAN_CODE = @organCode
+			   AND INFO.INEX_DATE BETWEEN @startDate AND @endDate
+			   
+			 UNION ALL
+			 
+			SELECT  INFO.CA_YM AS caYm		
+				   ,INFO.ORGAN_CODE AS organCode		
+				   ,INFO.CLASS_ITEM_CODE AS classItemCode		
+				   ,INFO.DETAIL_ITEM_CODE AS detailItemCode	
+				   ,CD2.CODE_NAME AS classItemName
+				   ,dbo.FN_LIONS_CODE_NAME(CD2.CODE1, INFO.DETAIL_ITEM_CODE) AS detailItemName
+				   ,CD2.CODE1 AS detailGroupCode
+				   ,CAST(INFO.IDN_NO AS INT) AS idnNo
+				   ,INFO.GEN_DATE AS inexDate
+				   ,PAY.REFERENCE  AS inexDesc	
+				   ,PAY.PAYMENT_DATE AS incomeInsertDate
+				   ,PAY.PAYMENT AS amount
+				   ,INFO.MEMBER_NO
+			  FROM LIONS_MONEY_MASTER INFO
+			 INNER JOIN LIONS_MONEY_PAYMENT PAY
+			    ON PAY.IDN_NO = INFO.IDN_NO 
+			   AND PAY.PAYMENT_DEFECT != 'Y'
+			       ,LIONS_CODE CD2
+			 WHERE INFO.CLASS_ITEM_CODE = CD2.CODE
+			   AND CD2.GROUP_CODE = '4100'
+			   AND INFO.ORGAN_CODE = @organCode 
+			   AND PAY.PAYMENT_DATE BETWEEN @startDate AND @endDate
+			   
+			 UNION ALL
+			 
+			SELECT  D.CA_YM AS caYm
+				   ,D.ORGAN_CODE AS organCode
+				   ,'1100' AS classItemCode		
+				   ,KIND_CODE AS detailItemCode	
+				   ,CD.CODE_NAME AS classItemName
+				   ,dbo.FN_LIONS_CODE_NAME(CD.CODE1, KIND_CODE) AS detailItemName
+				   ,CD.CODE1 AS detailGroupCode
+				   ,'' AS idnNo
+				   ,D.START_DATE AS inexDate
+				   ,'' AS inexDesc
+				   ,D.END_DATE AS incomeInsertDate
+				   ,CAST(D.EXPIRE_AMOUNT AS INT) AS amount
+				   ,'' AS MEMBER_NO
+			  FROM  LIONS_DEPOSIT D
+			 INNER JOIN LIONS_CODE CD
+			    ON CD.CODE = '1100'
+			   AND CD.GROUP_CODE = '4100'	/*수입그룹*/
+			 WHERE D.ORGAN_CODE = @organCode
+			   AND D.END_DATE BETWEEN @startDate AND @endDate
+			   AND D.WITHDRAW_YN = 'Y'
+		) TOT
+		 INNER JOIN dbo.LIONS_CODE X
+		    ON X.GROUP_CODE = '4100' 
+		   AND X.CODE = TOT.classItemCode
+		 INNER JOIN dbo.LIONS_CODE Y
+		    ON Y.GROUP_CODE = TOT.detailGroupCode 
+		   AND Y.CODE = TOT.detailItemCode
+		  LEFT OUTER JOIN dbo.LIONS_MEMBER_INFO C 
+		    ON C.MEMBER_NO = TOT.MEMBER_NO
+		]]>
+		<dynamic prepend="WHERE">
+			<isNotEmpty prepend="AND" property="classItemCode">
+				classItemCode = #classItemCode#
+			</isNotEmpty>
+		</dynamic>
+	</sql>
+	
+	<select id="lionsclubs.com.MM2.MM2_2.MM2_17.IncomeDetailList" resultClass="MM2_17VO">
+		<![CDATA[	
+		DECLARE @organCode NVARCHAR(10)
+		DECLARE @sessionYear INT
+		DECLARE @month NVARCHAR(10)
+		DECLARE @sessionYearMonth NVARCHAR(10)
+		DECLARE @startDate NVARCHAR(10)
+		DECLARE @endDate NVARCHAR(10)
+		
+		SET @organCode = REPLACE(#organCode#, '-', '');
+		SET @sessionYear = #sessionYear#;
+		SET @month = #month#;
+		SET @sessionYearMonth = CASE WHEN CAST(@month AS INT) < 7 
+									 THEN CAST(@sessionYear AS NVARCHAR(4)) + @month 
+									 ELSE CAST(@sessionYear - 1 AS NVARCHAR(4)) + @month 
+									  END;
+		SET @startDate = CASE WHEN @month = '' 
+							  THEN CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701' 
+							  ELSE @sessionYearMonth + '01' 
+							   END;
+		SET @endDate = CASE WHEN @month = '' 
+							THEN CAST(@sessionYear AS NVARCHAR(4)) + '0630' 
+							ELSE @sessionYearMonth + '31' 
+							 END;
+		]]>
+		<include refid="lionsclubs.com.MM2.MM2_2.MM2_17.incomeDetail"/>
+		ORDER BY  CAST(X.CODE2 AS INT) ASC
+				 ,Y.ORD
+				 ,TOT.inexDate
+	</select>
+	
+	<select id="lionsclubs.com.MM2.MM2_2.MM2_17.IncomeSum" resultClass="MM2_17VO">
+	<![CDATA[	
+		DECLARE @organCode NVARCHAR(10)
+		DECLARE @sessionYear INT
+		DECLARE @month NVARCHAR(10)
+		DECLARE @sessionYearMonth NVARCHAR(10)
+		DECLARE @startDate NVARCHAR(10)
+		DECLARE @endDate NVARCHAR(10)
+		
+		SET @organCode = REPLACE(#organCode#, '-', '');
+		SET @sessionYear = #sessionYear#;		
+		SET @month = #month#;
+		SET @sessionYearMonth = CASE WHEN CAST(@month AS INT) < 7 
+									 THEN CAST(@sessionYear AS NVARCHAR(4)) + @month 
+									 ELSE CAST(@sessionYear - 1 AS NVARCHAR(4)) + @month 
+									  END;
+		SET @startDate = CASE WHEN @month = '' 
+							  THEN CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701' 
+							  ELSE @sessionYearMonth + '01' 
+							   END;
+		SET @endDate = CASE WHEN @month = '' 
+							THEN CAST(@sessionYear AS NVARCHAR(4)) + '0630' 
+							ELSE @sessionYearMonth + '31' 
+							 END;
+	]]>
+		SELECT SUM(realAmount) AS incomeSum
+		  FROM (
+ 			<include refid="lionsclubs.com.MM2.MM2_2.MM2_17.incomeDetail"/>
+ 		) INCOME
+	</select>
+	
+	
+	<sql id="lionsclubs.com.MM2.MM2_2.MM2_17.expendDetail">
+		SELECT * 
+		  FROM(
+			SELECT  INFO.CA_YM AS caYm       
+				   ,INFO.ORGAN_CODE AS organCode       
+				   ,INFO.CLASS_ITEM_CODE AS classItemCode       
+				   ,INFO.DETAIL_ITEM_CODE AS detailItemCode      
+				   ,CD.CODE_NAME AS classItemName     
+				   ,CD2.CODE_NAME AS detailItemName     
+				   ,CD.CODE1 AS detailGroupCode     
+				   ,CAST(INFO.IDN_NO AS INT) AS idnNo     
+				   ,CAST(INFO.UNIT AS INT) AS unit     
+				   ,CAST(INFO.ATAND_AMOUNT AS INT) AS atandAmount     
+				   ,CAST(INFO.AMOUNT AS INT) AS realAmount     
+				   ,INFO.INEX_DATE AS inexDate     
+				   ,INFO.INEX_DESC AS inexDesc    
+				   ,INFO.INCOME_INSERT_DATE AS incomeInsertDate
+				   ,CD.CODE2
+				   ,CD2.ORD				   
+			  FROM dbo.LIONS_INCOME_EXPEND INFO    
+			 INNER JOIN dbo.LIONS_CODE CD    
+			    ON CD.GROUP_CODE = '6000' 
+			   AND CD.CODE = INFO.CLASS_ITEM_CODE    
+			 INNER JOIN dbo.LIONS_CODE CD2    
+			    ON CD2.GROUP_CODE = CD.CODE1 
+			   AND CD2.CODE = INFO.DETAIL_ITEM_CODE
+			 WHERE INFO.ORGAN_CODE = @organCode
+			   AND INFO.INEX_CODE = '1010'
+			   AND INFO.INEX_DATE BETWEEN @startDate AND @endDate
+		) R
+		<dynamic prepend="WHERE">
+			<isNotEmpty prepend="AND" property="classItemCode">
+				R.classItemCode = #classItemCode#
+			</isNotEmpty>
+		</dynamic>
+	</sql>
+	
+	<select id="lionsclubs.com.MM2.MM2_2.MM2_17.ExpendDetailList" resultClass="MM2_17VO">
+	<![CDATA[
+		DECLARE @organCode NVARCHAR(10)
+		DECLARE @sessionYear INT
+		DECLARE @month NVARCHAR(10)
+		DECLARE @sessionYearMonth NVARCHAR(10)
+		DECLARE @startDate NVARCHAR(10)
+		DECLARE @endDate NVARCHAR(10)
+		
+		SET @organCode = REPLACE(#organCode#, '-', '');
+		SET @sessionYear = #sessionYear#;		
+		SET @month = #month#;
+		SET @sessionYearMonth = CASE WHEN CAST(@month AS INT) < 7 
+									 THEN CAST(@sessionYear AS NVARCHAR(4)) + @month 
+									 ELSE CAST(@sessionYear - 1 AS NVARCHAR(4)) + @month 
+									  END;
+		SET @startDate = CASE WHEN @month = '' 
+							  THEN CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701' 
+							  ELSE @sessionYearMonth + '01' 
+							   END;
+		SET @endDate = CASE WHEN @month = '' 
+							THEN CAST(@sessionYear AS NVARCHAR(4)) + '0630' 
+							ELSE @sessionYearMonth + '31' 
+							 END;
+	]]>
+		<include refid="lionsclubs.com.MM2.MM2_2.MM2_17.expendDetail"/>
+		ORDER BY  CAST(R.CODE2 AS INT)
+				 ,R.ORD
+				 ,R.inexDate
+	</select>
+	
+	<select id="lionsclubs.com.MM2.MM2_2.MM2_17.ExpendSum" resultClass="MM2_17VO">
+	<![CDATA[
+		DECLARE @organCode NVARCHAR(10)
+		DECLARE @sessionYear INT
+		DECLARE @month NVARCHAR(10)
+		DECLARE @sessionYearMonth NVARCHAR(10)
+		DECLARE @startDate NVARCHAR(10)
+		DECLARE @endDate NVARCHAR(10)
+		
+		SET @organCode = REPLACE(#organCode#, '-', '');
+		SET @sessionYear = #sessionYear#;		
+		SET @month = #month#;
+		SET @sessionYearMonth = CASE WHEN CAST(@month AS INT) < 7 
+									 THEN CAST(@sessionYear AS NVARCHAR(4)) + @month 
+									 ELSE CAST(@sessionYear - 1 AS NVARCHAR(4)) + @month 
+									  END;
+		SET @startDate = CASE WHEN @month = '' 
+							  THEN CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701' 
+							  ELSE @sessionYearMonth + '01' 
+							   END;
+		SET @endDate = CASE WHEN @month = '' 
+							THEN CAST(@sessionYear AS NVARCHAR(4)) + '0630' 
+							ELSE @sessionYearMonth + '31' 
+							 END;
+ 	]]>
+
+	
+		SELECT SUM(CONVERT(BIGINT, realAmount)) AS expendSum
+		  FROM (
+ 			<include refid="lionsclubs.com.MM2.MM2_2.MM2_17.expendDetail"/>
+ 		) INCOME
+	</select>
+	
+	<select id="lionsclubs.com.MM2.MM2_2.MM2_17.getPrevMonthTotal" parameterClass="MM2_17VO_PARAM" resultClass="java.lang.Long">
+	<![CDATA[	
+		/* 이월 총액 계산 */
+		DECLARE @organCode NVARCHAR(10)
+		DECLARE @sessionYear INT
+		DECLARE @month NVARCHAR(10)
+		DECLARE @sessionYearMonth NVARCHAR(10)
+		DECLARE @startDate NVARCHAR(10)
+		DECLARE @endDate NVARCHAR(10)
+		
+		SET @organCode = REPLACE(#organCode#, '-', '');
+		SET @sessionYear = #sessionYear#;		
+		SET @month = #month#;
+		SET @sessionYearMonth = CASE WHEN CAST(@month AS INT) < 7 
+									 THEN CAST(@sessionYear AS NVARCHAR(4)) + @month 
+									 ELSE CAST(@sessionYear - 1 AS NVARCHAR(4)) + @month 
+									  END;
+		SET @startDate = CASE WHEN @month = '' 
+							  THEN CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701' 
+							  ELSE @sessionYearMonth + '01' 
+							   END;
+		SET @endDate = CASE WHEN @month = '' 
+							THEN CAST(@sessionYear AS NVARCHAR(4)) + '0630' 
+							ELSE @sessionYearMonth + '31' 
+							 END;
+
+
+		/* 수입총액 */
+		WITH INCOME_TOTAL AS (
+			SELECT SUM(A.AMOUNT_SUM) AS INCOME_SUM
+			  FROM (
+				SELECT (ISNULL(B.PAYMENT,0)) AS AMOUNT_SUM
+				  FROM dbo.LIONS_MONEY_MASTER A
+				 INNER JOIN dbo.LIONS_MONEY_PAYMENT B
+				    ON B.IDN_NO = A.IDN_NO 
+				   AND B.PAYMENT_DEFECT != 'Y' 
+				 WHERE A.ORGAN_CODE = @organCode 
+				   AND B.PAYMENT_DATE < @startDate
+				   
+				 UNION ALL
+				 
+				SELECT SUM(ISNULL(AMOUNT,0)) AS AMOUNT_SUM
+				  FROM LIONS_INCOME_EXPEND
+				 WHERE ORGAN_CODE = @organCode
+				   AND INEX_CODE = '1000'
+				   AND INEX_DATE < @startDate
+			) A
+		/* 지출총액 */
+		),EXP_TOTAL AS (
+			SELECT SUM(ISNULL(A.AMOUNT,0)) AS EXP_SUM
+			  FROM dbo.LIONS_INCOME_EXPEND A
+			 INNER JOIN dbo.LIONS_CODE B
+			    ON B.GROUP_CODE = '6000' AND B.CODE = A.CLASS_ITEM_CODE
+			 WHERE A.ORGAN_CODE = @organCode
+			   AND A.INEX_CODE = '1010'
+			   AND A.INEX_DATE < @startDate
+		/* 결손총액 */
+		),DET_TOTAL AS (
+			SELECT SUM(ISNULL(B.PAYMENT,0)) as DET_SUM
+			  FROM dbo.LIONS_MONEY_MASTER A
+			 INNER JOIN dbo.LIONS_MONEY_PAYMENT B
+			    ON B.IDN_NO = A.IDN_NO 
+			   AND B.PAYMENT_DEFECT = 'Y' 
+			 WHERE A.ORGAN_CODE = @organCode
+			   AND B.PAYMENT_DATE < @startDate
+		)
+		
+		SELECT ISNULL(A.INCOME_SUM,0) - ISNULL(B.EXP_SUM,0) - ISNULL(C.DET_SUM,0) AS TOTAL
+		  FROM INCOME_TOTAL A
+		 INNER JOIN EXP_TOTAL B 
+		    ON 1 = 1
+		 INNER JOIN DET_TOTAL C 
+		    ON 1 = 1
+ 	]]>
+	</select>
+</sqlMap>
+

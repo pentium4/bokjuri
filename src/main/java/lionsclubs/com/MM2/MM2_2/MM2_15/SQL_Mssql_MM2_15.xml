@@ -1,0 +1,252 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://www.ibatis.com/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="lionsclubs.com.MM2.MM2_2.MM2_15">
+	<typeAlias alias="MM2_15VO_CLOSE_PARAM" type="lionsclubs.com.MM2.MM2_2.MM2_15.MM2_15VO_CLOSE_PARAM"/>
+	<typeAlias alias="MM2_15VO" type="lionsclubs.com.MM2.MM2_2.MM2_15.MM2_15VO"/>
+	
+	<sql id="lionsclubs.com.MM2.MM2_2.MM2_15.declare">
+	<![CDATA[
+		DECLARE @organCode NVARCHAR(10)
+		DECLARE @sessionYear INT
+		DECLARE @month NVARCHAR(10)
+		DECLARE @sessionYearMonth NVARCHAR(10)
+		DECLARE @startDate NVARCHAR(10)
+		DECLARE @endDate NVARCHAR(10)
+		
+		SET @organCode = #organCode#;
+		SET @sessionYear = #sessionYear#;		
+		SET @month = #month#;
+		SET @sessionYearMonth = CASE WHEN CAST(@month AS INT) < 7 
+									 THEN CAST(@sessionYear AS NVARCHAR(4)) + @month 
+									 ELSE CAST(@sessionYear - 1 AS NVARCHAR(4)) + @month 
+									  END;
+		SET @startDate = CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701';	
+		SET @endDate = CAST(@sessionYear AS NVARCHAR(4)) + '0630';
+	]]>		
+	</sql>
+	
+	<sql id="lionsclubs.com.MM2.MM2_2.MM2_15.selectQuery">
+		SELECT  INFO.IDN_NO AS idnNo
+			   ,INFO.CLASS_ITEM_CODE AS classItemCode
+			   ,INFO.DETAIL_ITEM_CODE AS detailItemCode
+			   ,INFO.UNIT AS unit
+			   ,INFO.ATAND_AMOUNT AS atandAmount
+			   ,INFO.AMOUNT AS amount
+			   ,INFO.INEX_DESC +
+				CASE WHEN INFO.CLASS_ITEM_CODE = '1070'
+					 THEN '(' + (SELECT NAME FROM LIONS_MEMBER_INFO WHERE MEMBER_NO = INFO.DELIVERY_MEMBER_NO) + ')'
+					 ELSE ''
+					  END AS inexDesc
+			   ,INFO.INEX_DATE AS inexDate
+			   ,INFO.INCOME_INSERT_DATE AS incomeInsertDate
+			   ,CD.CODE_NAME AS classItemName
+			   ,CASE WHEN INFO.MONEY_IDN_NO != '' AND INFO.CLASS_ITEM_CODE = '1120'
+					 THEN dbo.FN_LIONS_CODE_NAME(CD.CODE1, INFO.DETAIL_ITEM_CODE)
+						  + ' - ' 
+						  + ISNULL((
+							SELECT dbo.FN_LIONS_DETAILCODE_NAME('6000', CLASS_ITEM_CODE, DETAIL_ITEM_CODE)
+							  FROM LIONS_MONEY_MASTER
+							 WHERE IDN_NO = INFO.MONEY_IDN_NO
+						  ), '')
+					  ELSE dbo.FN_LIONS_DETAILCODE_NAME('6000', CLASS_ITEM_CODE, DETAIL_ITEM_CODE)
+					   END AS detailItemName
+			   ,dbo.FN_LIONS_CODE_NAME('6110', INFO.SERVICE_PERFORMANCE_CODE) AS servicePerformanceName
+			   ,CD.CODE1 AS detailGroupCode
+			   ,INFO.MONEY_IDN_NO AS moneyIdnNo
+		  FROM LIONS_INCOME_EXPEND INFO
+		  LEFT OUTER JOIN LIONS_CODE CD
+		    ON INFO.CLASS_ITEM_CODE = CD.CODE
+		   AND CD.GROUP_CODE = '6000'
+		 WHERE INFO.ORGAN_CODE = @organCode
+		   AND INFO.INEX_CODE = '1010'
+		<isEmpty property="month" prepend="AND">
+		<![CDATA[
+			(
+				   (INFO.INEX_DATE >= @startDate AND INFO.INEX_DATE <= @endDate)
+				OR (INFO.INEX_DATE >= @startDate AND INFO.INEX_DATE <= @endDate)
+				OR (INFO.INEX_DATE <= @startDate AND INFO.INEX_DATE >= @startDate) 
+				OR (INFO.INEX_DATE <= @endDate AND INFO.INEX_DATE >= @endDate)
+			)
+		]]>
+		</isEmpty>
+		<isNotEmpty property="month" prepend="AND">
+			(INFO.INEX_DATE BETWEEN @sessionYearMonth + '01' AND @sessionYearMonth + '31')
+		</isNotEmpty>
+	</sql>
+	
+	<select id="lionsclubs.com.MM2.MM2_2.MM2_15.MM2_15" resultClass="MM2_15VO">
+		SELECT  INFO.IDN_NO AS idnNo
+			   ,INFO.CLASS_ITEM_CODE AS classItemCode
+			   ,INFO.DETAIL_ITEM_CODE AS detailItemCode
+			   ,INFO.SERVICE_PERFORMANCE_CODE AS servicePerformanceCode
+			   ,INFO.UNIT AS unit
+			   ,INFO.AMOUNT AS amount
+			   ,INFO.INEX_DESC AS inexDesc
+			   ,INFO.INEX_DATE AS inexDate
+			   ,INFO.INCOME_INSERT_DATE AS incomeInsertDate
+			   ,CD.CODE_NAME AS classItemName
+			   ,dbo.FN_LIONS_CODE_NAME(CD.CODE1, INFO.DETAIL_ITEM_CODE) AS detailItemName
+			   ,CD.CODE1 AS detailGroupCode
+			   ,INFO.ORGAN_CODE AS organCode
+			   ,INFO.DELIVERY_MEMBER_NO AS deliveryMemberNo
+			   ,(SELECT NAME FROM LIONS_MEMBER_INFO WHERE MEMBER_NO = INFO.DELIVERY_MEMBER_NO) AS deliveryMemberName
+		  FROM LIONS_INCOME_EXPEND INFO
+		  LEFT OUTER JOIN LIONS_CODE CD
+		    ON INFO.CLASS_ITEM_CODE = CD.CODE
+		   AND CD.GROUP_CODE = '6000'
+		 WHERE INFO.INEX_CODE = '1010'
+		   AND INFO.IDN_NO = #idnNo#
+ 	</select>
+ 	
+	<select id="lionsclubs.com.MM2.MM2_2.MM2_15.List" resultClass="MM2_15VO">
+		<include refid="lionsclubs.com.MM2.MM2_2.MM2_15.declare"/>
+		<include refid="lionsclubs.com.MM2.MM2_2.MM2_15.selectQuery"/>
+		<dynamic prepend="ORDER BY">
+			<isEqual property="s1" compareValue="1">
+	 			 INFO.INEX_DATE DESC
+	 			,INFO.CLASS_ITEM_CODE ASC
+	 			,INFO.DETAIL_ITEM_CODE ASC
+	 		</isEqual>
+			<isEqual property="s1" compareValue="2">
+	 			 INFO.CLASS_ITEM_CODE ASC
+	 			,INFO.DETAIL_ITEM_CODE ASC
+	 			,INFO.INEX_CODE DESC
+	 		</isEqual>
+			<isEqual property="s1" compareValue="3">
+	 			 INFO.INCOME_INSERT_DATE DESC
+	 			,INFO.CLASS_ITEM_CODE ASC
+	 			,INFO.DETAIL_ITEM_CODE ASC
+	 		</isEqual>
+		</dynamic>
+ 	</select>
+	
+	<insert id="lionsclubs.com.MM2.MM2_2.MM2_15.otherIncomeInsert">
+		INSERT INTO LIONS_INCOME_EXPEND(
+			 CA_YM
+			,ORGAN_CODE
+			,INEX_CODE
+			,INEX_DATE
+			,CLASS_ITEM_CODE
+			,DETAIL_ITEM_CODE
+			,SERVICE_PERFORMANCE_CODE
+			,AMOUNT
+			,UNIT
+			,INEX_DESC
+			,INCOME_INSERT_DATE
+			,DELIVERY_MEMBER_NO
+			,INSERT_DATE
+			,INSERT_NAME
+			,UPDATE_DATE
+			,UPDATE_NAME
+		) VALUES (
+			 SUBSTRING(REPLACE(#inexDate#, '.', ''),1,6)	/* 회기년월 */
+			,#organCode#	/* 조직코드 */
+			,'1010'	/* 수입1000/지출1010 수입예산1030/지출예산1030 구분 */
+			,REPLACE(#inexDate#, '.', '')	/* 수입/지출일자 */
+			,#classItemCode#	/* 분류항목코드 */
+			,#detailItemCode#		/* 세부항목코드 */
+			,#servicePerformanceCode#		/* 봉사실적항목코드 */
+			,REPLACE(#amount#, ',' ,'')	 /* 금액 */
+			,#unit#		/* 단위 */
+			,#inexDesc#	/* 수입/지출내용 */
+			,CONVERT(NVARCHAR,GETDATE(),112)	/* 입력일자 */
+			,#deliveryMemberNo#	/* 지출전달회원번호 */
+			,GETDATE()	/* 생성일자 */
+			,#insertName#	/* 생성자 */
+			,GETDATE()	/* 수정일자 */
+			,#updateName#	/* 수정자 */
+		)		
+		/* LIONS_INCOME_EXPEND > INEX_CODE : 8510 그룹 코드의 수입/지출 코드 쓰시면 됩니다
+		   수입 : 1000, 지출 : 1010 입니다.수정자 
+ 		*/ 
+	</insert>
+	
+	<update id="lionsclubs.com.MM2.MM2_2.MM2_15.otherIncomeUpdate">
+	<![CDATA[
+		UPDATE LIONS_INCOME_EXPEND 
+		   SET  INEX_DATE = REPLACE(#inexDate#, '.', '')	/* 수입일자 */
+			   ,CLASS_ITEM_CODE = #classItemCode#	/* 분류항목코드 */
+			   ,DETAIL_ITEM_CODE = #detailItemCode#	/* 세부항목코드 */
+			   ,SERVICE_PERFORMANCE_CODE = #servicePerformanceCode#		/* 봉사실적항목코드 */
+			   ,AMOUNT = REPLACE(#amount#, ',' ,'')	/* 금액 */
+			   ,INEX_DESC = #inexDesc#	/* 수입내용 */
+			   ,DELIVERY_MEMBER_NO = #deliveryMemberNo#	/* 지출전달회원번호 */
+			   ,UPDATE_DATE = GETDATE()	/* 수정일자 */
+			   ,UPDATE_NAME = #updateName#	/* 수정자 */
+		 WHERE IDN_NO = #idnNo#
+	]]>
+	</update>
+	
+	<update id="lionsclubs.com.MM2.MM2_2.MM2_15.otherIncomeDelete">
+		DELETE FROM LIONS_INCOME_EXPEND 
+		 WHERE IDN_NO = #idnNo#
+	</update>
+	
+	<sql id="lionsclubs.com.MM2.MM2_2.MM2_15.sum">
+		SELECT
+			SUM(CASE WHEN amount > 0 THEN CAST(amount AS INT) ELSE 0 END) AS amount 
+		FROM (
+			SELECT  INFO.IDN_NO AS idnNo
+				   ,INFO.CLASS_ITEM_CODE AS classItemCode
+				   ,INFO.DETAIL_ITEM_CODE AS detailItemCode
+				   ,INFO.UNIT AS unit
+				   ,INFO.ATAND_AMOUNT AS atandAmount
+				   ,INFO.AMOUNT AS amount
+				   ,INFO.INEX_DESC AS inexDesc
+				   ,INFO.INEX_DATE AS inexDate
+				   ,INFO.INCOME_INSERT_DATE AS incomeInsertDate
+				   ,CD.CODE_NAME AS classItemName
+				   ,dbo.FN_LIONS_CODE_NAME(CD.CODE1, INFO.DETAIL_ITEM_CODE) AS detailItemName
+				   ,CD.CODE1 AS detailGroupCode
+			  FROM LIONS_INCOME_EXPEND INFO
+			  LEFT OUTER JOIN LIONS_CODE CD
+			    ON INFO.CLASS_ITEM_CODE = CD.CODE
+			   AND CD.GROUP_CODE = '6000'
+			 WHERE INEX_CODE = '1010'
+			<isNotEmpty prepend="AND" property="organCode">
+				INFO.ORGAN_CODE = #organCode#
+			</isNotEmpty>
+			<isEmpty property="organCode">
+				<isNotEmpty prepend="AND" property="memberNo">
+					INFO.ORGAN_CODE = 
+					(
+					 	SELECT TOP 1  ORGAN_CODE
+							  FROM LIONS_APPOINTMENT
+							 WHERE MEMBER_NO = #memberNo# 
+							     AND LAST_YN = 'Y'
+							 ORDER BY [START_DATE] DESC, END_DATE
+					)
+				</isNotEmpty>
+			</isEmpty>
+			<isNotEmpty prepend="AND" property="sessionYear">
+				INFO.CA_YM BETWEEN STR(#sessionYear# - 1,4,0) + '0701' AND STR(#sessionYear#,4,0) + '0630'
+			</isNotEmpty>
+			<isNotEmpty prepend="AND" property="month">
+				(SUBSTRING(INFO.CA_YM,5,2) = #month#)
+			</isNotEmpty>
+		) SUM1
+	</sql>
+	
+	<select id="lionsclubs.com.MM2.MM2_2.MM2_15.paymentSum" resultClass="MM2_15VO">
+		<include refid="lionsclubs.com.MM2.MM2_2.MM2_15.declare"/>
+		SELECT SUM(amount) AS amount
+		  FROM ( 
+			<include refid="lionsclubs.com.MM2.MM2_2.MM2_15.selectQuery"/>	
+		) SUM1
+	</select>
+	
+	<select id="lionsclubs.com.MM2.MM2_2.MM2_15.selectClosedMonthFlag" resultClass="java.lang.String" parameterClass="MM2_15VO_CLOSE_PARAM">
+	<![CDATA[
+		DECLARE @organCode NVARCHAR(10)
+		DECLARE @strDate NVARCHAR(10)
+		SET @organCode = #organCode#;
+		SET @strDate = #strDate#;
+		
+		SELECT ISNULL(CONFIRM_YN,'') AS confirmYn
+		  FROM dbo.LIONS_CALCULATE
+		 WHERE ORGAN_CODE = @organCode 
+		   AND CA_YM = SUBSTRING(@strDate,1,6)
+	]]>
+	</select>
+</sqlMap>

@@ -1,0 +1,259 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://www.ibatis.com/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="lionsclubs.com.MM2.MM2_3.MM2_19">
+
+	<typeAlias alias="MM2_19VO" type="lionsclubs.com.MM2.MM2_3.MM2_19.MM2_19VO"/>
+	
+	<sql id="lionsclubs.com.MM2.MM2_3.MM2_19.selectQuery">
+		<![CDATA[
+		SELECT  MIN(R.caYm) AS caYm
+			   ,R.organCode
+			   ,R.classItemCode
+			   ,R.detailItemCode
+			   ,MIN(R.classItemName) AS classItemName
+			   ,MIN(R.detailItemName) AS detailItemName
+			   ,MIN(R.detailGroupCode) AS detailGroupCode
+			   ,MIN(R.idnNo) AS idnNo
+			   ,MIN(R.unit) AS unit
+			   ,SUM(R.atandAmount) AS atandAmount
+			   ,SUM(R.amount) AS amount
+			   ,MIN(R.moneyIdnNo) AS moneyIdnNo
+   			   ,STUFF((
+					 SELECT CHAR(13) + CHAR(10) +
+							CASE WHEN MIN(IE.CLASS_ITEM_CODE) IN ('1030', '1040')
+					 			 THEN MIN(IE.INEX_DESC) + ' - ' + REPLACE(CONVERT(NVARCHAR, CONVERT(MONEY, SUM(IE.AMOUNT)), 1), '.00', '')
+					 			 ELSE MIN(IE.INEX_DESC)
+					 			  END 
+					   FROM LIONS_INCOME_EXPEND IE
+					  WHERE IE.ORGAN_CODE = R.organCode
+						AND IE.CLASS_ITEM_CODE = R.classItemCode
+					    AND IE.DETAIL_ITEM_CODE = R.detailItemCode
+					    AND IE.INEX_CODE = MIN(R.INEX_CODE)
+					    AND IE.INEX_DATE >= CAST(@thisYear - 1 AS NVARCHAR(4)) + '07' 
+				   		AND IE.INEX_DATE <= CAST(@thisYear AS NVARCHAR(4)) + '06'
+					  GROUP BY IE.MONEY_IDN_NO
+					    FOR XML PATH('')
+				), 1, 6, '') AS inexDesc
+			   ,MIN(R.order1) AS order1
+			   ,MIN(R.order2) AS order2
+		  FROM (		
+				SELECT  CA_YM AS caYm
+					   ,ORGAN_CODE AS organCode
+					   ,'9000' AS classItemCode
+					   ,'1000' AS detailItemCode
+					   ,'전회기이월금' AS classItemName
+					   ,'전회기이월금' AS detailItemName
+					   ,NULL AS INEX_CODE
+					   ,NULL AS detailGroupCode
+					   ,NULL AS idnNo
+					   ,'1' AS unit
+					   ,ISNULL(MONTH_REMAIN,0) AS atandAmount
+					   ,ISNULL(MONTH_REMAIN,0) AS amount
+					   ,NULL AS moneyIdnNo
+					   ,'전회기이월금' AS inexDesc
+					   ,0 AS order1
+					   ,0 AS order2
+				  FROM LIONS_CALCULATE
+				 WHERE ORGAN_CODE = @organCode
+				   AND CA_YM = CAST(@thisYear - 1 AS NVARCHAR(4)) + '06'
+				   
+				UNION ALL
+					
+				SELECT  INFO.CA_YM AS caYm
+					   ,INFO.ORGAN_CODE AS organCode
+					   ,INFO.CLASS_ITEM_CODE AS classItemCode		
+					   ,INFO.DETAIL_ITEM_CODE AS detailItemCode	
+					   ,CD.CODE_NAME AS classItemName
+					   ,CD2.CODE_NAME AS detailItemName
+					   ,INFO.INEX_CODE
+					   ,CD.CODE1 AS detailGroupCode
+					   ,INFO.IDN_NO AS idnNo
+					   ,INFO.UNIT AS unit
+					   ,INFO.ATAND_AMOUNT AS atandAmount
+					   ,ISNULL(INFO.AMOUNT,0) AS amount
+					   ,INFO.MONEY_IDN_NO AS moneyIdnNo
+					   ,INFO.INEX_DESC AS inexDesc
+					   ,CAST(CD.CODE2 AS INT)
+					   ,CD2.ORD
+				  FROM LIONS_INCOME_EXPEND INFO
+				 INNER JOIN LIONS_CODE CD  
+				    ON CD.GROUP_CODE = '4100'
+				   AND INFO.CLASS_ITEM_CODE = CD.CODE 
+				 INNER JOIN LIONS_CODE CD2 
+				    ON CD2.GROUP_CODE = CD.CODE1 
+				   AND CD2.CODE = INFO.DETAIL_ITEM_CODE
+				 WHERE INFO.INEX_CODE = '1020'	/* 수입예산 */
+				   AND INFO.ORGAN_CODE = @organCode
+				   AND INFO.INEX_DATE >= CAST(@thisYear - 1 AS NVARCHAR(4)) + '0701' 
+				   AND INFO.INEX_DATE <= CAST(@thisYear AS NVARCHAR(4)) + '0630'
+			) R
+		 GROUP BY  R.organCode
+				  ,R.classItemCode
+				  ,R.detailItemCode
+		]]>
+	</sql>
+	
+	<select id="lionsclubs.com.MM2.MM2_3.MM2_19.MM2_19" resultClass="MM2_19VO">
+		SELECT  INFO.IDN_NO AS idnNo
+			   ,INFO.CLASS_ITEM_CODE AS classItemCode
+			   ,INFO.DETAIL_ITEM_CODE AS detailItemCode
+			   ,INFO.UNIT AS unit
+			   ,INFO.ATAND_AMOUNT AS atandAmount
+			   ,INFO.AMOUNT AS amount
+			   ,INFO.INEX_DESC AS inexDesc
+			   ,INFO.INEX_DATE AS inexDate
+			   ,INFO.INCOME_INSERT_DATE AS incomeInsertDate
+			   ,CD.CODE_NAME AS classItemName
+			   ,dbo.FN_LIONS_CODE_NAME(CD.CODE1, INFO.DETAIL_ITEM_CODE) AS detailItemName
+			   ,CD.CODE1 AS detailGroupCode
+		  FROM LIONS_INCOME_EXPEND INFO
+		  LEFT OUTER JOIN LIONS_CODE CD
+		    ON INFO.CLASS_ITEM_CODE = CD.CODE
+		   AND CD.GROUP_CODE = '4100'
+		 WHERE INFO.INEX_CODE = '1020'
+		<isNotEmpty prepend="AND" property="idnNo">
+			INFO.IDN_NO = #idnNo#
+		</isNotEmpty>
+		<isNotEmpty prepend="AND" property="organCode">
+			INFO.ORGAN_CODE = #organCode#
+		</isNotEmpty>
+ 	</select>
+ 	
+	<select id="lionsclubs.com.MM2.MM2_3.MM2_19.List" resultClass="MM2_19VO">
+		<![CDATA[
+		DECLARE @organCode NVARCHAR(10)
+		DECLARE @thisYear INT
+		DECLARE @thisMonth NVARCHAR(10)
+		DECLARE @thisYearMonth NVARCHAR(10)
+		DECLARE @startDate NVARCHAR(10)
+		DECLARE @endDate NVARCHAR(10)
+		
+		SET @organCode = #organCode#;
+		SET @thisYear = #thisYear#;		
+		]]>
+		<include refid="lionsclubs.com.MM2.MM2_3.MM2_19.selectQuery"/>
+		<dynamic prepend="ORDER BY">
+			<isEqual property="s1" compareValue="1">
+				 order1
+			    ,order2		
+			</isEqual>
+			<isEqual property="s1" compareValue="2">
+				 INFO.AMOUNT DESC
+				,order1
+		    	,order2		
+			</isEqual>
+		</dynamic>
+	</select>
+	
+	<select id="lionsclubs.com.MM2.MM2_3.MM2_19.duplicateCheck" resultClass="MM2_19VO">
+		DECLARE @organCode NVARCHAR(10)
+		DECLARE @thisYear INT
+		DECLARE @thisMonth NVARCHAR(10)
+		DECLARE @thisYearMonth NVARCHAR(10)
+		DECLARE @startDate NVARCHAR(10)
+		DECLARE @endDate NVARCHAR(10)
+		
+		SET @organCode = #organCode#;
+		SET @thisYear = #thisYear#;		
+		SET @startDate = CAST(@thisYear - 1 AS NVARCHAR(4)) + '0701';	
+		SET @endDate = CAST(@thisYear AS NVARCHAR(4)) + '0630';
+
+		SELECT CASE WHEN MAX(TT.idnNo) = 0 
+					THEN 'N' 
+					ELSE 'Y' 
+					END AS isExist
+		  FROM (
+				SELECT 0 AS idnNo
+				
+				UNION ALL
+				
+				SELECT INFO.IDN_NO AS idnNo
+				  FROM LIONS_INCOME_EXPEND INFO
+			     WHERE INFO.INEX_CODE = '1020'	/*수입예산*/
+				   AND INFO.ORGAN_CODE = @organCode
+				   AND INFO.INEX_DATE BETWEEN @startDate AND @endDate
+				<isNotEmpty prepend="AND" property="classItemCode">
+					INFO.CLASS_ITEM_CODE = #classItemCode#	/* 분류항목코드 */
+				</isNotEmpty>
+				<isNotEmpty prepend="AND" property="detailItemCode">
+					INFO.DETAIL_ITEM_CODE = #detailItemCode#	/* 세부항목코드 */
+				</isNotEmpty>
+			) TT
+ 	</select>
+ 	
+	
+	<insert id="lionsclubs.com.MM2.MM2_3.MM2_19.otherIncomeInsert">
+		INSERT INTO LIONS_INCOME_EXPEND(
+			 CA_YM
+			,ORGAN_CODE
+			,INEX_CODE
+			,INEX_DATE
+			,CLASS_ITEM_CODE
+			,DETAIL_ITEM_CODE
+			,AMOUNT
+			,ATAND_AMOUNT
+			,UNIT
+			,INEX_DESC
+			,INCOME_INSERT_DATE
+			,INSERT_DATE
+			,INSERT_NAME
+			,UPDATE_DATE
+			,UPDATE_NAME
+		) VALUES (
+			 CAST(#thisYear# - 1 AS NVARCHAR(4)) + '07'	/* 회기년월=회기시작월(지난 년도의 07월) */
+			,#organCode#	/* 조직코드 */
+			,'1020'	/* 수입1000/지출1010 수입예산1020/지출예산1030 구분 */
+			,CAST(#thisYear# - 1 AS NVARCHAR(4)) + '0701'	/* 수입예산일=회기시작일자 */
+			,#classItemCode#	/* 분류항목코드 */
+			,#detailItemCode#	/* 세부항목코드 */
+			,#amount#	/* 금액 */
+			,#atandAmount#	/* 기준금액 */
+			,#unit#	/* 단위 */
+			,#inexDesc#	/* 수입/지출내용 */
+			,#incomeInsertDate#	/* 입력일자 */
+			,GETDATE()	/* 생성일자 */
+			,#insertName#	/* 생성자 */
+			,GETDATE()	/* 수정일자 */
+			,#updateName#	/* 수정자 */
+		)
+	</insert>
+	
+	<update id="lionsclubs.com.MM2.MM2_3.MM2_19.otherIncomeUpdate">
+		UPDATE LIONS_INCOME_EXPEND 
+		   SET  CLASS_ITEM_CODE = #classItemCode#	/* 분류항목코드 */
+			   ,DETAIL_ITEM_CODE = #detailItemCode#	/* 세부항목코드 */
+			   ,AMOUNT = #amount#	/* 금액 */
+			   ,UNIT = #unit#	/* 단위 */
+			   ,ATAND_AMOUNT = #atandAmount#	/* 기준금액 */
+			   ,INEX_DESC = #inexDesc#	/* 수입내용 */
+			   ,INCOME_INSERT_DATE = #incomeInsertDate#	/* 입력일자 */
+			   ,UPDATE_DATE = GETDATE()	/* 수정일자 */
+			   ,UPDATE_NAME = #updateName#	/* 수정자 */
+		 WHERE IDN_NO = #idnNo#
+	</update>
+	
+	<update id="lionsclubs.com.MM2.MM2_3.MM2_19.otherIncomeDelete">
+		DELETE FROM LIONS_INCOME_EXPEND 
+		 WHERE IDN_NO = #idnNo#
+	</update>
+
+	<select id="lionsclubs.com.MM2.MM2_3.MM2_19.paymentSum" resultClass="MM2_19VO">
+		DECLARE @organCode NVARCHAR(10)
+		DECLARE @thisYear INT
+		DECLARE @thisMonth NVARCHAR(10)
+		DECLARE @thisYearMonth NVARCHAR(10)
+		DECLARE @startDate NVARCHAR(10)
+		DECLARE @endDate NVARCHAR(10)
+		
+		SET @organCode = #organCode#;
+		SET @thisYear = #thisYear#;		
+		SET @startDate = CAST(@thisYear - 1 AS NVARCHAR(4)) + '0701';	
+		SET @endDate = CAST(@thisYear AS NVARCHAR(4)) + '0630';
+		
+		SELECT SUM(amount) AS amount
+		FROM (
+			<include refid="lionsclubs.com.MM2.MM2_3.MM2_19.selectQuery"/>
+		) A
+	</select>
+</sqlMap>

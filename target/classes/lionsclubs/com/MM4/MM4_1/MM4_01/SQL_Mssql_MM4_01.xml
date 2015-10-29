@@ -1,0 +1,272 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://www.ibatis.com/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="lionsclubs.com.MM4.MM4_1.MM4_01">
+
+	<typeAlias alias="MM4_01VO" type="lionsclubs.com.MM4.MM4_1.MM4_01.MM4_01VO"/>
+	
+	<select id="lionsclubs.com.MM4.MM4_1.MM4_01.basicInfo" resultClass="MM4_01VO">
+		DECLARE @sessionYear NVARCHAR(4)	/* 현회기 */
+		DECLARE @organCode NVARCHAR(6)	/* 조직코드 */
+		DECLARE @associationCode NVARCHAR(6)	/* 소속연합회코드 */
+		DECLARE @organOfficerMemberNo NVARCHAR(8)	/* 복합의장 회원번호 */
+		DECLARE @total INT	/* 전체 조직수 */
+		DECLARE @organInAbolishCount INT	/* 취임시 폐지 조직수 */
+		DECLARE @newOrganCount INT	/* 신규 조직수 */
+		DECLARE @organOutAbolishCount INT	/* 퇴임시 폐지 조직수 */
+		
+		SET @sessionYear = #sessionYear#;
+		SET @organCode = REPLACE(#organCode#, '-', '');
+		SET @associationCode = REPLACE(#associationCode#, '-', '');
+		SET @organOfficerMemberNo = #organOfficerMemberNo#;
+		
+		<![CDATA[
+		SET @total = 
+			(
+				SELECT COUNT(*)
+				  FROM dbo.FN_LIONS_SUB_TREE_YEAR_ORGAN(@sessionYear, @organCode)
+				 WHERE SPOT_NIGHT < CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701'
+				   AND SPOT_NIGHT != ''
+				   AND LVL = (
+								SELECT TOP 1 LVL 
+								  FROM FN_LIONS_SUB_TREE_YEAR_ORGAN(@sessionYear, @organCode) 
+								 ORDER BY LVL DESC
+							)
+			);
+		   
+		SET @organInAbolishCount = 
+			(
+				SELECT COUNT(*)
+				  FROM dbo.FN_LIONS_SUB_TREE_YEAR_ORGAN(@sessionYear, @organCode)
+				 WHERE ORGAN_ABOLISH_DATE < CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701'
+				   AND ORGAN_ABOLISH_DATE != ''
+				   AND LVL = (
+								SELECT TOP 1 LVL 
+								  FROM FN_LIONS_SUB_TREE_YEAR_ORGAN(@sessionYear, @organCode) 
+								 ORDER BY LVL DESC
+							)
+			);
+		
+		SET @newOrganCount = 
+			(
+				SELECT COUNT(*)
+				  FROM dbo.FN_LIONS_SUB_TREE_YEAR_ORGAN(@sessionYear, @organCode)
+				 WHERE SPOT_NIGHT >= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701'
+				   AND SPOT_NIGHT <= CAST(@sessionYear AS NVARCHAR(4)) + '0630'
+				   AND SPOT_NIGHT != ''
+				   AND LVL = (
+								SELECT TOP 1 LVL 
+								  FROM FN_LIONS_SUB_TREE_YEAR_ORGAN(@sessionYear, @organCode) 
+								 ORDER BY LVL DESC
+							)
+			);
+		   
+		SET @organOutAbolishCount = 
+			(
+				SELECT COUNT(*)
+				  FROM dbo.FN_LIONS_SUB_TREE_YEAR_ORGAN(@sessionYear, @organCode)
+				 WHERE ORGAN_ABOLISH_DATE >= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701'
+				   AND ORGAN_ABOLISH_DATE <= CAST(@sessionYear AS NVARCHAR(4)) + '0630'
+				   AND ORGAN_ABOLISH_DATE != ''
+				   AND LVL = (
+								SELECT TOP 1 LVL 
+								  FROM FN_LIONS_SUB_TREE_YEAR_ORGAN(@sessionYear, @organCode) 
+								 ORDER BY LVL DESC
+							)
+			);
+		]]>
+		
+		/* 클럽기본정보 */
+		WITH BASIC_INFO AS (
+			SELECT  TOP 1 IDN_NO AS idnNo
+				   ,ORGAN_CODE AS organCode	/* 조직코드 */
+				   ,ORGAN_OFFICER_SLOGAN AS slogan /* 총재슬로건 */
+				   ,ORGAN_OFFICER_SLOGAN_EN AS sloganEn /* 총재슬로건(영문) */
+				   ,REPRESENT_AWARD1 AS repAward1 /* 대표수상1 */
+				   ,REPRESENT_AWARD2 AS repAward2 /* 대표수상2 */
+				   ,MAIN_ACTION1 AS mainAction1 /* 주요활동1 */
+				   ,MAIN_ACTION2 AS mainAction2 /* 주요활동2 */
+				   ,MAIN_ACTION3 AS mainAction3 /* 주요활동3 */
+				   ,MAIN_ACTION4 AS mainAction4 /*주요활동4  */
+				   ,MAIN_ACTION5 AS mainAction5 /* 주요활동5 */
+				   ,UPDATE_DATE AS updateDate	/* 최종수정날짜 */
+			  FROM LIONS_ORGAN_CODE_HISTORY
+			<dynamic prepend="WHERE">
+				<isNotEmpty prepend="AND" property="idnNo">
+					IDN_NO = #idnNo#
+				</isNotEmpty>
+				<isEmpty prepend="AND" property="idnNo">
+					ORGAN_CODE = @organCode
+					<![CDATA[
+				       AND CHANGE_DATE >= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701'
+			 		   AND CHANGE_DATE <= CAST(@sessionYear AS NVARCHAR(4)) + '0630'
+					]]>
+				</isEmpty>
+			</dynamic>			  
+			 ORDER BY  CHANGE_DATE DESC
+			 		  ,IDN_NO DESC
+		/* 회기시작시 퇴회정보 */
+		), RETIRE_IN AS(
+			SELECT  MEMBER_NO
+				   ,END_DATE
+			  FROM LIONS_APPOINTMENT APP
+			 INNER JOIN(
+				SELECT IDN.IDN_NO 
+				  FROM(
+					SELECT  ROW_NUMBER() OVER (PARTITION BY MEMBER_NO ORDER BY END_DATE DESC, CASE WHEN APP_KIND_CODE = '1050' THEN 1 ELSE 2 END, IDN_NO DESC) AS rnum
+						   ,IDN_NO
+						   ,APP_KIND_CODE
+					  FROM LIONS_APPOINTMENT
+					 <![CDATA[
+					 WHERE (
+							   (START_DATE >= CAST(@sessionYear - 2 AS NVARCHAR(4)) + '0701' AND START_DATE <= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0630')
+							OR (END_DATE >= CAST(@sessionYear - 2 AS NVARCHAR(4)) + '0701' AND END_DATE <= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0630')
+							OR (START_DATE <= CAST(@sessionYear - 2 AS NVARCHAR(4)) + '0701' AND END_DATE >= CAST(@sessionYear - 2 AS NVARCHAR(4)) + '0701') /* '20120701' >= START_DATE AND '20120701' <= END_DATE */
+							OR (START_DATE <= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0630' AND END_DATE >= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0630')
+						)
+					 ]]>
+				) IDN
+				 WHERE IDN.rnum = 1
+				   AND IDN.APP_KIND_CODE = '1050'	/* 선임구분(2700) : 선임-퇴회 */
+			  ) X
+				 ON APP.IDN_NO = X.IDN_NO		
+		/* 회기종료시 퇴회정보 */
+		), RETIRE_OUT AS(
+			SELECT  MEMBER_NO
+				   ,END_DATE
+			  FROM LIONS_APPOINTMENT APP
+			 INNER JOIN(
+				SELECT IDN.IDN_NO 
+				  FROM(
+					SELECT  ROW_NUMBER() OVER (PARTITION BY MEMBER_NO ORDER BY END_DATE DESC, CASE WHEN APP_KIND_CODE = '1050' THEN 1 ELSE 2 END, IDN_NO DESC) AS rnum
+						   ,IDN_NO
+						   ,APP_KIND_CODE
+					  FROM LIONS_APPOINTMENT
+					 <![CDATA[
+					 WHERE (
+							   (START_DATE >= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701' AND START_DATE <= CAST(@sessionYear AS NVARCHAR(4)) + '0630')
+							OR (END_DATE >= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701' AND END_DATE <= CAST(@sessionYear AS NVARCHAR(4)) + '0630')
+							OR (START_DATE <= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701' AND END_DATE >= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701') /* '20120701' >= START_DATE AND '20120701' <= END_DATE */
+							OR (START_DATE <= CAST(@sessionYear AS NVARCHAR(4)) + '0630' AND END_DATE >= CAST(@sessionYear AS NVARCHAR(4)) + '0630')
+						)
+					 ]]>
+				) IDN
+				 WHERE IDN.rnum = 1
+				   AND IDN.APP_KIND_CODE = '1050'	/* 선임구분(2700) : 선임-퇴회 */
+			  ) X
+				 ON APP.IDN_NO = X.IDN_NO
+		/* 복합/연합 회기시작시인원 */
+		), DISTRICT_MEM_IN AS (
+			<![CDATA[
+			SELECT COUNT(DISTINCT MCH.MEMBER_NO) AS complexInCnt
+			  FROM dbo.LIONS_MEMBER_CLUB_HIST MCH
+			 INNER JOIN(
+				SELECT ORGAN_CODE
+				  FROM dbo.FN_LIONS_SUB_TREE_YEAR_ORGAN(@sessionYear, @organCode)
+				 WHERE SPOT_NIGHT < CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701'
+				   AND SPOT_NIGHT != ''
+				   AND ORGAN_CODE NOT IN(
+					    SELECT ORGAN_CODE
+						  FROM dbo.FN_LIONS_SUB_TREE_YEAR_ORGAN(@sessionYear, @organCode)
+						 WHERE ORGAN_ABOLISH_DATE < CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701'
+						   AND ORGAN_ABOLISH_DATE != ''
+				   )
+			 ) STYO
+			    ON MCH.ORGAN_CODE = STYO.ORGAN_CODE
+			  LEFT OUTER JOIN RETIRE_IN RI
+				ON MCH.MEMBER_NO = RI.MEMBER_NO
+			 WHERE (
+				   (MCH.START_DATE >= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0630' AND MCH.START_DATE <= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0630')
+				OR (MCH.END_DATE >= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0630' AND MCH.END_DATE <= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0630')
+				OR (MCH.START_DATE <= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0630' AND MCH.END_DATE >= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0630') /* '20120701' >= START_DATE AND '20120701' <= END_DATE */
+				OR (MCH.START_DATE <= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0630' AND MCH.END_DATE >= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0630')
+			 )
+		   	   AND RI.END_DATE IS NULL
+		/* 복합/연합 회기종료시인원 */
+		), DISTRICT_MEM_OUT AS (
+			SELECT COUNT(DISTINCT MCH.MEMBER_NO) AS complexOutCnt
+			  FROM dbo.LIONS_MEMBER_CLUB_HIST MCH
+			 INNER JOIN(
+				SELECT ORGAN_CODE
+				  FROM dbo.FN_LIONS_SUB_TREE_YEAR_ORGAN(@sessionYear, @organCode)
+				 WHERE SPOT_NIGHT <= CAST(@sessionYear AS NVARCHAR(4)) + '0630'
+				   AND SPOT_NIGHT != ''
+				   AND ORGAN_CODE NOT IN(
+					    SELECT ORGAN_CODE
+						  FROM dbo.FN_LIONS_SUB_TREE_YEAR_ORGAN(@sessionYear, @organCode)
+						 WHERE ORGAN_ABOLISH_DATE <= CAST(@sessionYear AS NVARCHAR(4)) + '0630'
+						   AND ORGAN_ABOLISH_DATE != ''
+				   )
+			 ) STYO
+			    ON MCH.ORGAN_CODE = STYO.ORGAN_CODE
+			  LEFT OUTER JOIN RETIRE_OUT RO
+				ON MCH.MEMBER_NO = RO.MEMBER_NO
+			 WHERE (
+				   (MCH.START_DATE >= CAST(@sessionYear AS NVARCHAR(4)) + '0630' AND MCH.START_DATE <= CAST(@sessionYear AS NVARCHAR(4)) + '0630')
+				OR (MCH.END_DATE >= CAST(@sessionYear AS NVARCHAR(4)) + '0630' AND MCH.END_DATE <= CAST(@sessionYear AS NVARCHAR(4)) + '0630')
+				OR (MCH.START_DATE <= CAST(@sessionYear AS NVARCHAR(4)) + '0630' AND MCH.END_DATE >= CAST(@sessionYear AS NVARCHAR(4)) + '0630') /* '20120701' >= START_DATE AND '20120701' <= END_DATE */
+				OR (MCH.START_DATE <= CAST(@sessionYear AS NVARCHAR(4)) + '0630' AND MCH.END_DATE >= CAST(@sessionYear AS NVARCHAR(4)) + '0630')
+			 )
+		   	   AND RO.END_DATE IS NULL
+		/* 국제회장슬로건 */
+		), ASSOCIATION_SLOGAN AS (
+			SELECT  TOP 1 ORGAN_OFFICER_SLOGAN /* 국제회장슬로건 */
+				   ,ORGAN_OFFICER_SLOGAN_EN  /* 국제회장슬로건(영문) */
+			  FROM LIONS_ORGAN_CODE_HISTORY
+			 WHERE ORGAN_CODE = @associationCode
+		       AND CHANGE_DATE >= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701'
+	 		   AND CHANGE_DATE <= CAST(@sessionYear AS NVARCHAR(4)) + '0630'
+			 ORDER BY IDN_NO DESC
+			]]>
+		)
+		
+		SELECT  INFO.idnNo
+			   ,dbo.FN_LIONS_DETAILCODE_NAME('3010', AWARD1.KIND_CODE, AWARD1.AWARD_KIND_CODE) AS firstAward  /* 첫번째 대표수상 */
+			   ,dbo.FN_LIONS_DETAILCODE_NAME('3010', AWARD2.KIND_CODE, AWARD2.AWARD_KIND_CODE) AS secodeAward  /* 두번째 대표수상 */
+			   ,(SELECT complexInCnt FROM DISTRICT_MEM_IN) AS complexInCnt	/* 지구 회기시작시 인원 */
+			   ,(SELECT complexOutCnt FROM DISTRICT_MEM_OUT) AS complexOutCnt	/* 지구 회기종료시 인원 */
+			   ,@total - @organInAbolishCount AS clubInCnt	/* 클럽 회기시작시 클럽수 */
+			   ,(@total - @organInAbolishCount) + (@newOrganCount - @organOutAbolishCount) AS clubOutCnt	/* 클럽 회기종료시 클럽수 */
+			   ,(SELECT ORGAN_OFFICER_SLOGAN FROM ASSOCIATION_SLOGAN) AS associationSlogan	/* 국제회장슬로건 */
+			   ,(SELECT ORGAN_OFFICER_SLOGAN_EN FROM ASSOCIATION_SLOGAN) AS associationSloganEn	/* 국제회장슬로건(영문) */
+			   ,INFO.slogan /* 복합지구슬로건 */
+			   ,INFO.sloganEn /* 복합지구슬로건(영문) */
+			   ,INFO.mainAction1 /* 주요활동1 */
+			   ,INFO.mainAction2 /* 주요활동2 */
+			   ,INFO.mainAction3 /* 주요활동3 */
+			   ,INFO.mainAction4 /*주요활동4  */
+			   ,INFO.mainAction5 /* 주요활동5 */
+			   ,INFO.updateDate /* 최신업데이트 */
+		  FROM BASIC_INFO INFO
+		  LEFT OUTER JOIN LIONS_AWARD AWARD1
+		    ON INFO.repAward1 = AWARD1.IDN_NO
+		  LEFT OUTER JOIN LIONS_AWARD AWARD2
+		    ON INFO.repAward2 = AWARD2.IDN_NO	
+	</select>
+	
+	<select id="lionsclubs.com.MM4.MM4_1.MM4_01.complexList" resultClass="MM4_01VO">
+		DECLARE @sessionYear NVARCHAR(4)	/* 현회기 */
+		DECLARE @organCode NVARCHAR(6)	/* 조직코드 */
+		
+		SET @sessionYear = #sessionYear#;
+		SET @organCode = REPLACE(#organCode#, '-', '');
+		
+		SELECT  S_POS2 AS sPos2		/* 지구직책	*/
+			   ,S_ORGAN_CODE AS sOrganCode	/* 출신지구	*/
+			   ,MEMBER_NAME	AS memberName	/* 성명 */
+		  FROM dbo.LIONS_DUMMY_MEMBER_INFO
+		 WHERE AGE_CODE = CAST(@sessionYear - 1 AS NVARCHAR(4)) + '-' + CAST(@sessionYear AS NVARCHAR(4))
+		   AND ORGAN_CODE = @organCode
+		   AND APP_KIND_CODE = '9010'
+	</select>
+	
+	<select id="lionsclubs.com.MM4.MM4_1.MM4_01.officerChangeHistoryList" resultClass="MM4_01VO">
+		SELECT  IDN_NO AS idnNo
+			   ,CHANGE_DATE AS changeDate
+		  FROM LIONS_ORGAN_CODE_HISTORY
+		 WHERE CHANGE_DATE BETWEEN CAST(#sessionYear# - 1 AS NVARCHAR(4)) + '0701' AND CAST(#sessionYear# AS NVARCHAR(4)) + '0630'
+		   AND CHANGE_CODE IN ('1010','1020')  /* 임원변동이력내역 */
+		   AND ORGAN_CODE = REPLACE(#organCode#, '-', '')
+		 ORDER BY CHANGE_DATE DESC
+	</select>	
+</sqlMap>

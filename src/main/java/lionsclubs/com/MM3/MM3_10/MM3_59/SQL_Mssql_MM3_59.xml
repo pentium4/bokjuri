@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://www.ibatis.com/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="lionsclubs.com.MM3.MM3_10.MM3_59">
+	<typeAlias alias="MM3_59VO" type="lionsclubs.com.MM3.MM3_10.MM3_59.MM3_59VO"/>
+	
+	<sql id="lionsclubs.com.MM3.MM3_10.MM3_59.declare">
+		<![CDATA[
+		DECLARE @organCode NVARCHAR(6);
+		DECLARE @sessionYear NVARCHAR(4);
+		DECLARE @year NVARCHAR(4);
+		DECLARE @month NVARCHAR(2);
+		DECLARE @startDate NVARCHAR(8);
+		DECLARE @endDate NVARCHAR(8);
+		
+		SET @organCode = #organCode#;
+		SET @sessionYear = #sessionYear#;
+		SET @month = #month#;
+		SET @year = CASE WHEN @month < '07'
+						 THEN CAST(@sessionYear AS NVARCHAR(4))
+						 ELSE CAST(@sessionYear - 1 AS NVARCHAR(4))
+						  END;
+		SET @startDate = CASE WHEN LEN(@month) > 0
+							  THEN CONVERT(NVARCHAR(8), DATEADD(S, 1, DATEADD(MM, DATEDIFF(M, 0, @year + @month + '01'), 0)), 112)
+							  ELSE CONVERT(NVARCHAR(8), DATEADD(S, 1, DATEADD(MM, DATEDIFF(M, 0, CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701'), 0)), 112)
+							   END;
+		SET @endDate = CASE WHEN LEN(@month) > 0
+							THEN CONVERT(NVARCHAR(8), DATEADD(S, - 1, DATEADD(MM, DATEDIFF(M, 0, @year + @month + '01') + 1, 0)), 112)
+							ELSE CONVERT(NVARCHAR(8), DATEADD(S, - 1, DATEADD(MM, DATEDIFF(M, 0, CAST(@sessionYear AS NVARCHAR(4)) + '0630') + 1, 0)), 112)
+							 END;
+		]]>
+	</sql>
+	<sql id="lionsclubs.com.MM3.MM3_10.MM3_59.with">
+		<![CDATA[
+		WITH ORGAN_CODE_HISTORY AS(
+			SELECT  HISTORY.ORGAN_CODE
+				   ,HISTORY.UPPER_ORGAN_CODE	/* 상위조직 코드 */
+			  FROM LIONS_ORGAN_CODE_HISTORY HISTORY
+			 INNER JOIN(
+				SELECT  IDN_NO
+					   ,SPOT_NIGHT
+					   ,ORGAN_ABOLISH_DATE
+				  FROM(
+					SELECT  ROW_NUMBER() OVER (PARTITION BY OCH.ORGAN_CODE ORDER BY OCH.CHANGE_DATE DESC, OCH.IDN_NO DESC) AS rnum
+						   ,OCH.IDN_NO
+						   ,OC.SPOT_NIGHT
+						   ,OC.ORGAN_ABOLISH_DATE
+					  FROM (
+						SELECT  ORGAN_CODE
+							   ,SPOT_NIGHT
+							   ,CASE WHEN LEN(ORGAN_ABOLISH_DATE) > 0 
+									  THEN ORGAN_ABOLISH_DATE 
+									  ELSE '99991231' 
+									   END AS ORGAN_ABOLISH_DATE
+						  FROM LIONS_ORGAN_CODE
+					  ) OC
+					 INNER JOIN LIONS_ORGAN_CODE_HISTORY OCH
+					    ON OC.ORGAN_CODE = OCH.ORGAN_CODE
+					 WHERE (
+							   (OC.SPOT_NIGHT >= @startDate AND OC.SPOT_NIGHT <= @endDate)
+							OR (OC.ORGAN_ABOLISH_DATE >= @startDate AND OC.ORGAN_ABOLISH_DATE <= @endDate)
+							OR (OC.SPOT_NIGHT <= @startDate AND OC.ORGAN_ABOLISH_DATE >= @startDate)
+							OR (OC.SPOT_NIGHT <= @endDate AND OC.ORGAN_ABOLISH_DATE >= @endDate)
+					 )
+				) IDN
+				 WHERE rnum = 1
+			 ) X
+				ON HISTORY.IDN_NO = X.IDN_NO
+		)
+		]]>
+	</sql>
+
+	<sql id="lionsclubs.com.MM3.MM3_10.MM3_59.listLcifDues">
+		<![CDATA[
+		SELECT  ROW_NUMBER() OVER (ORDER BY  MM.ORGAN_CODE
+											,MM.MEMBER_NO) AS rnum
+			   ,(SELECT ENG_NAME FROM LIONS_MEMBER_INFO WHERE MEMBER_NO = MM.MEMBER_NO) AS memberEngName
+			   ,REPLACE(LTRIM(REPLACE(MM.MEMBER_NO, '0', ' ')), ' ', '0') AS memberNo
+			   ,REPLACE(LTRIM(REPLACE(MIN(OC.REGISTER_NO), '0', ' ')), ' ', '0') AS registerNo
+			   ,SUM(MP.PAYMENT) AS payment
+			   ,SUM(MP.DOLLAR) AS paymentDollar
+		  FROM LIONS_MONEY_MASTER MM
+		 INNER JOIN LIONS_MONEY_PAYMENT MP
+		    ON MM.IDN_NO = MP.IDN_NO
+		 INNER JOIN ORGAN_CODE_HISTORY OCH
+		    ON MM.ORGAN_CODE = OCH.ORGAN_CODE
+		  LEFT OUTER JOIN LIONS_ORGAN_CODE OC
+		    ON MM.ORGAN_CODE = OC.ORGAN_CODE
+		 WHERE OCH.UPPER_ORGAN_CODE = @organCode
+		   AND MM.CLASS_ITEM_CODE = '1030'
+		   AND MM.DETAIL_ITEM_CODE = '1000'
+		   AND MP.PAYMENT_DATE >= @startDate
+		   AND MP.PAYMENT_DATE <= @endDate    
+		 GROUP BY  MM.ORGAN_CODE
+				  ,MM.MEMBER_NO
+		]]>
+	</sql>
+	
+	<select id="lionsclubs.com.MM3.MM3_10.MM3_59.MM3_59" resultClass="MM3_59VO">
+		<include refid="lionsclubs.com.MM3.MM3_10.MM3_59.declare" />
+		<include refid="lionsclubs.com.MM3.MM3_10.MM3_59.with" />
+		<include refid="lionsclubs.com.MM3.MM3_10.MM3_59.listLcifDues" />
+		 ORDER BY  MM.ORGAN_CODE
+		 		  ,MM.MEMBER_NO
+	</select>
+
+	<select id="lionsclubs.com.MM3.MM3_10.MM3_59.sum" resultClass="MM3_59VO">
+		<include refid="lionsclubs.com.MM3.MM3_10.MM3_59.declare" />
+		<include refid="lionsclubs.com.MM3.MM3_10.MM3_59.with" />
+		SELECT  SUM(payment) AS payment
+			   ,SUM(paymentDollar) AS paymentDollar
+		  FROM(
+		  	<include refid="lionsclubs.com.MM3.MM3_10.MM3_59.listLcifDues" />
+		  ) SUM
+	</select>
+	
+	<select id="lionsclubs.com.MM3.MM3_10.MM3_59.objectDistrictInfo" resultClass="MM3_59VO">
+		<include refid="lionsclubs.com.MM3.MM3_10.MM3_59.declare" />
+		<![CDATA[
+		SELECT  HISTORY.EN_NAME AS enName
+			   ,(SELECT ENG_NAME FROM LIONS_MEMBER_INFO WHERE MEMBER_NO = HISTORY.ORGAN_OFFICER_MEMBER_NO) AS memberEngName
+			   ,REPLACE(LTRIM(REPLACE(HISTORY.REGISTER_NO, '0', ' ')), ' ', '0') AS registerNo
+		  FROM(
+			SELECT  ROW_NUMBER() OVER (PARTITION BY OC.ORGAN_CODE ORDER BY OCH.CHANGE_DATE DESC, OCH.IDN_NO DESC) AS rnum
+				   ,OC.EN_NAME
+				   ,OCH.ORGAN_OFFICER_MEMBER_NO
+				   ,OC.REGISTER_NO
+			  FROM LIONS_ORGAN_CODE OC
+		     INNER JOIN LIONS_ORGAN_CODE_HISTORY OCH
+		        ON OC.ORGAN_CODE = OCH.ORGAN_CODE	        
+		     WHERE OCH.CHANGE_DATE >= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701'
+		       AND OCH.CHANGE_DATE <= CAST(@sessionYear AS NVARCHAR(4)) + '0630'
+		       AND OCH.ORGAN_OFFICER_MEMBER_MODEL_CODE = '1120'	/* 총재코드 */
+		       AND OC.ORGAN_CODE = @organCode
+		) HISTORY
+		 WHERE HISTORY.rnum = 1
+		]]>
+	</select>
+</sqlMap>

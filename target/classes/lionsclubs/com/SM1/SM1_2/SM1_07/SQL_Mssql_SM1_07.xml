@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://www.ibatis.com/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="lionsclubs.com.SM1.SM1_2.SM1_07">
+
+	<typeAlias alias="SM1_07VO" type="lionsclubs.com.SM1.SM1_2.SM1_07.SM1_07VO"/>
+
+	<sql id="lionsclubs.com.SM1.SM1_2.SM1_07.SM1_07_Query">
+		SELECT  CODE AS code
+			   ,CODE_NAME AS codeName
+			   ,CODE_DESC AS codeDesc
+			   ,CODE1 AS code1
+			   ,CODE2 AS code2
+			   ,CODE3 AS code3
+			   ,ORD AS ord
+			   ,USE_YN AS useYn
+			   ,INSERT_DATE AS insertDate
+			   ,INSERT_NAME AS insertName
+			   ,UPDATE_DATE AS updateDate
+			   ,UPDATE_NAME AS updateName
+		  FROM LIONS_CODE
+		<dynamic prepend="WHERE">
+			<isNotEmpty prepend="AND" property="groupCode">
+				GROUP_CODE = #groupCode#
+			</isNotEmpty>
+		</dynamic>		  
+	</sql>
+	
+	<select id="lionsclubs.com.SM1.SM1_2.SM1_07.SM1_07" resultClass="SM1_07VO">
+		<include refid="lionsclubs.com.SM1.SM1_2.SM1_07.SM1_07_Query"/>
+		ORDER BY ORD
+	</select>
+
+	<insert id="lionsclubs.com.SM1.SM1_2.SM1_07.SM1_07_InputInsert">
+		INSERT INTO LIONS_CODE(
+			CODE
+		   ,GROUP_CODE
+		   ,CODE_NAME
+		   ,CODE_DESC
+		   ,CODE1
+		   ,CODE2
+		   ,CODE3
+		   ,ORD
+		   ,USE_YN
+		   ,INSERT_DATE
+		   ,INSERT_NAME
+		   ,UPDATE_DATE
+		   ,UPDATE_NAME
+		) VALUES (
+			#code#	/* 코드 */               
+		   ,#groupCode#	/* 그룹코드 */               
+		   ,#codeName#	/* 코드명칭 */         
+		   ,#codeDesc#	/* 코드명칭 설명 */    
+		   ,#code1#	/* 옵션1 */
+		   ,#code2#	/* 옵션2 */
+		   ,#code3#	/* 옵션3 */
+		   ,#ord#	/* 출력순서 */                       
+		   ,#useYn#	/* 그룹코드사용여부 */               
+		   ,GETDATE()	/* 생성일자 */               
+		   ,#insertName#	/* 생성자 */                
+		   ,GETDATE()	/* 수정일자 */               
+		   ,#updateName#	/* 수정자 */                			
+		)		   		
+	</insert>
+	
+	<update id="lionsclubs.com.SM1.SM1_2.SM1_07.SM1_07_EditUpdate">
+		UPDATE LIONS_CODE SET 
+			CODE_NAME = #codeName#	/* 코드명칭 */         
+		   ,CODE_DESC = #codeDesc#	/* 코드명칭 설명 */      
+		   ,CODE1 = #code1#	/* 옵션1 */
+		   ,CODE2 = #code2#	/* 옵션2 */
+		   ,CODE3 = #code3#	/* 옵션3 */
+		   ,ORD = #ord#	/* 출력순서 */                       
+		   ,USE_YN = #useYn#	/* 그룹코드사용여부 */               
+		   ,UPDATE_DATE = GETDATE()	/* 수정일자 */               
+		   ,UPDATE_NAME = #updateName#	/* 수정자 */
+		 WHERE GROUP_CODE = #groupCode#
+	       AND CODE = #code#
+	</update>
+	
+	<delete id="lionsclubs.com.SM1.SM1_2.SM1_07.SM1_07_Delete">
+		DELETE FROM LIONS_CODE
+		 WHERE GROUP_CODE = #groupCode#
+		   AND CODE = #code#
+	</delete>
+	
+	<select id="lionsclubs.com.SM1.SM1_2.SM1_07.selectGroupCode" resultClass="SM1_07VO">
+		SELECT  GROUP_CODE AS groupCode
+			   ,GROUP_CODE + ' ' + GROUP_CODE_NAME AS groupCodeLabel
+		  FROM LIONS_GROUP_CODE
+		 ORDER BY GROUP_CODE 		
+	</select>
+</sqlMap>

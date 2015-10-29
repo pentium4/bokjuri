@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://www.ibatis.com/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="lionsclubs.com.MM4.MM4_1.MM4_02">
+
+	<typeAlias alias="MM4_02VO" type="lionsclubs.com.MM4.MM4_1.MM4_02.MM4_02VO"/>
+	<typeAlias alias="MM4_02VO_PARAM" type="lionsclubs.com.MM4.MM4_1.MM4_02.MM4_02VO_PARAM"/>
+
+ 	<select id="lionsclubs.com.MM4.MM4_1.MM4_02.selectList" resultClass="MM4_02VO" parameterClass="MM4_02VO_PARAM">
+		<![CDATA[
+			SELECT
+			  MEMBER_NO		as memberNo		/* 회원번호 */
+			, MEMBER_NAME	as memberName	/* 성명		*/
+			, S_POS1		as sPos1		/* 직책		*/
+			, S_ORGAN_CODE	as sOrganCode	/* 출신지구	*/
+			, S_POS2		as sPos2		/* 지구직책	*/
+			, S_CLUB_NAME	as sClubName	/* 소속클럽	*/
+			FROM dbo.LIONS_DUMMY_MEMBER_INFO
+			WHERE AGE_CODE = #ageCode#
+			AND ORGAN_CODE = #orgCode#
+			AND APP_KIND_CODE = '9010'
+		]]>
+		<isEqual property="lvl" compareValue="1">
+		<![CDATA[
+			AND APP_DESC_CODE = '1010' /* 연합:1010 */
+		]]>
+		</isEqual>
+		<isEqual property="lvl" compareValue="2">
+		<![CDATA[
+			AND APP_DESC_CODE = '1000' /* 복합:1000 */
+		]]>
+		</isEqual>	
+		<![CDATA[
+			ORDER BY ORD
+		]]>
+	</select>
+</sqlMap>

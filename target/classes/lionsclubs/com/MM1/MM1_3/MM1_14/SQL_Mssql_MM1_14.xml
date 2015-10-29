@@ -1,0 +1,498 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://www.ibatis.com/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="lionsclubs.com.MM1.MM1_3.MM1_14">
+
+	<typeAlias alias="MM1_14VO" type="lionsclubs.com.MM1.MM1_3.MM1_14.MM1_14VO" />
+
+	<sql id="lionsclubs.com.MM1.MM1_3.MM1_14.selectQuery">
+		DECLARE @organCode NVARCHAR(6)	
+		DECLARE @sessionYear INT
+		DECLARE @startDate NVARCHAR(8)
+		DECLARE @endDate NVARCHAR(8)
+		
+		SET @organCode = REPLACE(#organCode#, '-', '')
+		SET @sessionYear = #sessionYear#
+		SET @startDate = CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701';	
+		SET @endDate = CAST(@sessionYear AS NVARCHAR(4)) + '0630';
+			
+		SELECT   ROW_NUMBER() OVER (
+					<dynamic prepend="ORDER BY">
+						<isEqual property="order" prepend="," compareValue="1">
+							 NM.APPROVE_YN DESC
+							,NM.REGISTER_NO
+						</isEqual>
+						<isEqual property="order" prepend="," compareValue="2">
+							 NM.APPROVE_YN
+							,NM.REGISTER_NO
+						</isEqual>					
+						<isEqual property="order" prepend="," compareValue="3">
+							 NM.TREATMENT_YN DESC
+							,NM.REGISTER_NO
+						</isEqual>
+						<isEqual property="order" prepend="," compareValue="4">
+							 NM.TREATMENT_YN
+							,NM.REGISTER_NO
+						</isEqual>
+					</dynamic>
+				) AS rnum   
+			   ,NM.REGISTER_NO AS registerNo	/* 등록번호 */
+			   ,NM.MEMBER_NO AS memberNo	/* 회원번호 */
+			   ,NM.SING_DATE AS singDate	/* 입회일자 */
+			   ,NM.SECTOR_CLUB_CODE AS sectorClubCode	/* 소속클럽코드 */
+			   ,dbo.FN_LIONS_ORGAN_NAME(NM.SECTOR_CLUB_CODE) AS sectorClubName	/* 소속클럽명 */
+			   ,NM.NAME AS name	/* 성명 */
+			   ,NM.CHIN_NAME AS chinName	/* 한자 */
+			   ,NM.ENG_NAME AS engName	/* 영문 */
+			   ,NM.DIVISION AS division	/* 구분 */
+			   ,NM.BIRTH AS birth	/* 생년월일 */
+			   ,NM.ADDRESS AS address	/* 주소 */
+			   ,NM.ZIP_CODE AS zipCode	/* 우편번호 */
+			   ,NM.MOBILE AS mobile	/* 휴대전화 */
+			   ,NM.WORK_TEL AS workTel	/* 직장전화 */
+			   ,NM.HOME_TEL AS homeTel	/* 자택전화 */
+			   ,NM.FAX AS fax	/* 팩스번호 */
+			   ,NM.MAIL_ADDRESS AS mailAddress	/* 메일주소 */
+			   ,NM.GMAIL AS gmail	/* H/P G메일 */
+			   ,NM.BUSINESS_CLASS AS businessClass	/* 업종분류 */
+			   ,NM.MARRY_STATUS AS marryStatus	/* 결혼여부 */
+			   ,NM.GAMETE_NAME AS gameteName	/* 배우자성명 */
+			   ,NM.INDUSTRY AS industry	/* 업종 */
+			   ,dbo.FN_LIONS_DETAILCODE_NAME('1200', NM.BUSINESS_CLASS, NM.INDUSTRY) AS industryName	/* 업종명 */
+			   ,NM.FAMILY AS family	/* 본인가족 */
+			   ,NM.CHILDREN AS children	/* 자녀 */
+			   ,NM.COMPANY_TITLE AS companyTitle	/* 업체직책 */
+			   ,NM.COMPANY_NAME AS companyName	/* 업체명 */
+			   ,NM.COMPANY_ADDRESS AS companyAddress	/* 업체주소 */
+			   ,NM.END_EDUCATION AS endEducation	/* 최종학력 */
+			   ,NM.NATIVE_SCHOOL AS nativeSchool	/* 출신학교 */
+			   ,NM.MAJOR_SUBJECT AS majorSubject	/* 전공과목 */
+			   ,NM.ARMY AS army	/* 병력관계 */
+			   ,NM.BLOOD AS blood	/* 혈액형 */
+			   ,NM.HOBBY AS hobby	/* 취미활동 */
+		 	   ,NM.HEIGHT AS height	/* 신장 */
+			   ,NM.RECOMM_MEMBER_NO AS recommMemberNo	/* 추천자 회원번호 */
+			   ,(SELECT NAME FROM LIONS_MEMBER_INFO WHERE MEMBER_NO = NM.RECOMM_MEMBER_NO) AS recommMemberName
+			   ,(SELECT (SELECT KO_NAME FROM LIONS_ORGAN_CODE WHERE ORGAN_CODE = APP.ORGAN_CODE) AS ORGAN_CODE_NAME FROM dbo.LIONS_APPOINTMENT APP WHERE LAST_YN = 'Y' AND MEMBER_NO = NM.RECOMM_MEMBER_NO) AS recommSectorClubName
+			   ,NM.RECOMM_REALTIONSHIP AS recommRealtionship	/* 추천자 관계 */
+			   ,NM.MEMBER_PICTURE_FILE AS memberPictureFile	/* 회원사진파일주소 */
+			   ,NM.NESS_PICTURE_FILE AS nessPictureFile	/* 네스사진파일주소 */
+			   ,NM.APPROVE_YN AS approveYn	/* 승인여부 */
+			   ,NM.APPROVE_DATE AS approveDate	/* 승인일자 */
+			   ,NM.TREATMENT_YN AS treatmentYn	/* 처리여부 */
+			   ,NM.TREATMENT_DATE AS treatmentDate	/* 처리일자 */
+			   ,(SELECT COUNT(*) FROM LIONS_APPOINTMENT WHERE MEMBER_NO = NM.MEMBER_NO AND START_DATE >= NM.SING_DATE AND APP_KIND_CODE != '1040' AND APP_DESC_CODE != '1010') AS appointmentCnt	/* 선임위촉체크 */ 			   
+			   ,(SELECT COUNT(*) FROM LIONS_MONEY_PAYMENT WHERE MEMBER_NO = NM.MEMBER_NO) AS paymentCnt	/* 납부금내역 체크 */
+			   ,NM.INSERT_DATE AS insertDate	/* 생성일자 */
+			   ,NM.INSERT_NAME AS insertName	/* 생성자 */
+			   ,NM.UPDATE_DATE AS updateDate	/* 수정일자 */
+			   ,NM.UPDATE_NAME AS updateName	/* 수정자 */
+		  FROM LIONS_NEW_MEMBER NM
+		 INNER JOIN dbo.FN_LIONS_AUTH_ORGAN_CODE_LIST(#authMemberNo#) AUTH
+			ON AUTH.ORGAN_CODE = NM.SECTOR_CLUB_CODE
+		<isNotEmpty property="sessionYear">
+			<isNotEmpty property="organCode">
+				 INNER JOIN dbo.FN_LIONS_SUB_TREE_YEAR_ORGAN(@sessionYear, @organCode) STYO
+				    ON STYO.ORGAN_CODE = NM.SECTOR_CLUB_CODE
+		    </isNotEmpty>
+		</isNotEmpty>
+	</sql>
+	
+	<select id="lionsclubs.com.MM1.MM1_3.MM1_14.MM1_14" resultClass="MM1_14VO">
+		<include refid="lionsclubs.com.MM1.MM1_3.MM1_14.selectQuery"/>
+		WHERE NM.REGISTER_NO = #registerNo#
+	</select>
+	
+	<select id="lionsclubs.com.MM1.MM1_3.MM1_14.listNewMember" resultClass="MM1_14VO">
+		<include refid="lionsclubs.com.MM1.MM1_3.MM1_14.selectQuery"/>
+		<dynamic prepend="WHERE">
+			<isNotEmpty prepend="AND" property="approveYn">
+				NM.APPROVE_YN = #approveYn#
+			</isNotEmpty>
+			<isNotEmpty prepend="AND" property="sessionYear">
+			<![CDATA[
+					CONVERT(NVARCHAR(8), NM.INSERT_DATE, 112) >= @startDate
+				AND CONVERT(NVARCHAR(8), NM.INSERT_DATE, 112) <= @endDate
+			]]>
+			</isNotEmpty>
+		</dynamic>
+		 ORDER BY rnum DESC
+	</select>
+	
+	<insert id="lionsclubs.com.MM1.MM1_3.MM1_14.insertProfile">
+		<selectKey resultClass="String" keyProperty="registerNo">
+			DECLARE @registerNo NVARCHAR(19)	/* 등록번호 */
+			DECLARE @sectorClubCode NVARCHAR(6)	/* 소속클럽코드 */
+			DECLARE @no NVARCHAR(3)	/* 등록번호 뒤에3자리 */
+			
+			SET @sectorClubCode = REPLACE(#sectorClubCode#, '-', '')
+			SET @registerNo = LEFT(@sectorClubCode, 3) + '-' + RIGHT(@sectorClubCode ,3) + '-' + CONVERT(VARCHAR(6),GETDATE(), 112) + '-'
+			
+			SET @no = (
+				SELECT dbo.LPAD(ISNULL(MAX(RIGHT(R.REGISTER_NO, 3)), 0) + 1, 3, 0)
+				  FROM (
+					SELECT REGISTER_NO
+					  FROM LIONS_NEW_MEMBER NM
+				) R
+				 WHERE SUBSTRING(R.REGISTER_NO, 0, 16) = @registerNo
+			)
+			
+			SET @registerNo = @registerNo + @no
+			
+			SELECT @registerNo
+	    </selectKey>
+		
+		INSERT INTO LIONS_NEW_MEMBER(
+			 REGISTER_NO
+			,SING_DATE
+			,SECTOR_CLUB_CODE
+			,NAME
+			,BIRTH
+			,CHIN_NAME
+			,ENG_NAME
+			,ADDRESS
+			,ZIP_CODE
+			,MOBILE
+			,DIVISION
+			,RECOMM_MEMBER_NO
+			,MEMBER_PICTURE_FILE
+			,NESS_PICTURE_FILE
+			,APPROVE_YN	/* 승인여부 */
+			,TREATMENT_YN	/* 처리여부 */			
+			,INSERT_DATE
+			,INSERT_NAME
+			,UPDATE_DATE
+			,UPDATE_NAME
+		) VALUES (
+			 #registerNo#	/* 등록번호 */
+			,REPLACE(#singDate#, '.', '')	/* 입회일자 */
+			,#sectorClubCode#	/* 소속클럽코드 */
+			,#name#	/* 성명 */
+			,REPLACE(#birth#, '.', '')	/* 생년월일 */
+			,#chinName#	/* 한자 */
+			,#engName#	/* 영문 */
+			,#address#	/* 주소 */
+			,#zipCode#	/* 우편번호 */
+			,#mobile#	/* 휴대전화 */
+			,#division#	/* 구분 */
+			,#recommMemberNo#	/* 스폰회원 */
+			,#memberPictureFile#	/* 회원사진파일주소 */
+			,#nessPictureFile#	/* 네스사진파일주소 */
+			,'N'	/* 승인여부 */
+			,'N'	/* 처리여부 */			
+			,GETDATE()	/* 생성일자 */
+			,#insertName#	/* 생성자 */
+			,GETDATE()	/* 수정일자 */
+			,#updateName#	/* 수정자 */
+		)
+	</insert>
+	
+	<update id="lionsclubs.com.MM1.MM1_3.MM1_14.updateProfile">
+		UPDATE LIONS_NEW_MEMBER 
+		   SET  SING_DATE = REPLACE(#singDate#, '.', '')	/* 입회일자 */
+			   ,SECTOR_CLUB_CODE = #sectorClubCode#	/* 소속클럽코드 */
+		   	   ,NAME = #name#	/* 성명 */
+			   ,BIRTH = REPLACE(#birth#, '.', '')	/* 생년월일 */
+			   ,CHIN_NAME = #chinName#	/* 한자 */
+			   ,ENG_NAME = #engName#	/* 영문 */
+			   ,ADDRESS = #address#
+			   ,ZIP_CODE = #zipCode#
+			   ,MOBILE = #mobile#
+			   ,DIVISION = #division#	/* 구분 */
+			   ,RECOMM_MEMBER_NO = #recommMemberNo#	/* 스폰회원 */
+			   ,MEMBER_PICTURE_FILE = #memberPictureFile#	/* 회원사진파일주소 */
+			   ,NESS_PICTURE_FILE = #nessPictureFile#	/* 네스사진파일주소 */
+			   ,INSERT_DATE = GETDATE()	/* 생성일자 */
+			   ,INSERT_NAME = #insertName#	/* 생성자 */
+			   ,UPDATE_DATE = GETDATE()	/* 수정일자 */
+			   ,UPDATE_NAME = #updateName#	/* 수정자 */
+		 WHERE REGISTER_NO = #registerNo#
+	</update>
+	
+	<select id="lionsclubs.com.MM1.MM1_3.MM1_14.registerNo" resultClass="MM1_14VO">
+		WITH PAGING_RNUM AS(
+			SELECT PAGING.* FROM(
+				SELECT  ROW_NUMBER() OVER (ORDER BY REGISTER_NO) AS rnum
+					   ,PAGING_WARP.REGISTER_NO
+				FROM(
+					SELECT NM.REGISTER_NO
+					  FROM LIONS_NEW_MEMBER NM
+					 INNER JOIN dbo.FN_LIONS_AUTH_ORGAN_CODE_LIST(#authMemberNo#) AUTH
+						ON AUTH.ORGAN_CODE = NM.SECTOR_CLUB_CODE
+				) PAGING_WARP
+			) PAGING	
+		),THIS_RNUM AS(
+			<isNotEmpty property="registerNo">
+				SELECT REGISTER_NO, rnum FROM PAGING_RNUM WHERE REGISTER_NO = #registerNo#
+			</isNotEmpty>
+			<isEmpty property="registerNo">
+				SELECT REGISTER_NO, rnum FROM PAGING_RNUM WHERE rnum = 1
+			</isEmpty>
+		),REGISTER_NO AS(
+			SELECT  TR.REGISTER_NO
+				   ,(SELECT REGISTER_NO FROM PAGING_RNUM WHERE rnum = TR.rnum - 1) AS PREV_REGISTER_NO
+				   ,(SELECT REGISTER_NO FROM PAGING_RNUM WHERE rnum = TR.rnum + 1) AS NEXT_REGISTER_NO
+			FROM THIS_RNUM TR
+		)
+		
+		SELECT  REGISTER_NO AS registerNo
+			   ,PREV_REGISTER_NO AS prevRegisterNo
+			   ,NEXT_REGISTER_NO AS nextRegisterNo
+		  FROM REGISTER_NO
+	</select>
+	  
+	<select id="lionsclubs.com.MM1.MM1_3.MM1_14.listRegister" resultClass="MM1_14VO">
+		SELECT * FROM(
+			SELECT  COUNT(1)  OVER() AS totalRecordCount
+				   ,ROW_NUMBER() OVER(ORDER BY sectorClubCode, registerNo) AS rnum
+				   ,PAGING_WARP.*
+			  FROM(	
+				SElECT  NM.REGISTER_NO AS registerNo	/* 등록번호 */
+					   ,NM.NAME AS name	/* 성명 */
+					   ,NM.BIRTH AS birth	/* 생년월일 */
+					   ,(SELECT dbo.FN_GetIdxDataLikeSplit(PATH,3,'/') FROM LIONS_ORGAN_TREE_VIEW WHERE ORGAN_CODE = NM.SECTOR_CLUB_CODE) AS sectorDistrictName	/* 소속지구명 */
+					   ,NM.SECTOR_CLUB_CODE AS sectorClubCode	/* 소속클럽코드 */
+					   ,dbo.FN_LIONS_ORGAN_NAME(NM.SECTOR_CLUB_CODE) AS sectorClubName	/* 소속클럽명 */
+					   ,ISNULL(NM.APPROVE_YN, 'N') AS approveYn	/* 승인여부 */
+					   ,ISNULL(NM.TREATMENT_YN, 'N') AS treatmentYn	/* 처리여부 */
+				  FROM LIONS_NEW_MEMBER NM
+				 INNER JOIN dbo.FN_LIONS_AUTH_ORGAN_CODE_LIST(#authMemberNo#) AUTH
+					ON AUTH.ORGAN_CODE = NM.SECTOR_CLUB_CODE				  
+				<dynamic prepend="WHERE">
+					<isNotEmpty prepend="AND" property="registerNo">
+						NM.REGISTER_NO LIKE '%' + #registerNo# + '%'	
+					</isNotEmpty>
+					<isNotEmpty prepend="AND" property="name">
+						NM.NAME LIKE '%' + #name# + '%'
+					</isNotEmpty>
+					<isNotEmpty prepend="AND" property="organCode">
+						NM.SECTOR_CLUB_CODE LIKE '%' + #organCode# + '%'	
+					</isNotEmpty>
+				</dynamic>
+			) PAGING_WARP
+		) PAGING
+		 WHERE RNUM BETWEEN #firstIndex# + 1 AND #firstIndex# + #recordCountPerPage#			
+	</select>
+
+	<update id="lionsclubs.com.MM1.MM1_3.MM1_14.hrUpdate">
+		UPDATE LIONS_NEW_MEMBER 
+		   SET  ADDRESS = #address#
+			   ,ZIP_CODE = #zipCode#
+			   ,MOBILE = #mobile#
+			   ,WORK_TEL = #workTel#
+			   ,HOME_TEL = #homeTel#
+			   ,FAX = #fax#
+			   ,MAIL_ADDRESS = #mailAddress#
+			   ,GMAIL = #gmail#
+			   ,BUSINESS_CLASS = #businessClass#
+			   ,MARRY_STATUS = #marryStatus#
+			   ,GAMETE_NAME = #gameteName#
+			   ,INDUSTRY = #industry#
+			   ,FAMILY = #family#
+			   ,CHILDREN = #children#
+			   ,COMPANY_NAME = #companyName#
+			   ,COMPANY_TITLE = #companyTitle#
+			   ,COMPANY_ADDRESS = #companyAddress#
+			   ,END_EDUCATION = #endEducation#
+			   ,NATIVE_SCHOOL = #nativeSchool#
+			   ,MAJOR_SUBJECT = #majorSubject#
+			   ,ARMY = #army#
+			   ,BLOOD = #blood#
+			   ,HOBBY = #hobby#
+			   ,HEIGHT = #height#
+			   ,RECOMM_MEMBER_NO = #recommMemberNo#
+			   ,RECOMM_REALTIONSHIP = #recommRealtionship#
+			   ,UPDATE_DATE = GETDATE()
+			   ,UPDATE_NAME = #updateName#
+		 WHERE REGISTER_NO = #registerNo# 	
+	</update>
+	
+	<delete id="lionsclubs.com.MM1.MM1_3.MM1_14.delete">
+		DELETE FROM LIONS_NEW_MEMBER
+		 WHERE REGISTER_NO = #registerNo#
+	</delete>
+	
+	<update id="lionsclubs.com.MM1.MM1_3.MM1_14.updateApprove">
+		UPDATE LIONS_NEW_MEMBER
+		   SET  APPROVE_YN = #approveYn#
+		   	   ,APPROVE_DATE = GETDATE()
+		 WHERE REGISTER_NO = #registerNo#
+	</update>
+	
+	<update id="lionsclubs.com.MM1.MM1_3.MM1_14.updateTreatment">
+		UPDATE LIONS_NEW_MEMBER
+		   SET  MEMBER_NO = #memberNo#
+		   	   ,TREATMENT_YN = #treatmentYn#
+		   	   ,TREATMENT_DATE = GETDATE()
+		 WHERE REGISTER_NO = #registerNo#
+	</update>
+	
+	<select id="lionsclubs.com.MM1.MM1_3.MM1_14.countApproveCheck" resultClass="Integer">
+		SELECT COUNT(*)
+		  FROM LIONS_NEW_MEMBER
+		 WHERE APPROVE_YN = 'Y'
+		   AND REGISTER_NO = #registerNo#
+	</select>	
+	
+	<select id="lionsclubs.com.MM1.MM1_3.MM1_14.countTreatmentCheck" resultClass="Integer">
+		SELECT COUNT(*)
+		  FROM LIONS_NEW_MEMBER
+		 WHERE TREATMENT_YN = 'Y'
+		   AND REGISTER_NO = #registerNo#
+	</select>
+	
+	<insert id="lionsclubs.com.MM1.MM1_3.MM1_14.insertMemberInfo">
+		DECLARE @registerNo NVARCHAR(18)	/* 등록번호 */
+		DECLARE @insertName NVARCHAR(8)	/* 등록 회원번호 */
+		DECLARE @updateName NVARCHAR(8)	/* 수정 회원번호 */
+		
+		SET @registerNo = #registerNo#;
+		SET @insertName = #insertName#;
+		SET @updateName = #updateName#;
+		
+		INSERT INTO LIONS_MEMBER_INFO(
+			 MEMBER_NO
+			,NAME
+			,CHIN_NAME
+			,ENG_NAME
+			,DIVISION
+			,BIRTH
+			,ADDRESS
+			,ZIP_CODE
+			,MOBILE
+			,WORK_TEL
+			,HOME_TEL
+			,FAX
+			,MAIL_ADDRESS
+			,GMAIL
+			,BUSINESS_CLASS
+			,MARRY_STATUS
+			,GAMETE_NAME
+			,INDUSTRY
+			,FAMILY
+			,CHILDREN
+			,COMPANY_TITLE
+			,COMPANY_NAME
+			,COMPANY_ADDRESS
+			,END_EDUCATION
+			,NATIVE_SCHOOL
+			,MAJOR_SUBJECT
+			,ARMY
+			,BLOOD
+			,HOBBY
+			,HEIGHT
+			,RECOMM_MEMBER_NO
+			,RECOMM_REALTIONSHIP
+			,MEMBER_PICTURE_FILE
+			,NESS_PICTURE_FILE
+			,INSERT_DATE
+			,INSERT_NAME
+			,UPDATE_DATE
+			,UPDATE_NAME
+		)
+		SELECT  MEMBER_NO
+			   ,NAME
+			   ,CHIN_NAME
+			   ,ENG_NAME
+			   ,DIVISION
+			   ,BIRTH
+			   ,ADDRESS
+			   ,ZIP_CODE
+			   ,MOBILE
+			   ,WORK_TEL
+			   ,HOME_TEL
+			   ,FAX
+			   ,MAIL_ADDRESS
+			   ,GMAIL
+			   ,BUSINESS_CLASS
+			   ,MARRY_STATUS
+			   ,GAMETE_NAME
+			   ,INDUSTRY
+			   ,FAMILY
+			   ,CHILDREN
+			   ,COMPANY_TITLE
+			   ,COMPANY_NAME
+			   ,COMPANY_ADDRESS
+			   ,END_EDUCATION
+			   ,NATIVE_SCHOOL
+			   ,MAJOR_SUBJECT
+			   ,ARMY
+			   ,BLOOD
+			   ,HOBBY
+			   ,HEIGHT
+			   ,RECOMM_MEMBER_NO
+			   ,RECOMM_REALTIONSHIP
+			   ,MEMBER_PICTURE_FILE
+			   ,NESS_PICTURE_FILE
+			   ,GETDATE() AS INSERT_DATE
+			   ,@insertName AS INSERT_NAME
+			   ,GETDATE() AS UPDATE_DATE
+			   ,@updateName AS UPDATE_NAME
+		  FROM LIONS_NEW_MEMBER
+		 WHERE REGISTER_NO = @registerNo
+	</insert>
+	
+	<update id="lionsclubs.com.MM1.MM1_3.MM1_14.updateMemberInfoPassword">
+		UPDATE LIONS_MEMBER_INFO
+		   SET PASSWORD = #password#
+		 WHERE MEMBER_NO = #memberNo#
+	</update>
+	
+	<insert id="lionsclubs.com.MM1.MM1_3.MM1_14.insertAppointment">
+		DECLARE @registerNo NVARCHAR(18)	/* 등록번호 */
+		DECLARE @insertName NVARCHAR(8)	/* 등록 회원번호 */
+		DECLARE @updateName NVARCHAR(8)	/* 수정 회원번호 */
+		
+		SET @registerNo = #registerNo#;
+		SET @insertName = #insertName#;
+		SET @updateName = #updateName#;
+		
+		INSERT INTO LIONS_APPOINTMENT(
+			 MEMBER_NO
+			,START_DATE
+			,END_DATE
+			,APP_KIND_CODE
+			,APP_DESC_CODE
+			,ORGAN_CODE
+			,APP_SECTOR_CODE
+			,INSERT_DATE
+			,INSERT_NAME
+			,UPDATE_DATE
+			,UPDATE_NAME
+		)
+		SELECT  MEMBER_NO
+			   ,SING_DATE
+			   ,'99991231'
+			   ,'1040'
+			   ,'1000'
+			   ,SECTOR_CLUB_CODE
+			   ,SECTOR_CLUB_CODE
+			   ,GETDATE() AS INSERT_DATE
+			   ,@insertName AS INSERT_NAME
+			   ,GETDATE() AS UPDATE_DATE
+			   ,@updateName AS UPDATE_NAME
+		  FROM LIONS_NEW_MEMBER
+		 WHERE REGISTER_NO = @registerNo
+	</insert>
+	
+	<procedure id="lionsclubs.com.MM1.MM1_3.MM1_14.deleteMemberAll">
+		<![CDATA[
+			{CALL dbo.PROC_DELETE_MEMBER_ALL(#memberNo#)}
+		]]>
+	</procedure>
+	
+	<select id="lionsclubs.com.MM1.MM1_3.MM1_14.countAppointmentCheck" resultClass="Integer">
+		SELECT COUNT(*)
+		  FROM LIONS_APPOINTMENT
+		 WHERE MEMBER_NO = #memberNo#  
+		   AND START_DATE >= REPLACE(#singDate#, '.', '')
+		   AND APP_KIND_CODE != '1040'
+		   AND APP_DESC_CODE != '1010'
+	</select>
+	
+	<select id="lionsclubs.com.MM1.MM1_3.MM1_14.countPaymentCheck" resultClass="Integer">
+		SELECT COUNT(*) 
+		  FROM LIONS_MONEY_PAYMENT 
+		 WHERE MEMBER_NO = #memberNo#
+	</select>
+</sqlMap>

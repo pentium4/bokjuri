@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://www.ibatis.com/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="lionsclubs.com.MM2.MM2_5.MM2_30">
+
+	<typeAlias alias="MM2_30VO" type="lionsclubs.com.MM2.MM2_5.MM2_30.MM2_30VO"/>
+	
+	<sql id="lionsclubs.com.MM2.MM2_5.MM2_30.declare">
+		DECLARE @sessionYear NVARCHAR(4);	/* 현회선택 */
+		DECLARE @organCode NVARCHAR(6);	/* 조직코드 */
+		DECLARE @eventStartDate NVARCHAR(8);	/* 행사시작일 */
+		DECLARE @eventNameCode NVARCHAR(4);	/* 행사명 코드 */
+		
+		SET @sessionYear = #sessionYear#;
+		SET @organCode = REPLACE(#organCode#, '-', '');
+		SET @eventStartDate = REPLACE(#eventStartDate#, '.', '');
+		SET @eventNameCode = #eventNameCode#;
+	</sql>
+	
+	<sql id="lionsclubs.com.MM2.MM2_5.MM2_29.MM2_30Query">
+		SELECT  MIN(ES.IDN_NO) AS idnNo
+			   ,ES.ORGAN_CODE AS organCode
+			   ,dbo.FN_LIONS_ORGAN_NAME(ES.ORGAN_CODE) AS organName
+			   ,MIN(ES.EVENT_START_DATE) AS eventStartDate	/* 행사시작기간 */
+			   ,MIN(ES.EVENT_END_DATE) AS eventEndDate	/* 행사종료기간 */
+			   ,MIN(ES.EVENT_START_TIME) AS eventStartTime	/* 행사시작시간 */
+			   ,MIN(ES.EVENT_END_TIME) AS eventEndTime	/* 행사종료시간 */
+			   ,dbo.FN_LIONS_CODE_NAME('36' + SUBSTRING(ES.ORGAN_CODE, 2, 2), MIN(ES.EVENT_NAME_CODE)) AS eventName	/* 행사명 */
+			   ,MIN(ES.EVENT_DESC) AS eventDesc	/* 행사내용 및 장소 */
+			   ,COUNT(EM.MEMBER_NO) AS memberNoCnt	/* 인원수 */
+			   ,SUBSTRING(ES.ORGAN_CODE, 1, 3) + '-' + SUBSTRING(ES.ORGAN_CODE, 4, 3) + ' ' + dbo.FN_LIONS_ORGAN_NAME(ES.ORGAN_CODE) + '(주최)' +
+			    ISNULL(
+				   STUFF((
+						 SELECT CHAR(10) + SUBSTRING(CLUB_CODE, 1, 3) + '-' + SUBSTRING(CLUB_CODE, 4, 3) + ' ' + dbo.FN_LIONS_ORGAN_NAME(CLUB_CODE) + '(' + dbo.FN_LIONS_CODE_NAME('4000', KIND_CODE) + ')'
+						   FROM LIONS_EVENT_CLUB
+						  WHERE IDN_NO = ES.IDN_NO
+						  ORDER BY CLUB_CODE
+							FOR XML PATH('')
+					), 1, 0, '')
+				, '') AS eventOrganNames	/* 행사 주최/주관/참석 조직 */			   
+			   ,(SELECT TOP 1 FILE_ID FROM J_ATTACHFILE WHERE FILE_ID = MIN(ES.FILE_ID)) AS fileId	/* 사진 */
+			   ,(SELECT COUNT(*) FROM J_ATTACHFILE WHERE FILE_ID = MIN(ES.FILE_ID)) AS fileCnt	/* 사진갯수 */
+		  FROM LIONS_EVENT_SPONSOR ES
+		  LEFT OUTER JOIN LIONS_EVENT_CLUB EC
+		    ON ES.IDN_NO = EC.IDN_NO
+		  LEFT OUTER JOIN LIONS_EVENT_MEMBER EM
+		    ON EC.EVENT_CLUB_IDN_NO = EM.EVENT_CLUB_IDN_NO
+		 WHERE ES.ORGAN_CODE IN(
+			SELECT ORGAN_CODE 
+			  FROM dbo.FN_LIONS_SUB_TREE_YEAR_ORGAN(@sessionYear, @organCode)
+		 )
+		    <isNotEmpty prepend="AND" property="eventNameCode">
+		    	ES.EVENT_NAME_CODE = @eventNameCode
+		    </isNotEmpty>
+		 	<isNotEmpty prepend="AND" property="eventStartDate">
+		 		ES.EVENT_START_DATE >= @eventStartDate
+		 	</isNotEmpty>
+		    <isNotEmpty prepend="AND" property="sessionYear">
+				<![CDATA[    
+			    (
+					   (ES.EVENT_START_DATE >= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701' AND ES.EVENT_START_DATE <= CAST(@sessionYear AS NVARCHAR(4)) + '0630')
+					OR (ES.EVENT_END_DATE >= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701' AND ES.EVENT_END_DATE <= CAST(@sessionYear AS NVARCHAR(4)) + '0630')
+					OR (ES.EVENT_START_DATE <= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701' AND ES.EVENT_END_DATE >= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701') /* '20120701' >= START_DATE AND '20120701' <= END_DATE */
+					OR (ES.EVENT_START_DATE <= CAST(@sessionYear AS NVARCHAR(4)) + '0630' AND ES.EVENT_END_DATE >= CAST(@sessionYear AS NVARCHAR(4)) + '0630')
+				)
+				]]>
+			</isNotEmpty>
+		 GROUP BY  ES.ORGAN_CODE
+				  ,ES.IDN_NO
+	</sql>
+	
+	<select id="lionsclubs.com.MM2.MM2_5.MM2_30.MM2_30" resultClass="MM2_30VO">
+		<include refid="lionsclubs.com.MM2.MM2_5.MM2_30.declare"/>
+		<include refid="lionsclubs.com.MM2.MM2_5.MM2_29.MM2_30Query"/>
+		<isEqual prepend="ORDER BY" property="order" compareValue="1">
+			 MIN(ES.EVENT_START_DATE) DESC
+			,MIN(ES.EVENT_START_TIME) DESC
+		</isEqual>
+		<isEqual prepend="ORDER BY" property="order" compareValue="2">
+			dbo.FN_LIONS_CODE_ORD('4020', MIN(ES.EVENT_NAME_CODE))
+		</isEqual>
+	</select>
+	
+	<select id="lionsclubs.com.MM2.MM2_5.MM2_30.total" resultClass="MM2_30VO">
+		<include refid="lionsclubs.com.MM2.MM2_5.MM2_30.declare"/>
+		SELECT SUM(memberNoCnt) AS memberNoCnt	/* 총참가인원 */
+	  	  FROM(
+			<include refid="lionsclubs.com.MM2.MM2_5.MM2_29.MM2_30Query"/>
+		) EVENT_TOTAL
+	</select>	
+</sqlMap>

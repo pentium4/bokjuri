@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:context="http://www.springframework.org/schema/context"
+    xmlns:mvc="http://www.springframework.org/schema/mvc"
+    xmlns:p="http://www.springframework.org/schema/p"
+    xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.2.xsd
+        http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-3.2.xsd
+        http://www.springframework.org/schema/mvc http://www.springframework.org/schema/mvc/spring-mvc-3.2.xsd">
+							
+<!--
+    수정일      수정자                      수정내용
+  =========     =======    =================================================
+  2011.09.07   	서준식     	 	로그인 체크 인터셉터 추가
+  2011.09.29	이기하			에러페이지 경로수정
+  2013.05.30	이기하			IP정보기록 로직 추가
+-->
+
+	<context:component-scan base-package="egovframework,lionsclubs,lionsmobile,home">
+		<context:include-filter type="annotation" expression="org.springframework.stereotype.Controller"/>
+		<context:exclude-filter type="annotation" expression="org.springframework.stereotype.Service"/>
+		<context:exclude-filter type="annotation" expression="org.springframework.stereotype.Repository"/>
+	</context:component-scan>
+
+    <mvc:annotation-driven>
+        <mvc:argument-resolvers>
+            <bean class="org.springframework.mobile.device.site.SitePreferenceWebArgumentResolver" />            
+            <bean class="org.springframework.mobile.device.DeviceWebArgumentResolver" />
+        </mvc:argument-resolvers>
+    </mvc:annotation-driven>
+    <mvc:interceptors>
+        <!-- Resolve the device which has generated the request -->
+        <bean class="org.springframework.mobile.device.DeviceResolverHandlerInterceptor" />
+
+        <!-- User's site preference -->
+        <bean class="org.springframework.mobile.device.site.SitePreferenceHandlerInterceptor" />
+
+        <!-- Redirects users to the device specific site -->
+<!--         <bean class="org.springframework.mobile.device.switcher.SiteSwitcherHandlerInterceptor" factory-method="urlPath"> -->
+<!--             <constructor-arg value="/" /> -->
+<!--         </bean> -->
+    </mvc:interceptors>
+
+	<!-- For Pagination Tag -->
+	<bean id="imageRenderer" class="egovframework.com.cmm.ImagePaginationRenderer"/>
+
+	<bean id="paginationManager" class="egovframework.rte.ptl.mvc.tags.ui.pagination.DefaultPaginationManager">
+		<property name="rendererType">
+			<map>
+				<entry key="image" value-ref="imageRenderer"/>
+			</map>
+		</property>
+	</bean>
+
+	<!-- 
+	Controller에서 화면(JSP) 입력값을 받기 위해서 일반적으로 Command(Form Class) 객체를 사용하지만,
+	Map 객체를 사용하는걸 선호할 수 있다.
+	org.springframework.web.bind.support.WebArgumentResolver의 구현클래스인 CommandMapArgumentResolver은
+	HTTP request 객체에 있는 파라미터이름과 값을 Map 객체에 담아 Controller에서 사용도록 제공한다.
+	 -->
+	<bean class="org.springframework.web.servlet.mvc.annotation.AnnotationMethodHandlerAdapter">
+		<property name="webBindingInitializer">
+			<bean class="egovframework.com.cmm.web.EgovBindingInitializer"/>
+		</property>
+		<property name="customArgumentResolvers">
+			<list>
+				<bean class="egovframework.rte.ptl.mvc.bind.CommandMapArgumentResolver"/>
+			</list>
+		</property>
+		<property name="synchronizeOnSession" value="true" />
+	</bean>
+
+    <!-- IP 정보 기록 및 로그인 체크가 필요한 URL과 로그인 여부를 체크해줄 인터셉터를 등록한다. -->
+    <!-- <mvc:interceptors>
+        <bean class="egovframework.com.cmm.interceptor.IpObtainInterceptor" />
+        <mvc:interceptor>
+            <mvc:mapping path="/**/*.do" />
+            <mvc:exclude-mapping path="/uat/uia/**" />
+            <mvc:exclude-mapping path="/index.do" />
+            <mvc:exclude-mapping path="/EgovLeft.do" />
+            <mvc:exclude-mapping path="/EgovContent.do" />
+            <mvc:exclude-mapping path="/EgovTop.do" />
+            <mvc:exclude-mapping path="/EgovBottom.do" />
+            <mvc:exclude-mapping path="/uat/uia/egovLoginUsr.do" />
+            <mvc:exclude-mapping path="/uat/uia/actionLogin.do" />
+            <bean class="egovframework.com.cmm.interceptor.AuthenticInterceptor" />
+        </mvc:interceptor>
+    </mvc:interceptors> -->
+
+	<bean class="org.springframework.web.servlet.handler.SimpleMappingExceptionResolver">
+		<property name="defaultErrorView" value="egovframework/com/cmm/error/egovError"/>
+		<property name="exceptionMappings">
+			<props>
+				<prop key="org.springframework.dao.DataAccessException">egovframework/com/cmm/error/dataAccessFailure</prop>
+				<prop key="org.springframework.transaction.TransactionException">egovframework/com/cmm/error/dataAccessFailure</prop>
+				<prop key="egovframework.rte.fdl.cmmn.exception.EgovBizException">egovframework/com/cmm/error/egovBizException</prop>
+				<prop key="org.springframework.web.HttpSessionRequiredException">egovframework/com/uat/uia/EgovLoginUsr</prop>
+			</props>
+		</property>
+	</bean>
+
+	<!-- tiles2 setting -->
+	<bean id="tilesConfigurer" class="org.springframework.web.servlet.view.tiles2.TilesConfigurer">
+		<property name="definitions">
+			<list>
+				<value>/WEB-INF/config/tiles/templates.xml</value>
+			</list>
+		</property>
+	</bean>
+
+	<!-- Dynamic Tiles 2 resolver. 새로 추가 -->
+	<bean id="tilesViewResolver" class="org.springbyexample.web.servlet.view.tiles2.TilesUrlBasedViewResolver">
+		<property name="viewClass" value="lionsclubs.com.cmm.interceptor.DynamicTilesViewIntrceptor" />
+		<property name="prefix" value="/WEB-INF/jsp/"/>
+		<property name="suffix" value=".jsp"/>
+		<property name="tilesDefinitionName" value="default" />
+		<property name="tilesBodyAttributeName" value="body" />
+		<property name="tilesDefinitionDelimiter" value="." />
+		<property name="contentType" value="text/html; charset=UTF-8" />
+		<property name="order" value="1" />
+	</bean>
+	
+	<bean class="org.springframework.web.servlet.view.UrlBasedViewResolver" p:order="2"
+		  p:viewClass="org.springframework.web.servlet.view.JstlView"
+		  p:prefix="/WEB-INF/jsp/" p:suffix=".jsp"/>
+	
+	<!-- for JFile -->	  
+	<bean class="org.springframework.web.servlet.view.BeanNameViewResolver" p:order="0"/>
+
+ 	<!-- Ajax Json View Start -->
+	<bean name="ajaxMainView" class="org.springframework.web.servlet.view.json.MappingJacksonJsonView" />
+	<!-- Ajax Json View End -->
+	
+</beans>

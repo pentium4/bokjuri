@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://www.ibatis.com/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="lionsclubs.com.MM1.MM1_2.MM1_08">
+
+	<typeAlias alias="MM1_08VO" type="lionsclubs.com.MM1.MM1_2.MM1_08.MM1_08VO"/>
+	
+	<sql id="lionsclubs.com.MM1.MM1_2.MM1_08.queryList">
+ 		<![CDATA[
+		DECLARE @sessionYear NVARCHAR(4)	/* 현회선택 */
+		DECLARE @memberNo NVARCHAR(8)	/* 회원번호 */
+		
+		SET @sessionYear = #sessionYear#;
+		SET @memberNo = #memberNo#;
+		
+		WITH BASE_YEAR_MONTH AS(
+		   SELECT CAST(@sessionYear - 1 AS NVARCHAR(4)) + '07' AS CA_YM
+		   UNION ALL
+		   SELECT CAST(@sessionYear - 1 AS NVARCHAR(4)) + '08' AS CA_YM
+		   UNION ALL
+		   SELECT CAST(@sessionYear - 1 AS NVARCHAR(4)) + '09' AS CA_YM
+		   UNION ALL
+		   SELECT CAST(@sessionYear - 1 AS NVARCHAR(4)) + '10' AS CA_YM
+		   UNION ALL
+		   SELECT CAST(@sessionYear - 1 AS NVARCHAR(4)) + '11' AS CA_YM
+		   UNION ALL
+		   SELECT CAST(@sessionYear - 1 AS NVARCHAR(4)) + '12' AS CA_YM
+		   UNION ALL
+		   SELECT  @sessionYear + '01' AS CA_YM
+		   UNION ALL
+		   SELECT  @sessionYear + '02' AS CA_YM
+		   UNION ALL
+		   SELECT  @sessionYear + '03' AS CA_YM
+		   UNION ALL
+		   SELECT  @sessionYear + '04' AS CA_YM
+		   UNION ALL
+		   SELECT  @sessionYear + '05' AS CA_YM
+		   UNION ALL
+		   SELECT  @sessionYear + '06' AS CA_YM	
+		), DUES_PAYMENT AS(
+			SELECT  MIN(R.impost) AS impost
+				   ,SUM(R.payment) AS payment
+				   ,SUM(R.paymentDefect) AS paymentDefect
+				   ,R.CA_YM
+			  FROM(
+					SELECT  MI.IMPOST AS impost
+						   ,CASE WHEN MP.PAYMENT_DEFECT != 'Y'
+								 THEN MP.PAYMENT 
+								  END AS payment    
+						   ,CASE WHEN MP.PAYMENT_DEFECT = 'Y'
+								 THEN MP.PAYMENT 
+								  END AS paymentDefect
+						   ,MM.CA_YM
+					  FROM LIONS_MONEY_MASTER MM
+					 INNER JOIN LIONS_MONEY_IMPOST MI
+						ON MM.IDN_NO = MI.IDN_NO
+					  LEFT OUTER JOIN LIONS_MONEY_PAYMENT MP
+						ON MM.IDN_NO = MP.IDN_NO
+					 WHERE MM.MEMBER_NO = @memberNo
+					   AND MM.CLASS_ITEM_CODE = '1010'
+					   AND MM.DETAIL_ITEM_CODE = '1010'
+			  ) R
+			 GROUP BY CA_YM
+		)
+		
+		SELECT  BYM.CA_YM AS caYm
+			   ,DP.impost
+			   ,DP.payment
+			   ,DP.paymentDefect	
+		  FROM BASE_YEAR_MONTH BYM
+		  LEFT OUTER JOIN DUES_PAYMENT DP
+		    ON BYM.CA_YM = DP.CA_YM
+		 ORDER BY BYM.CA_YM
+ 		]]>
+	</sql>
+	
+	<select id="lionsclubs.com.MM1.MM1_2.MM1_08.selectList" resultClass="MM1_08VO">
+		<include refid="lionsclubs.com.MM1.MM1_2.MM1_08.queryList"/>
+	</select>
+	
+ 	<select id="lionsclubs.com.MM1.MM1_2.MM1_08.listPayment" resultClass="MM1_08VO">
+		SELECT  MP.PAYMENT_DATE AS paymentDate	/* 납부일자 */
+			   ,MP.PAYMENT AS payment	/* 납부금 */
+			   ,MP.PAYMENT_DEFECT AS paymentDefect	/* 결손여부 */
+		  FROM LIONS_MONEY_PAYMENT MP
+		 INNER JOIN LIONS_MONEY_MASTER MM
+		    ON MP.IDN_NO = MM.IDN_NO
+		 WHERE MM.CLASS_ITEM_CODE = '1010'
+		   AND MM.DETAIL_ITEM_CODE = '1010'
+		   AND MM.MEMBER_NO = #memberNo#
+		   AND MM.CA_YM = #caYm#
+ 	</select>	
+</sqlMap>

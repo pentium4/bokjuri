@@ -1,0 +1,13 @@
+.tooltipster-yellow {
+	border-radius: 5px; 
+/* 	border-bottom: 3px solid #f71169; */
+	border: 1px solid #2c2c2c;
+	background: #fefca5;
+	color: #000000;
+}
+.tooltipster-yellow .tooltipster-content {
+	font-family: 'Courier', monospace;
+	font-size: 14px;
+	line-height: 16px;
+	padding: 8px 10px;
+}

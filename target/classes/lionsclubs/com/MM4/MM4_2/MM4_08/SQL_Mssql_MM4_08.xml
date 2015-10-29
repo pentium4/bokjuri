@@ -1,0 +1,192 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://www.ibatis.com/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="lionsclubs.com.MM4.MM4_2.MM4_08">
+
+	<typeAlias alias="MM4_08VO_PARAM" type="lionsclubs.com.MM4.MM4_2.MM4_08.MM4_08VO_PARAM"/>
+	
+	<sql id="lionsclubs.com.MM4.MM4_2.MM4_08.commonSql">
+	<![CDATA[
+DECLARE @yearCode INT
+DECLARE @orgCode  NVARCHAR(10)
+DECLARE @fromDate NVARCHAR(8)
+DECLARE @toDate   NVARCHAR(8)
+DECLARE @baseDate NVARCHAR(8)
+
+SET @yearCode = #yearCode#;
+SET @orgCode = #orgCode#;
+SET @fromDate = CAST(@yearCode - 1 as NVARCHAR(4)) + '0701';
+SET @toDate   = CAST(@yearCode     as NVARCHAR(4)) + '0630';
+SET @baseDate = CAST(@yearCode     as NVARCHAR(4)) + '0101';
+
+WITH 
+ORG_TREE_TO AS ( /* 조직트리 */
+		SELECT 
+			A2.ORGAN_CODE as ORGAN_CODE
+			, A2.UPPER_ORGAN_CODE as UPPER_ORGAN_CODE
+			, A2.ORGAN_OFFICER_MEMBER_NO as ORGAN_OFFICER_MEMBER_NO
+			, D.ORGAN_ABOLISH_DATE as ORGAN_ABOLISH_DATE
+			, D.SPOT_NIGHT as SPOT_NIGHT
+		FROM dbo.LIONS_ORGAN_CODE_HISTORY A2 
+		INNER JOIN dbo.LIONS_ORGAN_CODE D ON D.ORGAN_CODE = A2.ORGAN_CODE		
+		WHERE D.SPOT_NIGHT != '' 
+			   AND (D.ORGAN_ABOLISH_DATE >= @fromDate OR D.ORGAN_ABOLISH_DATE = '')	
+			   AND A2.IDN_NO IN (
+					SELECT
+					MAX(B.IDN_NO) OVER(PARTITION BY B.ORGAN_CODE) as IDN_NO
+					FROM (
+						SELECT
+						ORGAN_CODE,
+						MAX(CHANGE_DATE) CHANGE_DATE
+						FROM dbo.LIONS_ORGAN_CODE_HISTORY
+						WHERE CHANGE_DATE BETWEEN @fromDate AND @toDate
+						GROUP BY ORGAN_CODE
+					) A
+					INNER JOIN dbo.LIONS_ORGAN_CODE_HISTORY B
+					ON B.ORGAN_CODE = A.ORGAN_CODE AND B.CHANGE_DATE = A.CHANGE_DATE
+			)
+),
+MEMBER_CODE_TO AS ( /* 조직 정보(현재) */
+	SELECT
+		A.ORGAN_CODE as LVL1_CODE			/* 연합회 코드 */
+		,B.ORGAN_CODE as LVL2_CODE			/* 복합지구코드 */
+		,C.ORGAN_CODE as LVL3_CODE			/* 지구코드 */
+		,D.ORGAN_CODE as LVL4_CODE 			/* 클럽코드 */	
+		,D.ORGAN_ABOLISH_DATE as ORGAN_ABOLISH_DATE		
+	FROM ORG_TREE_TO A 
+	INNER JOIN ORG_TREE_TO B ON B.UPPER_ORGAN_CODE = A.ORGAN_CODE
+	INNER JOIN ORG_TREE_TO C ON C.UPPER_ORGAN_CODE = B.ORGAN_CODE
+	INNER JOIN ORG_TREE_TO D ON D.UPPER_ORGAN_CODE = C.ORGAN_CODE
+	]]>
+	<isEqual property="lvl" compareValue="1">
+	<![CDATA[
+		WHERE A.ORGAN_CODE = @orgCode
+	]]>
+	</isEqual>
+	<isEqual property="lvl" compareValue="2">
+	<![CDATA[
+		WHERE B.ORGAN_CODE = @orgCode
+	]]>
+	</isEqual>
+	<isEqual property="lvl" compareValue="3">
+	<![CDATA[
+		WHERE C.ORGAN_CODE = @orgCode
+	]]>
+	</isEqual>
+	<isEqual property="lvl" compareValue="4">
+	<![CDATA[
+		WHERE D.ORGAN_CODE = @orgCode
+	]]>
+	</isEqual>
+<![CDATA[
+),
+CLUB_CODE_OUT AS (
+		select 
+			 LVL1_CODE
+			,LVL2_CODE
+			,LVL3_CODE
+			,LVL4_CODE
+		from MEMBER_CODE_TO
+		where ORGAN_ABOLISH_DATE >= @fromDate AND ORGAN_ABOLISH_DATE < @toDate
+	),
+MEMBER_LIST AS (
+	SELECT
+		H.MEMBER_NO
+		, C.LVL1_CODE
+		, C.LVL2_CODE
+		, C.LVL3_CODE
+		, C.LVL4_CODE
+		, ( select case when LEN(BIRTH) = 8 and (convert(int,SUBSTRING(BIRTH,5,2)) <= 12 and convert(int,SUBSTRING(BIRTH,7,2)) <= 31)
+						then BIRTH 
+					else @baseDate end as birth 
+			from dbo.LIONS_MEMBER_INFO
+			where MEMBER_NO = H.MEMBER_NO) as BIRTH
+	
+	FROM dbo.LIONS_MEMBER_CLUB_HIST H
+	INNER JOIN MEMBER_CODE_TO C ON C.LVL4_CODE = H.ORGAN_CODE
+    /* 클럽만 퇴회 처리되고 회원이 퇴회처리안된 회원은 카운트안되도록 처리 : 2014-11-24 */
+	LEFT OUTER JOIN CLUB_CODE_OUT O ON O.LVL4_CODE = C.LVL4_CODE 
+    WHERE H.[START_DATE] <= @toDate AND H.END_DATE > @toDate
+    AND O.LVL4_CODE is null
+),
+BASE_MEMBER_AGE_INFO AS (
+		SELECT
+		]]>
+		<isEqual property="lvl" compareValue="1">
+		<![CDATA[
+			LVL2_CODE as ORGAN_CODE
+		]]>
+		</isEqual>
+		<isEqual property="lvl" compareValue="2">
+		<![CDATA[
+			LVL3_CODE as ORGAN_CODE
+		]]>
+		</isEqual>
+		<isEqual property="lvl" compareValue="3">
+		<![CDATA[
+			LVL4_CODE as ORGAN_CODE
+		]]>
+		</isEqual>
+		<![CDATA[
+	  ,MEMBER_NO
+	  ,DATEDIFF(year,CONVERT(datetime,BIRTH,112),CONVERT(datetime,@baseDate,112)) as AGE
+	FROM MEMBER_LIST
+),
+ORGAN_AGE_INFO AS (
+	SELECT
+		 A.ORGAN_CODE
+		,COUNT(*) as MEM_COUNT
+		,SUM(CASE WHEN AGE < 35 THEN 1 ELSE 0 END) as AGE_1
+		,SUM(CASE WHEN AGE >= 35 AND AGE < 40 THEN 1 ELSE 0 END) as AGE_2
+		,SUM(CASE WHEN AGE >= 40 AND AGE < 45 THEN 1 ELSE 0 END) as AGE_3
+		,SUM(CASE WHEN AGE >= 45 AND AGE < 50 THEN 1 ELSE 0 END) as AGE_4
+		,SUM(CASE WHEN AGE >= 50 AND AGE < 55 THEN 1 ELSE 0 END) as AGE_5
+		,SUM(CASE WHEN AGE >= 55 AND AGE < 60 THEN 1 ELSE 0 END) as AGE_6
+		,SUM(CASE WHEN AGE >= 60 THEN 1 ELSE 0 END) as AGE_7
+		,AVG(ISNULL(AGE,0)) as AGE_AVG
+	FROM BASE_MEMBER_AGE_INFO A
+	GROUP BY 	 
+		 A.ORGAN_CODE
+	)
+	]]>
+	</sql>	
+
+ 	<select id="lionsclubs.com.MM4.MM4_2.MM4_08.selectList" resultClass="MM4_08VO_PARAM">
+ 	<include refid="lionsclubs.com.MM4.MM4_2.MM4_08.commonSql" />
+	<![CDATA[
+	SELECT
+		 A.ORGAN_CODE as orgCode
+		,(SELECT ISNULL(KO_ABBR,'Not Club') FROM dbo.LIONS_ORGAN_CODE WHERE ORGAN_CODE=A.ORGAN_CODE) as orgName
+		,(SELECT ISNULL(ORGAN_MEETING,'') FROM dbo.LIONS_ORGAN_CODE WHERE ORGAN_CODE=A.ORGAN_CODE) as orgMeeting
+		,ISNULL(B.MEM_COUNT,0) as sumMemCnt
+		,ISNULL(B.AGE_1,0) as age1
+		,ISNULL(B.AGE_2,0) as age2
+		,ISNULL(B.AGE_3,0) as age3
+		,ISNULL(B.AGE_4,0) as age4
+		,ISNULL(B.AGE_5,0) as age5
+		,ISNULL(B.AGE_6,0) as age6
+		,ISNULL(B.AGE_7,0) as age7
+		,CONVERT(Numeric(3,1), ISNULL(B.AGE_AVG,0)) as ageAvg
+	FROM ORG_TREE_TO A
+	LEFT OUTER JOIN ORGAN_AGE_INFO B ON B.ORGAN_CODE = A.ORGAN_CODE
+	]]>
+	<isEqual property="lvl" compareValue="3">
+	<![CDATA[
+			LEFT OUTER JOIN CLUB_CODE_OUT O ON O.LVL4_CODE = A.ORGAN_CODE
+	]]>
+	</isEqual>
+	<![CDATA[
+	WHERE A.UPPER_ORGAN_CODE = @orgCode
+	]]>
+	<isEqual property="lvl" compareValue="3">
+	<![CDATA[
+			AND O.LVL4_CODE is null
+	]]>
+	</isEqual>
+	<![CDATA[
+	ORDER BY A.ORGAN_CODE
+	]]>
+	</select>
+
+	
+</sqlMap>

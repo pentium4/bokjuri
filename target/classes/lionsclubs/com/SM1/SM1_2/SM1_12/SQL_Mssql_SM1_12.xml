@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://www.ibatis.com/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="lionsclubs.com.SM1.SM1_2.SM1_12">
+
+	<typeAlias alias="SM1_12VO" type="lionsclubs.com.SM1.SM1_2.SM1_12.SM1_12VO"/>
+	<typeAlias alias="SM1_12VO_DATA" type="lionsclubs.com.SM1.SM1_2.SM1_12.SM1_12VO_DATA"/>
+	
+	<select id="lionsclubs.com.SM1.SM1_2.SM1_12.selectList"  resultClass="SM1_12VO_DATA" parameterClass="SM1_12VO">
+	<![CDATA[
+		SELECT
+			  A.IDN_NO as idnNO
+			, A.AGE_CODE as ageCode
+			, A.ORGAN_CODE as organCode
+			, A.APP_KIND_CODE as appKindCode
+			, A.APP_DESC_CODE as appDescCode
+			, A.MEMBER_NO as memberNo
+			, A.MEMBER_NAME as memberName
+			, A.ORD as ord
+			, A.T_POS as tPos                     
+			, A.T_CLUB_NAME as tClubName          
+			, A.T_CO_POS as tCoPos               
+			, A.T_PHONE as tPhone                 
+			, A.T_CH_YEAR as tChYear             
+			, A.T_AREA_NO as tAreaNo             
+			, A.T_BOUND_NO as tBoundNo           
+			, A.T_CLUB_F_NO as tClubFNo          
+		FROM dbo.LIONS_DUMMY_MEMBER_INFO A
+		WHERE 1 = 1
+]]>
+<isNotEmpty prepend="AND" property="paramYearCode">
+<![CDATA[
+		    A.AGE_CODE = CAST(CAST(#paramYearCode# as INT)-1 as NVARCHAR(10)) + '-' + #paramYearCode#
+]]>
+</isNotEmpty>
+<isNotEmpty prepend="AND" property="paramOrgCode">
+<![CDATA[
+		    A.ORGAN_CODE = #paramOrgCode#
+]]>
+</isNotEmpty>
+<![CDATA[
+		AND A.APP_KIND_CODE = '9020'
+		AND A.APP_DESC_CODE = #paramAppDescCode#
+		ORDER BY A.AGE_CODE, A.ORGAN_CODE, A.APP_KIND_CODE, A.APP_DESC_CODE, ORD
+	]]>
+	</select>
+
+	<insert id="lionsclubs.com.SM1.SM1_2.SM1_12.insert" parameterClass="SM1_12VO_DATA">
+	<![CDATA[
+		INSERT INTO dbo.LIONS_DUMMY_MEMBER_INFO (
+			  AGE_CODE 
+			, ORGAN_CODE 
+			, APP_KIND_CODE 
+			, APP_DESC_CODE 
+			, MEMBER_NO 
+			, MEMBER_NAME 
+			, ORD 
+			, T_POS                     
+			, T_CLUB_NAME          
+			, T_CO_POS               
+			, T_PHONE                 
+			, T_CH_YEAR             
+			, T_AREA_NO             
+			, T_BOUND_NO           
+			, T_CLUB_F_NO         
+		)
+		VALUES (
+			  #ageCode#
+			, REPLACE(UPPER(#organCode#),'-','')
+			, '9020'
+			, #appDescCode#
+			, #memberNo#
+			, #memberName#
+			, #ord#
+			, #tPos#                     
+			, #tClubName#          
+			, #tCoPos#               
+			, #tPhone#                 
+			, #tChYear#             
+			, #tAreaNo#             
+			, #tBoundNo#           
+			, #tClubFNo#          
+		)
+	]]>
+	</insert>
+	
+	<update id="lionsclubs.com.SM1.SM1_2.SM1_12.update" parameterClass="SM1_12VO_DATA">
+	<![CDATA[
+		UPDATE dbo.LIONS_DUMMY_MEMBER_INFO SET
+			  AGE_CODE 				= #ageCode#
+			, ORGAN_CODE 			= REPLACE(UPPER(#organCode#),'-','')
+			, APP_KIND_CODE 		= '9020'
+			, APP_DESC_CODE 		= #appDescCode#
+			, MEMBER_NO 			= #memberNo#
+			, MEMBER_NAME 			= #memberName#
+			, ORD 					= #ord#
+			, T_POS					= #tPos#                     
+			, T_CLUB_NAME			= #tClubName#          
+			, T_CO_POS				= #tCoPos#               
+			, T_PHONE				= #tPhone#                 
+			, T_CH_YEAR				= #tChYear#             
+			, T_AREA_NO				= #tAreaNo#             
+			, T_BOUND_NO			= #tBoundNo#           
+			, T_CLUB_F_NO			= #tClubFNo#          
+		WHERE IDN_NO = #idnNo#
+	]]>
+	</update>	
+	<delete id="lionsclubs.com.SM1.SM1_2.SM1_12.delete" parameterClass="SM1_12VO_DATA">
+	<![CDATA[
+		DELETE FROM dbo.LIONS_DUMMY_MEMBER_INFO
+		WHERE IDN_NO = #idnNo#
+	]]>
+	</delete>
+	
+	<update id="lionsclubs.com.SM1.SM1_2.SM1_12.reorderList" parameterClass="SM1_12VO">
+	<![CDATA[
+		UPDATE LIONS_DUMMY_MEMBER_INFO
+		SET ORD = B.ORD
+		FROM LIONS_DUMMY_MEMBER_INFO A
+		JOIN (
+		SELECT
+			 IDN_NO
+			,((ROW_NUMBER() OVER(ORDER BY ORD) - 1) * 10) + 1000 as ORD
+		FROM LIONS_DUMMY_MEMBER_INFO
+		WHERE 
+		    AGE_CODE = CAST(CAST(#paramYearCode# as INT)-1 as NVARCHAR(10)) + '-' + #paramYearCode#
+		AND ORGAN_CODE = #paramOrgCode#	
+		AND APP_KIND_CODE = '9020'
+		AND APP_DESC_CODE = #paramAppDescCode#
+		) B ON B.IDN_NO = A.IDN_NO
+	]]>
+	</update>
+</sqlMap>

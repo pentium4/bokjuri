@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://www.ibatis.com/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="lionsclubs.com.MM2.MM2_4.MM2_26">
+	<typeAlias alias="MM2_24VO_PARAM" type="lionsclubs.com.MM2.MM2_4.MM2_24.MM2_24VO_PARAM"/>
+	<typeAlias alias="MM2_26VO_DATA" type="lionsclubs.com.MM2.MM2_4.MM2_26.MM2_26VO_DATA"/>
+	<typeAlias alias="MM2_26VO_FILE" type="lionsclubs.com.MM2.MM2_4.MM2_26.MM2_26VO_FILE"/>
+
+	
+	<select id="lionsclubs.com.MM2.MM2_4.MM2_26.selectList" parameterClass="MM2_24VO_PARAM" resultClass="MM2_26VO_DATA">
+	<![CDATA[
+		SELECT  DA.SESSION_YYYY AS inputSessionYyyy
+			   ,DA.SESSION_MM AS inputSessionMm
+			   ,DA.ORGAN_CODE AS inputOrganCode
+			   ,DA.CONF_KIND_CODE AS inputConfKindCode
+			   ,DA.CONF_IDN_NO AS inputConfIdnNo
+			   ,DA.AGENDA_IDN_NO AS inputAgendaIdnNo
+			   ,DA.AGENDA_ORDER AS inputAgendaOrder
+			   ,DA.AGENDA_DESC AS inputAgendaDesc
+			   ,DA.APPROVAL_PERSON	AS inputApprovalPerson
+			   ,DA.DELIBERATION_DESC AS inputDeliberationDesc
+			   ,DA.FILE_ID AS inputFileId
+			   ,(SELECT COUNT(*) FROM J_ATTACHFILE WHERE FILE_ID = DA.FILE_ID) AS fileCnt	/* 파일갯수 */
+		  FROM LIONS_DELIBERATION_AGENDA DA
+		 WHERE SESSION_YYYY	= #yearCode#
+		   AND SESSION_MM = #monthCode#
+		   AND ORGAN_CODE = #organCode#
+		   AND CONF_KIND_CODE = #confKindCode#
+		   AND CONF_IDN_NO = #confIdnNo#
+		 ORDER BY AGENDA_ORDER  
+ 	]]>
+ 	</select>
+ 	
+ 	<insert id="lionsclubs.com.MM2.MM2_4.MM2_26.insertData" parameterClass="MM2_26VO_DATA">
+	<![CDATA[
+		INSERT INTO LIONS_DELIBERATION_AGENDA(
+			 SESSION_YYYY		
+		    ,SESSION_MM			
+		    ,ORGAN_CODE			
+		    ,CONF_KIND_CODE		
+		    ,CONF_IDN_NO		
+		    ,AGENDA_IDN_NO  	
+		    ,AGENDA_ORDER		
+		    ,AGENDA_DESC		
+		    ,APPROVAL_PERSON	
+		    ,DELIBERATION_DESC	
+			,INSERT_DATE
+			,INSERT_NAME
+			,UPDATE_DATE
+			,UPDATE_NAME
+		)
+		
+		SELECT
+			 #inputSessionYyyy#
+			,#inputSessionMm#
+			,#inputOrganCode#
+			,#inputConfKindCode#
+			,#inputConfIdnNo#
+			,ISNULL(MAX(AGENDA_IDN_NO),0) + 1
+			,#inputAgendaOrder#
+			,#inputAgendaDesc#
+			,#inputApprovalPerson#
+			,#inputDeliberationDesc#
+			,GETDATE()
+			,#memberNo#
+			,GETDATE()
+			,#memberNo#
+		FROM LIONS_DELIBERATION_AGENDA
+		WHERE 
+			 SESSION_YYYY		= #inputSessionYyyy#
+		 AND SESSION_MM			= #inputSessionMm#
+		 AND ORGAN_CODE			= #inputOrganCode#
+		 AND CONF_KIND_CODE		= #inputConfKindCode#
+		 AND CONF_IDN_NO		= #inputConfIdnNo#
+ 	]]>
+ 	</insert>
+ 	
+  	<update id="lionsclubs.com.MM2.MM2_4.MM2_26.updateData" parameterClass="MM2_26VO_DATA">
+	<![CDATA[
+		UPDATE LIONS_DELIBERATION_AGENDA SET
+		     AGENDA_ORDER		= #inputAgendaOrder#
+		    ,AGENDA_DESC		= #inputAgendaDesc#
+		    ,APPROVAL_PERSON	= #inputApprovalPerson#
+		    ,DELIBERATION_DESC	= #inputDeliberationDesc#
+			,UPDATE_DATE		= GETDATE()
+			,UPDATE_NAME		= #memberNo#
+		WHERE 
+			 SESSION_YYYY		= #inputSessionYyyy#
+		 AND SESSION_MM			= #inputSessionMm#
+		 AND ORGAN_CODE			= #inputOrganCode#
+		 AND CONF_KIND_CODE		= #inputConfKindCode#
+		 AND CONF_IDN_NO		= #inputConfIdnNo#
+		 AND AGENDA_IDN_NO		= #inputAgendaIdnNo#
+ 	]]>
+ 	</update>
+ 	
+  	<delete id="lionsclubs.com.MM2.MM2_4.MM2_26.deleteData" parameterClass="MM2_26VO_DATA">
+	<![CDATA[
+		DELETE FROM LIONS_DELIBERATION_AGENDA
+		WHERE 
+			 SESSION_YYYY		= #inputSessionYyyy#
+		 AND SESSION_MM			= #inputSessionMm#
+		 AND ORGAN_CODE			= #inputOrganCode#
+		 AND CONF_KIND_CODE		= #inputConfKindCode#
+		 AND CONF_IDN_NO		= #inputConfIdnNo#
+		 AND AGENDA_IDN_NO		= #inputAgendaIdnNo#
+ 	]]>
+ 	</delete>
+ 	
+   	<update id="lionsclubs.com.MM2.MM2_4.MM2_26.fileInfoUpload" parameterClass="MM2_26VO_FILE">
+	<![CDATA[
+		UPDATE LIONS_DELIBERATION_AGENDA 
+		   SET FILE_ID = #fileId#
+		 WHERE SESSION_YYYY = #inputSessionYyyy#
+		   AND SESSION_MM = #inputSessionMm#
+		   AND ORGAN_CODE = #inputOrganCode#
+		   AND CONF_KIND_CODE = #inputConfKindCode#
+		   AND CONF_IDN_NO = #inputConfIdnNo#
+		   AND AGENDA_IDN_NO = #inputAgendaIdnNo#
+ 	]]>
+ 	</update>
+ 	
+ 	<delete id="lionsclubs.com.MM2.MM2_4.MM2_26.deleteCopy">
+		DELETE FROM LIONS_DELIBERATION_AGENDA
+		 WHERE SESSION_YYYY	= #yearCode#
+		   AND SESSION_MM = #monthCode#
+		   AND ORGAN_CODE = #organCode#
+		   AND CONF_KIND_CODE = #confKindCode#
+		   AND CONF_IDN_NO = #confIdnNo#
+ 	</delete>
+ 	
+ 	<insert id="lionsclubs.com.MM2.MM2_4.MM2_26.insertCopy">
+		INSERT INTO LIONS_DELIBERATION_AGENDA(
+			 SESSION_YYYY		
+		    ,SESSION_MM			
+		    ,ORGAN_CODE			
+		    ,CONF_KIND_CODE		
+		    ,CONF_IDN_NO		
+		    ,AGENDA_IDN_NO
+		    ,AGENDA_ORDER
+		    ,AGENDA_DESC
+		    ,APPROVAL_PERSON
+		    ,DELIBERATION_DESC
+		    ,FILE_ID
+			,INSERT_DATE
+			,INSERT_NAME
+			,UPDATE_DATE
+			,UPDATE_NAME
+		)
+		
+		SELECT  #yearCode#
+			   ,#monthCode#
+			   ,ORGAN_CODE
+			   ,#confKindCode#
+			   ,#confIdnNo#
+			   ,AGENDA_IDN_NO
+			   ,AGENDA_ORDER
+			   ,AGENDA_DESC
+			   ,APPROVAL_PERSON
+			   ,DELIBERATION_DESC
+			   ,FILE_ID
+			   ,GETDATE()
+			   ,#insertName#
+			   ,GETDATE()
+			   ,#updateName#
+		  FROM LIONS_DELIBERATION_AGENDA
+		 WHERE SESSION_YYYY	= #copyYearCode#
+		   AND SESSION_MM = #copyMonthCode#
+		   AND ORGAN_CODE = #copyOrganCode#
+		   AND CONF_KIND_CODE = #copyConfKindCode#
+		   AND CONF_IDN_NO = #copyConfIdnNo#
+ 	</insert> 	
+</sqlMap>

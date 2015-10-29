@@ -1,0 +1,212 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://www.ibatis.com/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="lionsclubs.com.SM1.SM1_1.SM1_02">
+
+	<typeAlias alias="SM1_02VO" type="lionsclubs.com.SM1.SM1_1.SM1_02.SM1_02VO"/>
+
+
+	<select id="lionsclubs.com.SM1.SM1_1.SM1_02.selectList" resultClass="SM1_02VO">
+		SELECT  AUTH_GROUP_CODE AS authGroupCode
+			   ,GROUP_NAME AS groupName
+			   ,AUTH_ORGAN_CODE AS authOrganCode 
+			   ,dbo.FN_LIONS_CODE_NAME('7810', AUTH_ORGAN_CODE) AS authOrganName
+			   ,(SELECT COUNT(*) from LIONS_GROUP_UIAUTH WHERE AUTH_GROUP_CODE = A.AUTH_GROUP_CODE AND [SELECT] = 'Y') AS sTotal
+			   ,(SELECT COUNT(*) from LIONS_GROUP_UIAUTH WHERE AUTH_GROUP_CODE = A.AUTH_GROUP_CODE AND [INPUT] = 'Y') AS iTotal
+		  FROM LIONS_AUTH_GROUP_MANAGE A
+		 ORDER BY AUTH_GROUP_CODE
+ 	</select>
+ 	
+ 	<select id="lionsclubs.com.SM1.SM1_1.SM1_02.selectUiAuthList" resultClass="SM1_02VO">
+		SELECT  LM.UI_NO AS uino
+			   ,LM.TITLE AS title 
+			   ,ISNULL(LG.[SELECT],'N') AS [select]
+			   ,ISNULL(LG.[INPUT],'N') AS [input]
+		  FROM LIONS_MENU LM
+		  LEFT OUTER JOIN LIONS_GROUP_UIAUTH LG 
+		    ON LG.UI_NO = LM.UI_NO 
+		   AND LG.AUTH_GROUP_CODE = #authGroupCode#
+		 ORDER BY  LM.MENU1
+				  ,LM.MENU2
+				  ,LM.MENU3
+ 	</select>
+	 	
+ 	<select id="lionsclubs.com.SM1.SM1_1.SM1_02.selectOrganList" resultClass="SM1_02VO">
+ 		SELECT  A.CODE AS code
+		   	   ,A.CODE_NAME AS codeName
+		   	   ,CASE WHEN B.TITLE_CODE != '' 
+		   			 THEN 'Y' 
+		   			 ELSE 'N' 
+		   			  END AS useYn
+		  FROM LIONS_CODE A
+		  LEFT OUTER JOIN LIONS_AUTH_GROUP_TITLE B 
+		    ON B.TITLE_CODE = A.CODE 
+		   AND B.AUTH_GROUP_CODE = #authGroupCode#
+		 WHERE A.USE_YN = 'Y'
+ 		   AND A.GROUP_CODE = (SELECT CODE1 FROM LIONS_CODE WHERE GROUP_CODE = '7810' AND CODE = #authOrganCode#)
+		 ORDER BY  A.GROUP_CODE
+				  ,A.ord
+ 	</select> 	
+
+	<insert id="lionsclubs.com.SM1.SM1_1.SM1_02.insert">
+		INSERT INTO LIONS_AUTH_GROUP_MANAGE(
+			 AUTH_ORGAN_CODE
+			,GROUP_NAME
+			,INSERT_DATE
+			,INSERT_NAME
+			,UPDATE_DATE
+			,UPDATE_NAME
+		) VALUES (
+			 #authOrganCode#
+			,#groupName#
+			,GETDATE()
+			,#insertName#
+			,GETDATE()
+			,#updateName#
+		)
+ 	</insert>
+ 	
+ 	<update id="lionsclubs.com.SM1.SM1_1.SM1_02.update"> 		
+		UPDATE LIONS_AUTH_GROUP_MANAGE 
+		   SET  AUTH_ORGAN_CODE = #authOrganCode#
+			   ,GROUP_NAME = #groupName#
+			   ,UPDATE_NAME = #updateName#
+			   ,UPDATE_DATE = GETDATE()
+		 WHERE AUTH_GROUP_CODE = #authGroupCode#
+ 	</update> 
+ 	
+ 	<delete id="lionsclubs.com.SM1.SM1_1.SM1_02.delete">
+        <![CDATA[
+		DELETE FROM LIONS_AUTH_GROUP_MANAGE 
+		 WHERE AUTH_GROUP_CODE = #authGroupCode#
+        ]]>
+    </delete>
+    
+    <delete id="lionsclubs.com.SM1.SM1_1.SM1_02.deleteUiAuth">
+        <![CDATA[
+		DELETE FROM LIONS_GROUP_UIAUTH 
+		 WHERE AUTH_GROUP_CODE = #authGroupCode#
+        ]]>
+    </delete>
+    
+    <delete id="lionsclubs.com.SM1.SM1_1.SM1_02.deleteTitle">
+        <![CDATA[
+		DELETE FROM LIONS_AUTH_GROUP_TITLE 
+		 WHERE AUTH_GROUP_CODE = #authGroupCode#
+        ]]>
+    </delete>     
+    
+    <update id="lionsclubs.com.SM1.SM1_1.SM1_02.updateSelect">
+        <![CDATA[
+        IF NOT EXISTS (
+			SELECT UI_NO 
+			  FROM LIONS_GROUP_UIAUTH 
+			 WHERE UI_NO = #uiNo# 
+			   AND AUTH_GROUP_CODE = #authGroupCode#
+		)
+			INSERT INTO LIONS_GROUP_UIAUTH (
+				 UI_NO
+				,AUTH_GROUP_CODE
+				,[SELECT]
+				,INSERT_DATE
+				,INSERT_NAME
+				,UPDATE_DATE
+				,UPDATE_NAME
+			) VALUES (
+				 #uiNo#
+				,#authGroupCode#
+				,#select#
+				,GETDATE()
+				,#insertName#
+				,GETDATE()
+				,#updateName#
+			)
+		ELSE
+            UPDATE LIONS_GROUP_UIAUTH 
+               SET  [SELECT] = #select#
+				   ,UPDATE_NAME = #updateName#
+				   ,UPDATE_DATE = GETDATE()
+             WHERE UI_NO = #uiNo# 
+               AND AUTH_GROUP_CODE = #authGroupCode#
+        ]]>
+    </update>
+    <update id="lionsclubs.com.SM1.SM1_1.SM1_02.updateInput">
+        <![CDATA[
+        IF NOT EXISTS (
+			SELECT UI_NO 
+			  FROM LIONS_GROUP_UIAUTH 
+			 WHERE UI_NO = #uiNo# 
+			   AND AUTH_GROUP_CODE = #authGroupCode#
+		)
+			INSERT INTO LIONS_GROUP_UIAUTH (
+				 UI_NO
+				,AUTH_GROUP_CODE
+				,[INPUT]
+				,INSERT_DATE
+				,INSERT_NAME
+				,UPDATE_DATE
+				,UPDATE_NAME
+			) VALUES (
+				 #uiNo#
+				,#authGroupCode#
+				,#input#
+				,GETDATE()
+				,#insertName#
+				,GETDATE()
+				,#updateName#
+			)
+		ELSE
+            UPDATE LIONS_GROUP_UIAUTH 
+               SET  [INPUT] = #input#
+				   ,UPDATE_NAME = #updateName#
+				   ,UPDATE_DATE = GETDATE()
+             WHERE UI_NO = #uiNo#
+               AND AUTH_GROUP_CODE = #authGroupCode#
+        ]]>
+    </update>
+    
+    <update id="lionsclubs.com.SM1.SM1_1.SM1_02.updateUpdate">
+        <![CDATA[
+        IF NOT EXISTS (
+			SELECT TITLE_CODE 
+			  FROM LIONS_AUTH_GROUP_TITLE 
+			 WHERE TITLE_CODE = #titleCode# 
+			   AND AUTH_GROUP_CODE = #authGroupCode#
+		)
+			INSERT INTO LIONS_AUTH_GROUP_TITLE (
+				 TITLE_CODE
+				,AUTH_GROUP_CODE
+				,INSERT_DATE
+				,INSERT_NAME
+				,UPDATE_DATE
+				,UPDATE_NAME
+			) VALUES (
+				 #titleCode#
+				,#authGroupCode#
+				,GETDATE()
+				,#insertName#
+				,GETDATE()
+				,#updateName#
+			)
+		ELSE
+            UPDATE LIONS_AUTH_GROUP_TITLE 
+               SET  TITLE_CODE = #titleCode#
+				   ,UPDATE_NAME = #updateName#
+				   ,UPDATE_DATE = GETDATE()
+             WHERE TITLE_CODE = #titleCode# 
+               AND AUTH_GROUP_CODE = #authGroupCode#
+        ]]>
+    </update>    
+    
+     
+    
+    <update id="lionsclubs.com.SM1.SM1_1.SM1_02.limitUpdate">
+        <![CDATA[
+		UPDATE LIONS_AUTH_GROUP_MANAGE 
+		   SET  AUTH_ORGAN_CODE = #authOrganCode#
+			   ,UPDATE_NAME = #updateName#
+			   ,UPDATE_DATE = GETDATE()
+		 WHERE AUTH_GROUP_CODE = #authGroupCode#
+        ]]>
+    </update>
+</sqlMap>

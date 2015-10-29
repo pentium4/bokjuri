@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE tiles-definitions PUBLIC 
+       "-//Apache Software Foundation//DTD Tiles Configuration 2.1//EN" 
+       "http://tiles.apache.org/dtds/tiles-config_2_1.dtd">
+
+<tiles-definitions> 
+	<!-- 공통 레이아웃 -->
+	<definition name=".default" template="/WEB-INF/jsp/lionsclubs/layout/common/layout.jsp">
+		<put-attribute name="skipnavi" value="/WEB-INF/jsp/lionsclubs/layout/common/skipnavi.jsp" />
+		<put-attribute name="header" value="/WEB-INF/jsp/lionsclubs/layout/common/header.jsp" />
+		<put-attribute name="leftmenu" value="/WEB-INF/jsp/lionsclubs/layout/common/leftmenu.jsp" />
+		<put-attribute name="message" value="/WEB-INF/jsp/lionsclubs/layout/common/message.jsp" />
+		<put-attribute name="footer" value="/WEB-INF/jsp/lionsclubs/layout/common/footer.jsp" />
+		<put-attribute name="body" value="" />
+	</definition>
+	
+	<!-- 메인페이지 레이아웃 -->
+	<definition name=".main" template="/WEB-INF/jsp/lionsclubs/layout/main/layout.jsp">
+		<put-attribute name="header" value="/WEB-INF/jsp/lionsclubs/layout/common/header.jsp" />
+		<put-attribute name="footer" value="/WEB-INF/jsp/lionsclubs/layout/common/footer.jsp" />
+		<put-attribute name="body" value="" />
+	</definition>
+	
+	<!-- 빈페이지 레이아웃 -->
+	<definition name=".blank" template="/WEB-INF/jsp/lionsclubs/layout/blank/layout.jsp">
+		<put-attribute name="body" value="" />
+	</definition>
+	
+	<!-- 프린트 팝업레이아웃 -->
+	<definition name=".printPopup" template="/WEB-INF/jsp/lionsclubs/layout/printPopup/layout.jsp">
+		<put-attribute name="body" value="" />
+	</definition>	
+	
+	<!-- 팝업레이아웃 -->
+	<definition name=".popup" template="/WEB-INF/jsp/lionsclubs/layout/popup/layout.jsp">
+		<put-attribute name="body" value="" />
+		<put-attribute name="message" value="/WEB-INF/jsp/lionsclubs/layout/common/message.jsp" />
+	</definition>
+	
+	<!-- 로그인 레이아웃 -->
+	<definition name=".login" template="/WEB-INF/jsp/lionsclubs/layout/login/layout.jsp">
+		<put-attribute name="body" value="" />
+	</definition>
+	
+	<!-- 프레젠테이션 레이아웃 -->
+	<definition name=".presentation" template="/WEB-INF/jsp/lionsclubs/layout/presentation/layout.jsp">
+		<put-attribute name="body" value="" />
+	</definition>
+		
+	<!-- 모바일 레이아웃 -->
+	<definition name=".mobileLogin" template="/WEB-INF/jsp/lionsmobile/layout/login/layout.jsp">
+		<put-attribute name="body" value="" />
+	</definition>
+	
+	<!-- 모바일 레이아웃 -->
+	<definition name=".mobile" template="/WEB-INF/jsp/lionsmobile/layout/common/layout.jsp">
+		<put-attribute name="header" value="/WEB-INF/jsp/lionsmobile/layout/common/header.jsp" />
+		<put-attribute name="body" value="" />
+	</definition>
+	
+	<!-- 모바일 빈페이지 레이아웃 -->
+	<definition name=".mobileBlank" template="/WEB-INF/jsp/lionsmobile/layout/blank/layout.jsp">
+		<put-attribute name="body" value="" />
+	</definition>
+	
+	<!-- 메인페이지 레이아웃 -->
+	<definition name=".homeMain" template="/WEB-INF/jsp/home/layout/main/layout.jsp">
+		<put-attribute name="header" value="/WEB-INF/jsp/home/layout/main/header.jsp" />
+		<put-attribute name="footer" value="/WEB-INF/jsp/home/layout/common/footer.jsp" />
+		<put-attribute name="body" value="" />
+	</definition>
+	
+	<!-- 홈페이지 레이아웃 -->
+	<definition name=".home" template="/WEB-INF/jsp/home/layout/common/layout.jsp">
+		<put-attribute name="header" value="/WEB-INF/jsp/home/layout/common/header.jsp" />
+		<put-attribute name="footer" value="/WEB-INF/jsp/home/layout/common/footer.jsp" />
+		<put-attribute name="top" value="/WEB-INF/jsp/home/layout/common/top.jsp" />
+		<put-attribute name="body" value="" />
+		<put-attribute name="leftmenu" value="/WEB-INF/jsp/home/layout/common/leftmenu.jsp" />
+	</definition>	
+</tiles-definitions>

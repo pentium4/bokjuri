@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://www.ibatis.com/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="lionsclubs.com.cmm.commoncode">
+
+	<typeAlias alias="commonCodeVO" type="lionsclubs.com.cmm.commoncode.CommonCodeVO"/>
+	
+	<select id="lionsclubs.com.cmm.commoncode.codelist" resultClass="commonCodeVO">
+		SELECT  CODE AS code
+			   ,CODE + ' ' + CODE_NAME AS codeName
+			   ,CODE1 AS code1
+			   ,CODE2 AS code2
+			   ,CODE3 AS code3
+		  FROM LIONS_CODE
+		 WHERE GROUP_CODE = #groupCode#
+		   AND USE_YN = 'Y'
+		 ORDER BY CONVERT(INT, ORD)
+	</select>
+	
+	<select id="lionsclubs.com.cmm.commoncode.codelistSimple" parameterClass="java.util.HashMap" resultClass="commonCodeVO">
+	<![CDATA[
+		SELECT  CODE AS code
+			   ,CODE_NAME AS codeName
+			   ,CODE1 AS code1
+			   ,CODE2 AS code2
+			   ,CODE3 AS code3
+		  FROM LIONS_CODE
+		 WHERE GROUP_CODE = #groupCode#
+		   AND USE_YN = 'Y'
+	]]>
+		 <isNotEqual property="code1" compareValue="" prepend="AND">
+			<![CDATA[
+				CODE1 = #code1#
+			]]>
+		 </isNotEqual>
+		 <isNotEqual property="code2" compareValue="" prepend="AND">
+			<![CDATA[
+				CODE1 = #code2#
+			]]>
+		 </isNotEqual>
+	<![CDATA[
+		 ORDER BY CONVERT(INT, ORD)
+	]]>
+	</select>
+
+	<select id="lionsclubs.com.cmm.commoncode.codetolabel" resultClass="String">
+		SELECT CODE_NAME AS codeName
+		  FROM LIONS_CODE
+		 WHERE GROUP_CODE = #groupCode#
+		   AND CODE = #code#
+	</select>
+	
+	<select id="lionsclubs.com.cmm.commoncode.codetocode1" resultClass="String">
+		SELECT CODE1 AS code1
+		  FROM LIONS_CODE
+		 WHERE GROUP_CODE = #groupCode#
+		   AND CODE = #code#	
+	</select>
+	
+    <select id="lionsclubs.com.cmm.commoncode.codeOption1List" resultClass="commonCodeVO">
+		SELECT  CODE AS code
+			   ,CODE + ' ' + CODE_NAME AS codeName
+			   ,CODE1 AS code1
+			   ,CODE2 AS code2
+			   ,CODE3 AS code3
+		  FROM LIONS_CODE
+		 WHERE GROUP_CODE = ( SELECT CODE1 FROM LIONS_CODE WHERE CODE = #code# AND GROUP_CODE = #groupCode# )
+		   AND USE_YN = 'Y'
+		 ORDER BY CONVERT(INT, ORD)
+ 	</select>
+ 	
+    <select id="lionsclubs.com.cmm.commoncode.codeOption2List" resultClass="commonCodeVO">
+		SELECT  CODE AS code
+			   ,CODE + ' ' + CODE_NAME AS codeName
+			   ,CODE1 AS code1
+			   ,CODE2 AS code2
+			   ,CODE3 AS code3
+		  FROM LIONS_CODE
+		 WHERE GROUP_CODE = ( SELECT CODE2 FROM LIONS_CODE WHERE REPLACE(CODE1, '-', '') = REPLACE(#code#, '-', '') AND GROUP_CODE = #groupCode# )
+		   AND USE_YN = 'Y'
+		   <isNotEmpty prepend="AND" property="code1s">
+			   <iterate property="code1s" open="CODE1 IN(" close=")" conjunction=",">
+			   		#code1s[]#
+			   </iterate>
+		   </isNotEmpty>
+		 ORDER BY CONVERT(INT, ORD)
+ 	</select>
+ 	
+ 	<select id="lionsclubs.com.cmm.commoncode.organCodeToName" resultClass="String">
+		SELECT CASE WHEN #nameKind# = '1'
+					THEN KO_NAME
+					WHEN #nameKind# = '2'
+					THEN KO_ABBR
+					WHEN #nameKind# = '3'
+					THEN KO_ABBR2
+					 END AS name
+		  FROM LIONS_ORGAN_CODE
+		 WHERE ORGAN_CODE = #organCode#
+ 	</select>
+</sqlMap>

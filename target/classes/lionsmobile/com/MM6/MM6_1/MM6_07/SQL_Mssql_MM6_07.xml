@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://www.ibatis.com/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="lionsmobile.com.MM6.MM6_1.MM6_07">
+
+	<typeAlias alias="MM6_07VO" type="lionsmobile.com.MM6.MM6_1.MM6_07.MM6_07VO"/>
+	
+	<sql id="lionsmobile.com.MM6.MM6_1.MM6_07.queryList">
+		<isNotEmpty property="businessClass">
+			<isNotEmpty property="industry">
+		 		<![CDATA[
+					SELECT info.MEMBER_NO AS memberNo
+						  ,info.NAME AS name
+						  ,info.WORK_TEL AS workTel
+						  ,(SELECT CODE_NAME 
+						      FROM LIONS_CODE 
+						     WHERE GROUP_CODE = '2500'
+						         AND CODE = info.COMPANY_TITLE) AS companyTitle
+						  ,info.COMPANY_NAME AS companyName
+						  ,info.COMPANY_ADDRESS AS companyAddress
+						  ,(SELECT KO_ABBR2 
+							  FROM LIONS_ORGAN_CODE 
+						    WHERE ORGAN_CODE = info.SECTOR_CLUB_CODE
+					 	  ) AS sectorClub
+					 FROM LIONS_MEMBER_INFO_VIEW AS info
+					WHERE (INDUSTRY IS NOT NULL AND INDUSTRY != '')
+					    AND BUSINESS_CLASS = #businessClass#
+					    AND INDUSTRY = #industry#
+					ORDER BY info.NAME
+					
+		 		]]>
+		 	</isNotEmpty>
+		 </isNotEmpty>
+<!-- 			<isNotEmpty prepend="AND" property="businessClass"> -->
+<!-- 				BUSINESS_CLASS = #businessClass# -->
+<!-- 			</isNotEmpty> -->
+<!-- 			<isNotEmpty prepend="AND" property="industry"> -->
+<!-- 				INDUSTRY = #industry# -->
+<!-- 			</isNotEmpty> -->
+			
+<!-- 			ORDER BY info.NAME -->
+	</sql>
+	
+	  <select id="lionsmobile.com.MM6.MM6_1.MM6_07.selectList" resultClass="MM6_07VO">
+	  		<include refid="lionsmobile.com.MM6.MM6_1.MM6_07.queryList" />
+	  </select>
+ 	
+</sqlMap>

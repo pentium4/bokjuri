@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://www.ibatis.com/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="lionsclubs.com.MM3.MM3_3.MM3_11">
+
+	<typeAlias alias="MM3_11VO" type="lionsclubs.com.MM3.MM3_3.MM3_11.MM3_11VO"/>
+		<select id="lionsclubs.com.MM3.MM3_3.MM3_11.selectList" resultClass="MM3_11VO">
+		<![CDATA[
+DECLARE @yearCode INT
+DECLARE @toDate NVARCHAR(8)
+DECLARE @fromDate NVARCHAR(8)
+DECLARE @orgCode NVARCHAR(10)
+DECLARE @basicDate NVARCHAR(10)
+
+SET @orgCode = #orgCode#;
+SET @yearCode = #thisYear#;
+SET @toDate = CAST(@yearCode - 0 as NVARCHAR(4)) + '0630';
+SET @fromDate = CAST(@yearCode - 1 as NVARCHAR(4)) + '0701';
+SET @basicDate = CASE WHEN @toDate < convert(char(8), getdate(), 112) THEN convert(char(4),@yearCode)+'0630' ELSE convert(char(10), getdate(), 20) end;
+
+WITH
+	ORG_TREE_TO AS ( /* 전체 조직트리 - 현재회기 */
+		SELECT 
+			A2.ORGAN_CODE as ORGAN_CODE
+			, A2.UPPER_ORGAN_CODE as UPPER_ORGAN_CODE
+			, A2.ORGAN_OFFICER_MEMBER_NO as ORGAN_OFFICER_MEMBER_NO
+			, CAST(A2.TARGET_MEMBER as INT) as TARGET_MEMBER
+			, D.ORGAN_ABOLISH_DATE as ORGAN_ABOLISH_DATE
+			, D.SPOT_NIGHT as SPOT_NIGHT
+		FROM dbo.LIONS_ORGAN_CODE_HISTORY A2 
+		INNER JOIN dbo.LIONS_ORGAN_CODE D ON D.ORGAN_CODE = A2.ORGAN_CODE
+		WHERE D.SPOT_NIGHT != '' 
+			   AND (D.ORGAN_ABOLISH_DATE >= @fromDate OR D.ORGAN_ABOLISH_DATE = '')	
+			   AND A2.IDN_NO IN (
+					SELECT
+					MAX(B.IDN_NO) OVER(PARTITION BY B.ORGAN_CODE) as IDN_NO
+					FROM (
+						SELECT
+						ORGAN_CODE,
+						MAX(CHANGE_DATE) CHANGE_DATE
+						FROM dbo.LIONS_ORGAN_CODE_HISTORY
+						WHERE CHANGE_DATE BETWEEN @fromDate AND @toDate
+						GROUP BY ORGAN_CODE
+					) A
+					INNER JOIN dbo.LIONS_ORGAN_CODE_HISTORY B
+					ON B.ORGAN_CODE = A.ORGAN_CODE AND B.CHANGE_DATE = A.CHANGE_DATE
+			)
+	),
+	CLUB_CODE_TO AS ( /* 클럽코드  현재 */
+		SELECT
+			   A.ORGAN_CODE as LVL1_CODE
+			  ,B.ORGAN_CODE as LVL2_CODE
+			  ,C.ORGAN_CODE as LVL3_CODE
+			  ,D.ORGAN_CODE as LVL4_CODE
+			  ,D.ORGAN_ABOLISH_DATE as ORGAN_ABOLISH_DATE
+			  ,D.SPOT_NIGHT as SPOT_NIGHT
+			  ,D.TARGET_MEMBER as TARGET_MEMBER
+		FROM ORG_TREE_TO A
+		INNER JOIN ORG_TREE_TO B ON B.UPPER_ORGAN_CODE = A.ORGAN_CODE
+		INNER JOIN ORG_TREE_TO C ON C.UPPER_ORGAN_CODE = B.ORGAN_CODE
+		INNER JOIN ORG_TREE_TO D ON D.UPPER_ORGAN_CODE = C.ORGAN_CODE
+		WHERE C.ORGAN_CODE = @orgCode
+	),	
+	CLUB_CODE_OUT AS (
+		select 
+			 LVL1_CODE
+			,LVL2_CODE
+			,LVL3_CODE
+			,LVL4_CODE
+		from CLUB_CODE_TO
+		where ORGAN_ABOLISH_DATE >= @fromDate AND ORGAN_ABOLISH_DATE < @toDate
+	),
+	
+	MEMBER_CNT_TO AS ( /*회원수 현재(현재회기) */
+		SELECT			
+			B.ORGAN_CODE as ORGAN_CODE,			
+			COUNT(DISTINCT B.MEMBER_NO) as MEMBER_CNT_TO
+		FROM (
+			SELECT
+				H.MEMBER_NO,
+				C.LVL4_CODE as ORGAN_CODE			/* 클럽코드 */
+			FROM dbo.LIONS_MEMBER_CLUB_HIST H
+			INNER JOIN CLUB_CODE_TO C ON C.LVL4_CODE = H.ORGAN_CODE
+			/* 클럽만 퇴회 처리되고 회원이 퇴회처리안된 회원은 카운트안되도록 처리 : 2014-11-24 */
+			LEFT OUTER JOIN CLUB_CODE_OUT O ON O.LVL4_CODE = C.LVL4_CODE 
+			WHERE H.[START_DATE] <= @toDate AND H.END_DATE > @toDate	
+			AND O.LVL4_CODE is null
+		) B 
+		GROUP BY B.ORGAN_CODE			
+	),
+	
+	
+	MEMBER_CNT_TO_PREV AS ( /* 회원 LIST */		
+		SELECT
+			H.MEMBER_NO
+			, H.ORGAN_CODE
+		FROM dbo.LIONS_MEMBER_CLUB_HIST H
+		INNER JOIN CLUB_CODE_TO C ON C.LVL4_CODE = H.ORGAN_CODE
+		WHERE H.[START_DATE] <= @toDate AND H.END_DATE > @toDate						
+	),
+	MEMBER_TERM_PREV AS (
+	
+		SELECT 
+			A.MEMBER_NO 
+			, SUM(AGE) as ASUM
+			, SUM(AGE)/365 as AGE
+		FROM(		
+			SELECT 
+				H.ORGAN_CODE
+				  ,H.MEMBER_NO			  
+				  ,H.[START_DATE]
+				  ,H.END_DATE	
+				  ,DATEDIFF(day,CONVERT(Date,H.[START_DATE],12),case when substring(H.END_DATE,1,4)='9999' then @basicDate else H.END_DATE end) as AGE		  
+			FROM dbo.LIONS_MEMBER_CLUB_HIST H
+			INNER JOIN MEMBER_CNT_TO_PREV T ON T.MEMBER_NO = H.MEMBER_NO			
+			WHERE H.[START_DATE] < @toDate
+		) A
+		GROUP BY A.MEMBER_NO
+	),
+	
+	MEMBER_TERM AS (
+		SELECT
+			A1.MEMBER_NO
+			, A1.ORGAN_CODE
+			, A2.ASUM
+			, A2.AGE
+		FROM MEMBER_CNT_TO_PREV A1
+		INNER JOIN MEMBER_TERM_PREV A2 ON A2.MEMBER_NO = A1.MEMBER_NO
+	) ,
+	
+	MEMBER_TERM_LIST AS (
+	
+		SELECT 
+				T1.ORGAN_CODE                    
+				  , COUNT(CASE WHEN T1.AGE < 3 THEN 1 END) AS YEAR_TO_3   
+				  , COUNT(CASE WHEN T1.AGE >= 3 AND T1.AGE < 5 THEN 1 END) AS YEAR_TO_5
+				  , COUNT(CASE WHEN T1.AGE >= 5 AND T1.AGE < 8 THEN 1 END) AS YEAR_TO_8
+				  , COUNT(CASE WHEN T1.AGE >= 8 AND T1.AGE < 10 THEN 1 END) AS YEAR_TO_10
+				  , COUNT(CASE WHEN T1.AGE >= 10 AND T1.AGE < 15 THEN 1 END) AS YEAR_TO_15
+				  , COUNT(CASE WHEN T1.AGE >= 15 AND T1.AGE < 20 THEN 1 END) AS YEAR_TO_20
+				  , COUNT(CASE WHEN T1.AGE >= 20 THEN 1 END) AS YEAR_20_MORE
+				  , ROUND(AVG(CAST(T1.ASUM AS FLOAT)),1) as ALL_AVG /* 소수점 한자리까지 출력 */
+	                	
+		from MEMBER_TERM T1
+		GROUP BY T1.ORGAN_CODE
+	
+	)
+	
+	
+	select
+		L.ORGAN_CODE as organCode
+		, B.KO_NAME as organNmClub
+		, B.ORGAN_MEETING as organMeeting
+		, L.YEAR_TO_3 as year1To3
+		, L.YEAR_TO_5 as year1To5
+		, L.YEAR_TO_8 as year1To8
+		, L.YEAR_TO_10 as year1To10
+		, L.YEAR_TO_15 as year1To15
+		, L.YEAR_TO_20 as year1To20
+		, L.YEAR_20_MORE as year20More
+		, C.MEMBER_CNT_TO as yearCntSum
+		, CONVERT(Numeric(3,1), (L.ALL_AVG/365)) as [avg]
+	from MEMBER_TERM_LIST L
+	INNER JOIN MEMBER_CNT_TO C ON C.ORGAN_CODE = L.ORGAN_CODE
+	INNER JOIN dbo.LIONS_ORGAN_CODE B ON B.ORGAN_CODE = L.ORGAN_CODE
+	order by L.ORGAN_CODE
+	
+	]]>
+ 		</select>
+</sqlMap>

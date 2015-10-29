@@ -1,0 +1,196 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://www.ibatis.com/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="lionsclubs.com.MM2.MM2_1.MM2_07">
+
+	<typeAlias alias="MM2_07VO" type="lionsclubs.com.MM2.MM2_1.MM2_07.MM2_07VO"/>
+	<typeAlias alias="MM2_07HeadVO" type="lionsclubs.com.MM2.MM2_1.MM2_07.MM2_07HeadVO"/>
+	
+	<sql id="lionsclubs.com.MM2.MM2_1.MM2_07.selectQuery">
+		DECLARE @sessionYear NVARCHAR(4)	/* 현회선택 */
+		DECLARE @organCode NVARCHAR(6)	/* 조직코드 */
+		
+		SET @sessionYear = #sessionYear#;
+		SET @organCode = REPLACE(#organCode#, '-', '');
+			
+		/* 기본정보 */
+		WITH BASE_INFO AS(
+			SELECT 	MIN(MCH.ORGAN_CODE) AS ORGAN_CODE
+				   ,INFO.MEMBER_NO
+				   ,MIN(INFO.NAME) AS NAME
+				   ,MIN(MCH.START_DATE) AS START_DATE
+			  FROM LIONS_MEMBER_INFO INFO
+			 INNER JOIN LIONS_MEMBER_CLUB_HIST MCH
+				ON INFO.MEMBER_NO = MCH.MEMBER_NO
+			   AND MCH.ORGAN_CODE = @organCode
+			<isNotEmpty prepend="AND" property="sessionYear">
+			<![CDATA[				 				   
+			   (
+					   (MCH.START_DATE >= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701' AND MCH.START_DATE <= CAST(@sessionYear AS NVARCHAR(4)) + '0630')
+					OR (MCH.END_DATE   >= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701' AND MCH.END_DATE <= CAST(@sessionYear AS NVARCHAR(4)) + '0630')
+					OR (MCH.START_DATE <= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701' AND MCH.END_DATE >= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701') /* '20120701' >= START_DATE AND '20120701' <= END_DATE */
+					OR (MCH.START_DATE <= CAST(@sessionYear AS NVARCHAR(4)) + '0630' AND MCH.END_DATE >= CAST(@sessionYear AS NVARCHAR(4)) + '0630')
+				)
+			]]>
+			</isNotEmpty>
+			 GROUP BY INFO.MEMBER_NO
+		/* 클럽직책 */
+		),CLUB_TITLE AS(
+			SELECT  APP.MEMBER_NO
+				   ,APP.APP_DESC_CODE
+				   ,(SELECT CODE_NAME
+					   FROM dbo.LIONS_CODE
+					  WHERE GROUP_CODE = (SELECT CODE1 FROM dbo.LIONS_CODE WHERE CODE = APP.APP_KIND_CODE AND GROUP_CODE = '2700')
+					    AND CODE = APP.APP_DESC_CODE	   
+					) + 
+					CASE WHEN LEN(APP.APP_DESC) > 0
+						 THEN '(' + APP.APP_DESC + ')'
+						 ELSE ''
+						  END
+				    + '(' + CONVERT(NVARCHAR(10), CONVERT(DATETIME, APP.START_DATE), 102) + ')' AS APP_DESC_CODE_NAME
+				   ,(SELECT ORD
+					   FROM dbo.LIONS_CODE
+					  WHERE GROUP_CODE = (SELECT CODE1 FROM dbo.LIONS_CODE WHERE CODE = APP.APP_KIND_CODE AND GROUP_CODE = '2700')
+					    AND CODE = APP.APP_DESC_CODE	   
+					) AS ORD
+			  FROM dbo.LIONS_APPOINTMENT APP
+		     WHERE APP.APP_KIND_CODE = '1000'	/* 선임구분(2700) : 선임(클럽임원선임) */
+			<isNotEmpty prepend="AND" property="sessionYear">
+			<![CDATA[	  
+			    (
+					   (START_DATE >= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701' AND START_DATE <= CAST(@sessionYear AS NVARCHAR(4)) + '0630')
+					OR (END_DATE   >= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701' AND END_DATE <= CAST(@sessionYear AS NVARCHAR(4)) + '0630')
+					OR (START_DATE <= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701' AND END_DATE >= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701') /* '20120701' >= START_DATE AND '20120701' <= END_DATE */
+					OR (START_DATE <= CAST(@sessionYear AS NVARCHAR(4)) + '0630' AND END_DATE >= CAST(@sessionYear AS NVARCHAR(4)) + '0630')
+				)
+			]]>
+			</isNotEmpty>
+		/* 퇴회정보 */
+		),RETIRE AS(
+			SELECT  MEMBER_NO
+				   ,KIND_FLAG
+				   ,END_DATE
+				   ,APP_DESC_CODE
+			  FROM LIONS_APPOINTMENT APP
+			 INNER JOIN(
+				SELECT IDN_NO FROM(
+					SELECT  ROW_NUMBER() OVER (PARTITION BY MEMBER_NO ORDER BY END_DATE DESC, START_DATE DESC, IDN_NO DESC) AS rnum
+						   ,IDN_NO
+						   ,APP_KIND_CODE						   
+					  FROM LIONS_APPOINTMENT
+					<dynamic prepend="WHERE">
+						<isNotEmpty prepend="AND" property="sessionYear">
+						<![CDATA[
+							(
+								   (START_DATE >= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701' AND START_DATE <= CAST(@sessionYear AS NVARCHAR(4)) + '0630')
+								OR (END_DATE   >= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701' AND END_DATE <= CAST(@sessionYear AS NVARCHAR(4)) + '0630')
+								OR (START_DATE <= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701' AND END_DATE >= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701') /* '20120701' >= START_DATE AND '20120701' <= END_DATE */
+								OR (START_DATE <= CAST(@sessionYear AS NVARCHAR(4)) + '0630' AND END_DATE >= CAST(@sessionYear AS NVARCHAR(4)) + '0630')
+							)
+						]]>
+						</isNotEmpty>
+					</dynamic>
+				) IDN
+				 WHERE IDN.rnum = 1
+				   AND IDN.APP_KIND_CODE = '1050'	/* 선임구분(2700) : 선임-퇴회 */
+			  ) X
+				 ON APP.IDN_NO = X.IDN_NO
+		/* 행사출석 현황 */
+		),EVENT AS(
+			SELECT  MEMBER_NO
+				   ,CASE WHEN attend > 0
+						 THEN (CAST(attend AS FLOAT) / CAST(total AS FLOAT)) * 100
+						 ELSE 0 END AS eventAttend
+				   ,attend
+				   ,total 
+			  FROM(
+				SELECT  SUM((CASE WHEN MONTH_MEETING IN('O', 'X') THEN 1 ELSE 0 END
+						 + CASE WHEN DIRECTOR_MEETING IN('O', 'X') THEN 1 ELSE 0 END
+						 + CASE WHEN EVENT1_CHECK IN('O', 'X') THEN 1 ELSE 0 END
+						 + CASE WHEN EVENT2_CHECK IN('O', 'X') THEN 1 ELSE 0 END
+						 + CASE WHEN EVENT3_CHECK IN('O', 'X') THEN 1 ELSE 0 END)) AS total
+					   ,SUM((CASE WHEN MONTH_MEETING = 'O' THEN 1 ELSE 0 END
+						 + CASE WHEN DIRECTOR_MEETING = 'O' THEN 1 ELSE 0 END
+						 + CASE WHEN EVENT1_CHECK = 'O' THEN 1 ELSE 0 END
+						 + CASE WHEN EVENT2_CHECK = 'O' THEN 1 ELSE 0 END
+						 + CASE WHEN EVENT3_CHECK = 'O' THEN 1 ELSE 0 END)) AS attend
+					   ,MEMBER_NO
+				  FROM LIONS_EVENT_ATTEND
+				<dynamic prepend="WHERE">
+					<isNotEmpty prepend="AND" property="sessionYear">
+					<![CDATA[
+					   	   ATTEND_DATE >= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '07'
+					   AND ATTEND_DATE <= CAST(@sessionYear AS NVARCHAR(4)) + '06'
+					]]>
+					</isNotEmpty>
+				</dynamic>					  
+				 GROUP BY MEMBER_NO
+			) E
+		)
+		
+		SELECT * FROM(
+			SELECT  INFO.MEMBER_NO AS memberNo	/* 회원번호 */
+				   ,INFO.NAME AS memberName	/* 회원명 */
+				   ,INFO.START_DATE AS signDate	/* 입회 시작일 */
+				   ,ISNULL(
+					   STUFF((
+							 SELECT ',' + CT.APP_DESC_CODE_NAME
+							   FROM CLUB_TITLE CT
+							  WHERE CT.MEMBER_NO = INFO.MEMBER_NO
+								FOR XML PATH('')
+						), 1, 1, '')
+					, '회원') AS sectorTitle	/* 클럽직책 */
+				   ,STUFF((
+						 SELECT MIN(CT.ORD)
+						   FROM CLUB_TITLE CT
+						  WHERE CT.MEMBER_NO = INFO.MEMBER_NO
+							FOR XML PATH('')
+					), 1, 0, '') AS sectorTitleOrd	/* 클럽직책순서 */
+				   ,E.eventAttend	/* 행사참여율 */
+				   ,E.attend
+				   ,E.total
+				   ,R.END_DATE AS quitDate	/* 퇴회일자 */
+				   ,dbo.FN_LIONS_CODE_NAME('2840', R.APP_DESC_CODE) AS quitCause	/* 퇴회사유 */
+				   ,R.KIND_FLAG AS retire	/* 퇴회자 구분코드 */
+			  FROM BASE_INFO INFO
+			  LEFT OUTER JOIN EVENT E
+			    ON INFO.MEMBER_NO = E.MEMBER_NO
+			  LEFT OUTER JOIN RETIRE R
+			    ON INFO.MEMBER_NO = R.MEMBER_NO
+		) RESULT
+		<dynamic prepend="WHERE">
+			<isNotEmpty prepend="AND" property="s4">
+				 	  RESULT.retire != 'O'
+				   OR RESULT.retire IS NULL
+			</isNotEmpty>
+			<isNotEmpty prepend="AND" property="s8">
+				RESULT.retire = 'O'
+			</isNotEmpty>
+		</dynamic>
+		<dynamic prepend="ORDER BY">
+			<isEqual prepend="," property="s1" compareValue="1">
+	 			 RESULT.memberNo
+	 			,RESULT.signDate DESC
+	 		</isEqual>
+			<isEqual prepend="," property="s2" compareValue="1">
+	 			 ISNULL(RESULT.sectorTitleOrd, '9999')
+	 			,RESULT.signDate DESC
+	 		</isEqual>
+			<isEqual prepend="," property="s5" compareValue="1">
+	 			 RESULT.memberName
+	 			,RESULT.signDate DESC
+	 		</isEqual>
+			<isEqual prepend="," property="s6" compareValue="1">
+	 			RESULT.signDate DESC
+	 		</isEqual>
+			<isEqual prepend="," property="s7" compareValue="1">
+	 			 RESULT.eventAttend DESC
+	 			,RESULT.signDate DESC
+	 		</isEqual>
+		</dynamic>
+	</sql>
+	
+	<select id="lionsclubs.com.MM2.MM2_1.MM2_07.List" resultClass="MM2_07VO">
+		<include refid="lionsclubs.com.MM2.MM2_1.MM2_07.selectQuery"/>
+ 	</select>
+</sqlMap>

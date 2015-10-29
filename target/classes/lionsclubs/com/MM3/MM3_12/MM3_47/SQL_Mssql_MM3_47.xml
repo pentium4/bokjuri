@@ -1,0 +1,560 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://www.ibatis.com/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="lionsclubs.com.MM3.MM3_12.MM3_47">
+
+	<typeAlias alias="MM3_47VO" type="lionsclubs.com.MM3.MM3_12.MM3_47.MM3_47VO"/>
+
+	<sql id="lionsclubs.com.MM3.MM3_12.MM3_47.declare">
+		DECLARE @organCode NVARCHAR(6);
+		DECLARE @sessionYear INT;
+		DECLARE @startDate INT;
+		DECLARE @endDate INT;
+		DECLARE @month INT;
+		
+		SET @organCode = REPLACE(#organCode#, '-', '');
+		SET @sessionYear = #sessionYear#;
+		SET @startDate = CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701';
+		SET @endDate = CAST(@sessionYear AS NVARCHAR(4)) + '0630';
+		SET @month = #month#;
+		
+		WITH INCOME_EXPEND_BASIC AS(
+			SELECT * FROM(
+				SELECT  ROW_NUMBER() OVER( ORDER BY  R.type
+													,R.classItemCode
+													,R.detailItemCode
+													,R.clubCode) AS order1
+					   ,R.rnum
+					   ,R.idnNo
+					   ,R.memberNo
+					   ,R.clubCode
+					   ,R.type
+					   ,R.classItemCode
+					   ,R.detailItemCode
+					   ,R.classItemName
+					   ,R.detailItemName
+					   ,R.genDate 
+					   ,R.impost
+					   ,R.impostDollar
+					   ,R.paymentDate
+					   ,R.payment
+					   ,R.paymentDollar
+					   ,R.paymentDefect
+					   ,R.paymentDefectDollar
+					   ,R.balance
+					   ,R.balanceDollar
+					   ,R.dollarKind
+					   ,R.reference
+					   ,CASE WHEN R.dollarKind = '$$'
+						     THEN R.balanceDollar2
+							 ELSE R.balance2
+							  END AS balance2				   
+				  FROM(	
+					SELECT  DISTRICT.rnum 
+						   ,DISTRICT.type
+						   ,DISTRICT.idnNo
+						   ,DISTRICT.memberNo
+						   ,DISTRICT.clubCode
+						   ,DISTRICT.classItemCode
+						   ,DISTRICT.detailItemCode
+						   ,DISTRICT.classItemName
+						   ,DISTRICT.detailItemName
+						   ,DISTRICT.genDate
+						   ,DISTRICT.impost
+						   ,DISTRICT.impostDollar
+						   ,DISTRICT.paymentDate
+						   ,DISTRICT.payment
+						   ,DISTRICT.paymentDefect
+						   ,DISTRICT.paymentDollar
+						   ,DISTRICT.paymentDefectDollar
+						   ,ISNULL(DISTRICT.impost, 0) - 
+						    (
+								SELECT ISNULL(SUM(PAYMENT), 0)
+								  FROM(
+									SELECT ROW_NUMBER() OVER (
+												PARTITION BY IDN_NO
+													ORDER BY  PAYMENT_DATE
+															 ,PAYMENT_IDN_NO
+											) AS rnum
+										   ,ISNULL(PAYMENT, 0) AS PAYMENT
+									  FROM LIONS_DISTRICT_MONEY_PAYMENT 
+									 WHERE IDN_NO = DISTRICT.idnNo 
+								  ) DMP
+								  <![CDATA[
+								  WHERE DMP.rnum <= DISTRICT.rnum
+								  ]]>
+							) AS balance	/* 납부 잔액 */
+						   ,ISNULL(DISTRICT.impostDollar, 0) - 
+						    (
+								SELECT ISNULL(SUM(PAYMENT_DOLLAR), 0)
+								  FROM(
+									SELECT ROW_NUMBER() OVER (
+												PARTITION BY IDN_NO
+													ORDER BY  PAYMENT_DATE
+															 ,PAYMENT_IDN_NO
+											) AS rnum
+										   ,ISNULL(PAYMENT_DOLLAR, 0) AS PAYMENT_DOLLAR
+									  FROM LIONS_DISTRICT_MONEY_PAYMENT 
+									 WHERE IDN_NO = DISTRICT.idnNo 
+								  ) DMP
+								  <![CDATA[
+								  WHERE DMP.rnum <= DISTRICT.rnum
+								  ]]>
+							) AS balanceDollar	/* 납부 잔액 */
+						   ,ISNULL(DISTRICT.impost, 0) - 
+						    (
+								SELECT ISNULL(SUM(PAYMENT), 0) AS PAYMENT
+								  FROM LIONS_DISTRICT_MONEY_PAYMENT 
+								 WHERE IDN_NO = DISTRICT.idnNo 
+							) AS balance2	/* 납부 잔액 */
+						   ,ISNULL(DISTRICT.impostDollar, 0) - 
+						    (
+								SELECT ISNULL(SUM(PAYMENT_DOLLAR), 0) AS PAYMENT_DOLLAR
+								  FROM LIONS_DISTRICT_MONEY_PAYMENT 
+								 WHERE IDN_NO = DISTRICT.idnNo 
+							) AS balanceDollar2	/* 납부 잔액 */							
+						   ,DISTRICT.reference
+						   ,DISTRICT.dollarKind	
+					  FROM (
+						/* 지구납부금 */
+						SELECT  ROW_NUMBER() OVER (
+									PARTITION BY DMI.IDN_NO
+										ORDER BY  DMP.PAYMENT_DATE
+												 ,DMP.PAYMENT_IDN_NO
+								) AS rnum
+							   ,'A' AS type
+							   ,DMP.IDN_NO AS idnNo
+							   ,NULL AS memberNo
+							   ,DMI.CLUB_CODE AS clubCode
+							   ,DMI.CLASS_ITEM_CODE AS classItemCode
+							   ,DMI.DETAIL_ITEM_CODE AS detailItemCode
+							   ,dbo.FN_LIONS_CODE_NAME('7000', DMI.CLASS_ITEM_CODE) AS classItemName
+							   ,dbo.FN_LIONS_DETAILCODE_NAME('7000', DMI.CLASS_ITEM_CODE, DMI.DETAIL_ITEM_CODE) AS detailItemName
+							   ,DMI.GEN_DATE AS genDate
+							   ,DMI.IMPOST AS impost
+							   ,DMI.IMPOST_DOLLAR AS impostDollar
+							   ,DMP.PAYMENT_DATE AS paymentDate
+							   ,CASE WHEN (DMP.PAYMENT_DEFECT != 'Y' OR DMP.PAYMENT_DEFECT IS NULL)
+									 THEN ISNULL(DMP.PAYMENT, 0)
+									  END AS payment	/* 납부금 */
+							   ,CASE WHEN DMP.PAYMENT_DEFECT = 'Y'
+									 THEN ISNULL(DMP.PAYMENT, 0)
+									  END AS paymentDefect	/* 결손금 */
+							   ,CASE WHEN (DMP.PAYMENT_DEFECT != 'Y' OR DMP.PAYMENT_DEFECT IS NULL)
+									 THEN ISNULL(DMP.PAYMENT_DOLLAR, 0)
+									  END AS paymentDollar	/* 납부금 */
+							   ,CASE WHEN DMP.PAYMENT_DEFECT = 'Y'
+									 THEN ISNULL(DMP.PAYMENT_DOLLAR, 0)
+									  END AS paymentDefectDollar	/* 결손금 */
+							   ,DMI.REFERENCE AS reference
+							   ,(SELECT CODE1 FROM LIONS_CODE WHERE GROUP_CODE = (SELECT CODE1 FROM LIONS_CODE WHERE GROUP_CODE = '7000' AND CODE = DMI.CLASS_ITEM_CODE) AND CODE = DMI.DETAIL_ITEM_CODE) AS dollarKind	/* 달러구분 */
+						  FROM LIONS_DISTRICT_MONEY_IMPOST DMI
+						  LEFT OUTER JOIN LIONS_DISTRICT_MONEY_PAYMENT DMP
+							ON DMI.IDN_NO = DMP.IDN_NO
+						 WHERE DMI.ORGAN_CODE = @organCode
+						<isNotEmpty prepend="AND" property="sessionYear">
+							<![CDATA[
+							    DMI.GEN_DATE >= @startDate
+							AND DMI.GEN_DATE <= @endDate
+							]]>
+						</isNotEmpty>
+						<isNotEmpty prepend="AND" property="month">
+							SUBSTRING(DMI.GEN_DATE, 5, 2) = @month
+						</isNotEmpty>					 
+					  ) DISTRICT
+					   			
+					 UNION ALL
+					 
+					SELECT  CLUB.rnum 
+						   ,CLUB.type
+						   ,CLUB.idnNo
+						   ,CLUB.memberNo
+						   ,CLUB.clubCode
+						   ,CLUB.classItemCode
+						   ,CLUB.detailItemCode
+						   ,CLUB.classItemName
+						   ,CLUB.detailItemName
+						   ,CLUB.genDate
+						   ,CLUB.impost
+						   ,CLUB.impostDollar
+						   ,CLUB.paymentDate
+						   ,CLUB.payment
+						   ,CLUB.paymentDefect
+						   ,CLUB.paymentDollar
+						   ,CLUB.paymentDefectDollar
+						   ,ISNULL(CLUB.impost, 0) - 
+						    (
+								SELECT ISNULL(SUM(PAYMENT), 0)
+								  FROM(
+									SELECT ROW_NUMBER() OVER (
+												PARTITION BY IDN_NO
+													ORDER BY  PAYMENT_DATE
+															 ,PAYMENT_COUNT
+											) AS rnum
+										   ,ISNULL(PAYMENT, 0) AS PAYMENT
+									  FROM LIONS_MONEY_PAYMENT 
+									 WHERE IDN_NO = CLUB.idnNo 
+								  ) DMP
+								  <![CDATA[
+								  WHERE DMP.rnum <= CLUB.rnum
+								  ]]>
+							) AS balance	/* 납부 잔액 */
+						   ,ISNULL(CLUB.impostDollar, 0) - 
+						    (
+								SELECT ISNULL(SUM(PAYMENT_DOLLAR), 0)
+								  FROM(
+									SELECT ROW_NUMBER() OVER (
+												PARTITION BY IDN_NO
+													ORDER BY  PAYMENT_DATE
+															 ,PAYMENT_COUNT
+											) AS rnum
+										   ,ISNULL(DOLLAR, 0) AS PAYMENT_DOLLAR
+									  FROM LIONS_MONEY_PAYMENT 
+									 WHERE IDN_NO = CLUB.idnNo 
+								  ) DMP
+								  <![CDATA[
+								  WHERE DMP.rnum <= CLUB.rnum
+								  ]]>
+							) AS balanceDollar	/* 납부 잔액 */
+						   ,ISNULL(CLUB.impost, 0) - 
+						    (
+								SELECT ISNULL(SUM(PAYMENT), 0)
+								  FROM LIONS_MONEY_PAYMENT 
+								 WHERE IDN_NO = CLUB.idnNo 
+							) AS balance2	/* 납부 잔액 */
+						   ,ISNULL(CLUB.impostDollar, 0) - 
+						    (
+								SELECT ISNULL(SUM(DOLLAR), 0)
+								  FROM LIONS_MONEY_PAYMENT 
+								 WHERE IDN_NO = CLUB.idnNo 
+							) AS balanceDollar2	/* 납부 잔액 */							
+						   ,CLUB.reference
+						   ,CLUB.dollarKind
+					  FROM(
+						SELECT  ROW_NUMBER() OVER (
+									PARTITION BY MM.IDN_NO
+										ORDER BY  MP.PAYMENT_DATE
+												 ,MP.PAYMENT_COUNT
+								) AS rnum
+							   ,'A' AS type
+							   ,MM.IDN_NO AS idnNo
+							   ,MM.MEMBER_NO AS memberNo
+							   ,MM.ORGAN_CODE AS clubCode
+							   ,'1060' AS classItemCode
+							   ,(SELECT CODE FROM LIONS_CODE WHERE GROUP_CODE = '7150' AND CODE2 = MI.TARGET_POSITION_CODE) AS detailItemCode
+							   ,dbo.FN_LIONS_CODE_NAME('7000', '1060') AS classItemName
+							   ,dbo.FN_LIONS_DETAILCODE_NAME('7000', '1060', (SELECT CODE FROM LIONS_CODE WHERE GROUP_CODE = '7150' AND CODE2 = MI.TARGET_POSITION_CODE)) AS detailItemName
+							   ,MM.GEN_DATE AS genDate
+							   ,MI.IMPOST AS impost		/*예산정보는 LIONS_INCOME_EXPEND테이블에서 가져와서 GROUP BY*/
+							   ,MI.IMPOST / (SELECT WON FROM LIONS_RATES WHERE YYYYMM = SUBSTRING(MM.GEN_DATE, 1, 6)) AS impostDollar
+							   ,MP.PAYMENT_DATE AS paymentDate
+							   ,CASE WHEN (MP.PAYMENT_DEFECT != 'Y' OR MP.PAYMENT_DEFECT IS NULL)
+									 THEN ISNULL(MP.PAYMENT, 0)
+									  END AS payment	/* 납부금 */
+							   ,CASE WHEN MP.PAYMENT_DEFECT = 'Y'
+									 THEN ISNULL(MP.PAYMENT, 0)
+									  END AS paymentDefect	/* 결손금 */
+							   ,CASE WHEN (MP.PAYMENT_DEFECT != 'Y' OR MP.PAYMENT_DEFECT IS NULL)
+									 THEN ISNULL(MP.DOLLAR, 0)
+									  END AS paymentDollar	/* 납부금 */
+							   ,CASE WHEN MP.PAYMENT_DEFECT = 'Y'
+									 THEN ISNULL(MP.DOLLAR, 0)
+									  END AS paymentDefectDollar	/* 결손금 */
+							   ,MI.REFERENCE AS reference
+							   ,(SELECT CODE3 FROM LIONS_CODE WHERE GROUP_CODE = (SELECT CODE1 FROM LIONS_CODE WHERE GROUP_CODE = '4100' AND CODE = MM.CLASS_ITEM_CODE) AND CODE = MM.DETAIL_ITEM_CODE) AS dollarKind	/* 달러구분 */
+						  FROM LIONS_MONEY_MASTER MM
+						 INNER JOIN LIONS_MONEY_IMPOST MI
+							ON MM.IDN_NO = MI.IDN_NO 
+						  LEFT OUTER JOIN LIONS_MONEY_PAYMENT MP
+							ON MM.IDN_NO = MP.IDN_NO
+						 WHERE MM.ORGAN_CODE IN (
+								SELECT ORGAN_CODE 
+								  FROM dbo.FN_LIONS_SUB_TREE_YEAR_ORGAN(@sessionYear, @organCode) 
+								 WHERE LVL = 2  
+						   )
+						   AND MM.CLASS_ITEM_CODE = '1040'
+						   AND MM.DETAIL_ITEM_CODE = '1000'
+							<isNotEmpty prepend="AND" property="sessionYear">
+							<![CDATA[
+								    MM.GEN_DATE >= @startDate
+								AND MM.GEN_DATE <= @endDate
+							]]>
+							</isNotEmpty>
+							<isNotEmpty prepend="AND" property="month">
+								SUBSTRING(MM.GEN_DATE, 5, 2) = @month
+							</isNotEmpty>				  
+					  
+						 UNION ALL
+						 
+						SELECT  ROW_NUMBER() OVER (
+									PARTITION BY MM.IDN_NO
+										ORDER BY  MP.PAYMENT_DATE
+												 ,MP.PAYMENT_COUNT
+								) AS rnum
+							   ,'B' AS type
+							   ,MM.IDN_NO AS idnNo
+							   ,MM.MEMBER_NO AS memberNo
+							   ,MM.ORGAN_CODE AS clubCode
+							   ,MM.CLASS_ITEM_CODE AS classItemCode
+							   ,MM.DETAIL_ITEM_CODE AS detailItemCode
+							   ,dbo.FN_LIONS_CODE_NAME('4100', MM.CLASS_ITEM_CODE) AS classItemName
+							   ,dbo.FN_LIONS_DETAILCODE_NAME('4100', MM.CLASS_ITEM_CODE, MM.DETAIL_ITEM_CODE) AS detailItemName
+							   ,MM.GEN_DATE AS genDate
+							   ,MI.IMPOST AS impost		/*예산정보는 LIONS_INCOME_EXPEND테이블에서 가져와서 GROUP BY*/
+							   ,MI.IMPOST / (SELECT WON FROM LIONS_RATES WHERE YYYYMM = SUBSTRING(MM.GEN_DATE, 1, 6)) AS impostDollar
+							   ,MP.PAYMENT_DATE AS paymentDate
+							   ,CASE WHEN (MP.PAYMENT_DEFECT != 'Y' OR MP.PAYMENT_DEFECT IS NULL)
+									 THEN ISNULL(MP.PAYMENT, 0)
+									  END AS payment	/* 납부금 */
+							   ,CASE WHEN MP.PAYMENT_DEFECT = 'Y'
+									 THEN ISNULL(MP.PAYMENT, 0)
+									  END AS paymentDefect	/* 결손금 */
+							   ,CASE WHEN (MP.PAYMENT_DEFECT != 'Y' OR MP.PAYMENT_DEFECT IS NULL)
+									 THEN ISNULL(MP.DOLLAR, 0)
+									  END AS paymentDollar	/* 납부금 */
+							   ,CASE WHEN MP.PAYMENT_DEFECT = 'Y'
+									 THEN ISNULL(MP.DOLLAR, 0)
+									  END AS paymentDefectDollar	/* 결손금 */
+							   ,MI.REFERENCE AS reference
+							   ,(SELECT CODE3 FROM LIONS_CODE WHERE GROUP_CODE = (SELECT CODE1 FROM LIONS_CODE WHERE GROUP_CODE = '4100' AND CODE = MM.CLASS_ITEM_CODE) AND CODE = MM.DETAIL_ITEM_CODE) AS dollarKind	/* 달러구분 */
+						  FROM LIONS_MONEY_MASTER MM
+						 INNER JOIN LIONS_MONEY_IMPOST MI
+							ON MM.IDN_NO = MI.IDN_NO 
+						  LEFT OUTER JOIN LIONS_MONEY_PAYMENT MP
+							ON MM.IDN_NO = MP.IDN_NO
+						 WHERE MM.ORGAN_CODE IN (
+								SELECT ORGAN_CODE 
+								  FROM dbo.FN_LIONS_SUB_TREE_YEAR_ORGAN(@sessionYear, @organCode) 
+								 WHERE LVL = 2  
+						   )
+						   AND MM.CLASS_ITEM_CODE = '1030'
+							<isNotEmpty prepend="AND" property="sessionYear">
+								<![CDATA[
+								    MM.GEN_DATE >= @startDate
+								AND MM.GEN_DATE <= @endDate
+								]]>
+							</isNotEmpty>
+							<isNotEmpty prepend="AND" property="month">
+								SUBSTRING(MM.GEN_DATE, 5, 2) = @month
+							</isNotEmpty>
+					) CLUB
+				) R
+			) R2
+			<dynamic prepend="WHERE" open="(" close=")">
+				<isNotEmpty prepend="OR" property="fullPayment">
+					R2.balance2 = 0
+				</isNotEmpty>
+				<isNotEmpty prepend="OR" property="defaultPayment">
+					R2.balance2 > 0
+				</isNotEmpty>
+			</dynamic>
+		)
+	</sql>
+	
+	<select id="lionsclubs.com.MM3.MM3_12.MM3_47.MM3_47" resultClass="MM3_47VO">
+		<include refid="lionsclubs.com.MM3.MM3_12.MM3_47.declare"/>
+		SELECT  MIN(R.order1) AS order1
+			   ,MIN(R.order2) AS order2
+			   ,MIN(R.id) AS id
+			   ,NULL AS parent
+			   ,MIN(R.type) AS type
+			   ,R.classItemCode
+			   ,MIN(R.detailItemCode) AS detailItemCode
+			   ,MIN(R.classItemName) AS classItemName
+			   ,NULL AS detailItemName
+			   ,NULL AS genDate
+			   ,SUM(R.impost) AS impost
+			   ,SUM(R.impostDollar) AS impostDollar
+			   ,SUM(R.payment) AS payment
+			   ,SUM(R.paymentDollar) AS paymentDollar
+			   ,SUM(R.paymentDefect) AS paymentDefect
+			   ,SUM(R.paymentDefectDollar) AS paymentDefectDollar
+			   ,SUM(R.impost) - (SUM(ISNULL(R.payment, 0)) + SUM(ISNULL(R.paymentDefect, 0))) AS balance
+			   ,SUM(R.impostDollar) - (SUM(ISNULL(R.paymentDollar, 0)) + SUM(ISNULL(R.paymentDefectDollar, 0))) AS balanceDollar
+			   ,NULL AS reference
+			   ,MIN(R.dollarKind) AS dollarKind
+			   ,NULL AS last
+		  FROM(
+				SELECT  order1
+					   ,1 AS order2
+					   ,'1_' + type + classItemCode AS id
+					   ,type AS type
+					   ,classItemCode
+					   ,detailItemCode
+					   ,classItemName
+					   ,CASE WHEN rnum = 1 
+							 THEN impost
+							 ELSE 0
+							  END AS impost
+					   ,CASE WHEN rnum = 1 
+							 THEN impostDollar
+							 ELSE 0
+							  END AS impostDollar
+					   ,payment
+					   ,paymentDollar
+					   ,paymentDefect
+					   ,paymentDefectDollar
+					   ,balance
+					   ,dollarKind
+				  FROM INCOME_EXPEND_BASIC
+		  ) R
+		 GROUP BY  R.type
+		 		  ,R.classItemCode
+		 
+		 UNION ALL
+		 
+		SELECT  MIN(R.order1) AS order1
+			   ,MIN(R.order2) AS order2
+			   ,MIN(R.id) AS id
+			   ,MIN(R.parent) AS parent
+			   ,MIN(R.type) AS type
+			   ,R.classItemCode
+			   ,R.detailItemCode
+			   ,NULL AS classItemName
+			   ,MIN(R.detailItemName) AS detailItemName
+			   ,NULL AS genDate
+			   ,SUM(R.impost) AS impost
+			   ,SUM(R.impostDollar) AS impostDollar
+			   ,SUM(R.payment) AS payment
+			   ,SUM(R.paymentDollar) AS paymentDollar
+			   ,SUM(R.paymentDefect) AS paymentDefect
+			   ,SUM(R.paymentDefectDollar) AS paymentDefectDollar
+			   ,SUM(R.impost) - (SUM(ISNULL(R.payment, 0)) + SUM(ISNULL(R.paymentDefect, 0))) AS balance
+			   ,SUM(R.impostDollar) - (SUM(ISNULL(R.paymentDollar, 0)) + SUM(ISNULL(R.paymentDefectDollar, 0))) AS balanceDollar
+			   ,NULL AS reference
+			   ,MIN(R.dollarKind) AS dollarKind
+			   ,NULL AS last
+		  FROM(
+			SELECT  order1
+				   ,2 AS order2
+				   ,'2_' + type + classItemCode + detailItemCode AS id
+				   ,'1_' + type + classItemCode AS parent
+				   ,type
+				   ,classItemCode
+				   ,detailItemCode
+				   ,NULL AS classItemName
+				   ,detailItemName
+				   ,NULL AS genDate
+				   ,CASE WHEN rnum = 1 
+						 THEN impost
+						 ELSE 0
+						  END AS impost
+				   ,CASE WHEN rnum = 1 
+						 THEN impostDollar
+						 ELSE 0
+						  END AS impostDollar
+				   ,payment
+				   ,paymentDollar
+				   ,paymentDefect
+				   ,paymentDefectDollar
+				   ,balance
+				   ,dollarKind
+			  FROM INCOME_EXPEND_BASIC
+		  ) R
+		 GROUP BY  R.type
+		 		  ,R.classItemCode
+		          ,R.detailItemCode
+
+		 UNION ALL
+		          
+		SELECT  MIN(R.order1) AS order1
+			   ,MIN(R.order2) AS order2
+			   ,MIN(R.id) AS id
+			   ,MIN(R.parent) AS parent
+			   ,MIN(R.type) AS type
+			   ,R.classItemCode
+			   ,R.detailItemCode
+			   ,NULL AS classItemName
+			   ,MIN(R.detailItemName) AS detailItemName
+			   ,MIN(R.genDate) AS genDate
+			   ,SUM(R.impost) AS impost
+			   ,SUM(R.impostDollar) AS impostDollar
+			   ,SUM(R.payment) AS payment
+			   ,SUM(R.paymentDollar) AS paymentDollar
+			   ,SUM(R.paymentDefect) AS paymentDefect
+			   ,SUM(R.paymentDefectDollar) AS paymentDefectDollar
+			   ,SUM(R.impost) - (SUM(ISNULL(R.payment, 0)) + SUM(ISNULL(R.paymentDefect, 0))) AS balance
+			   ,SUM(R.impostDollar) - (SUM(ISNULL(R.paymentDollar, 0)) + SUM(ISNULL(R.paymentDefectDollar, 0))) AS balanceDollar
+			   ,NULL AS reference
+			   ,MIN(R.dollarKind) AS dollarKind
+			   ,NULL AS last
+		  FROM(
+			SELECT  order1
+				   ,3 AS order2
+				   ,clubCode
+				   ,'3_' + type + classItemCode + detailItemCode + clubCode AS id
+				   ,'2_' + type + classItemCode + detailItemCode AS parent
+				   ,type
+				   ,classItemCode
+				   ,detailItemCode
+				   ,NULL AS classItemName
+				   ,dbo.FN_LIONS_ORGAN_NAME(clubCode) AS detailItemName
+				   ,genDate
+				   ,CASE WHEN rnum = 1 
+						 THEN impost
+						 ELSE 0
+						  END AS impost
+				   ,CASE WHEN rnum = 1 
+						 THEN impostDollar
+						 ELSE 0
+						  END AS impostDollar
+				   ,payment
+				   ,paymentDollar
+				   ,paymentDefect
+				   ,paymentDefectDollar
+				   ,balance
+				   ,NULL AS reference
+				   ,dollarKind
+				   ,NULL AS last
+			  FROM INCOME_EXPEND_BASIC
+		  ) R
+		 GROUP BY  R.type
+		 		  ,R.classItemCode
+		          ,R.detailItemCode
+		          ,R.clubCode
+		          
+		 UNION ALL
+		 
+		SELECT  order1
+			   ,4 AS order2
+			   ,CAST(idnNo AS NVARCHAR) AS id
+			   ,'3_' + type + classItemCode + detailItemCode + clubCode AS parent
+			   ,type
+			   ,classItemCode
+			   ,detailItemCode
+			   ,NULL AS classItemName
+			   ,(SELECT NAME FROM LIONS_MEMBER_INFO WHERE MEMBER_NO = memberNo) + '(' + memberNo + ')' AS detailItemName				
+			   ,paymentDate AS genDate
+			   ,impost
+			   ,impostDollar
+			   ,payment
+			   ,paymentDollar
+			   ,paymentDefect
+			   ,paymentDefectDollar
+			   ,balance
+			   ,balanceDollar
+			   ,reference
+			   ,dollarKind
+			   ,'last' AS last
+		   FROM INCOME_EXPEND_BASIC
+		  ORDER BY  order1
+		  		   ,order2
+	</select>
+	
+	<select id="lionsclubs.com.MM3.MM3_12.MM3_47.sum" resultClass="MM3_47VO">
+		<include refid="lionsclubs.com.MM3.MM3_12.MM3_47.declare"/>
+		SELECT  SUM(R.impost) AS impost
+			   ,SUM(R.payment) AS payment
+			   ,SUM(R.paymentDefect) AS paymentDefect
+			   ,SUM(R.impost) - (SUM(R.payment) + SUM(R.paymentDefect)) AS balance
+		  FROM(
+			SELECT  CASE WHEN rnum = 1 
+						 THEN impost
+						 ELSE 0
+						  END AS impost
+				   ,payment
+				   ,paymentDefect
+			  FROM INCOME_EXPEND_BASIC
+		  ) R
+	</select>
+</sqlMap>

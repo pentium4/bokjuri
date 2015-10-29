@@ -1,0 +1,381 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://www.ibatis.com/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="lionsclubs.com.MM3.MM3_4.MM3_21">
+
+	<typeAlias alias="MM3_21VO" type="lionsclubs.com.MM3.MM3_4.MM3_21.MM3_21VO"/>
+	
+	<sql id="lionsclubs.com.MM3.MM3_4.MM3_21.selectDeclare">
+		DECLARE @sessionYear NVARCHAR(4)	/* 회기년도 */
+		DECLARE @districtCode NVARCHAR(6)	/* 지구코드 */
+		
+		SET @sessionYear = #sessionYear#;
+		SET @districtCode = REPLACE(#districtCode#, '-', '');
+		
+		/* 기준출력 클럽 */
+		WITH BASE_CLUB AS(
+			SELECT DISTINCT CLUB_CODE
+			  FROM LIONS_CLUB_ITEM_PAYMENT
+			 WHERE DISTRICT_CODE = @districtCode
+			   AND SESSION_YEAR = @sessionYear	
+		/**
+		* 제의무금/신입회원 부과금은 달러일 경우
+		* 납부된 금액은 원(한국돈)으로 부과금을 계산하고,
+		* 납부되지 않은 금액은 현재 활율로 부과금을 계산한다.
+		*/
+		/* 상반기 제의무금, 신입회원 */
+		), FIRST_MYDUES AS(
+			SELECT  P.CLUB_CODE
+				   ,SUM(P.firstMyDues) AS firstMyDues	/* 상반기 제의무금 부과금 */
+				   ,SUM(P.secUnPaid) AS secUnPaid	/* 하반기 제의무금 미납금 */
+			  FROM(
+				SELECT  CIP.CLUB_CODE
+					   /** 
+						* 제의무금/신입회원
+						* 1. 달러일 경우
+						* (((제의무금 부과금달러 + 신입회원 부과금달러) - 납부금달러) * 현재환율) +  납부금(원)
+						* 2. 원(한국돈)일 경우
+						* 제의무금 부과금 + 신입회원 부과금
+						*/
+					   ,ISNULL(MIN(CIP.DUE), 0) + ISNULL(MIN(CIP.NEW_DUE), 0) AS firstMyDues	/* 상반기 제의무금 부과금 */
+					   ,(ISNULL(MIN(CIP.DUE), 0) + ISNULL(MIN(CIP.NEW_DUE), 0)) - ISNULL(SUM(CP.PAYMENT), 0) AS secUnPaid	/* 하반기 제의무금 미납금 */
+				  FROM LIONS_CLUB_ITEM_PAYMENT CIP
+				  LEFT OUTER JOIN LIONS_CLUB_PAYMENT CP
+					ON CIP.CLUB_CODE = CP.CLUB_CODE
+				   AND CIP.SESSION_YEAR = CP.SESSION_YEAR
+				   AND CIP.FIRST_SEC_KIND = CP.FIRST_SEC_KIND
+				   AND CIP.ITEM_KIND_CODE = CP.ITEM_KIND_CODE
+				   AND CIP.ITEM_CODE = CP.ITEM_CODE
+				  LEFT OUTER JOIN LIONS_CODE CODE
+					ON CODE.GROUP_CODE = CIP.ITEM_KIND_CODE
+				   AND CODE.CODE = CIP.ITEM_CODE
+				 WHERE CIP.SESSION_YEAR = @sessionYear
+				   AND (CIP.ITEM_KIND_CODE = '6120' AND CIP.ITEM_CODE != '3000')	/* 지구 입주 관리비 제외 */
+				   AND CIP.FIRST_SEC_KIND = '2000'	/* 상반기 */
+				 GROUP BY  CIP.CLUB_CODE
+						  ,CIP.SESSION_YEAR
+						  ,CIP.FIRST_SEC_KIND
+						  ,CIP.ITEM_KIND_CODE
+						  ,CIP.ITEM_CODE
+						  ,CODE.CODE1
+				) P
+			GROUP BY P.CLUB_CODE
+		
+		/* 상반기 지구 관리비 */
+		), FIRST_EXPENSES AS(
+			SELECT  CIP.CLUB_CODE
+				   ,ISNULL(MIN(CIP.DUE), 0) + ISNULL(MIN(CIP.NEW_DUE), 0) AS firstExpenses	/* 관리비 부과금 */
+				   ,(ISNULL(MIN(CIP.DUE), 0) + ISNULL(MIN(CIP.NEW_DUE), 0)) - ISNULL(SUM(CP.PAYMENT), 0) AS secUnPaid	/* 하반기 관리비 미납금 */
+			  FROM LIONS_CLUB_ITEM_PAYMENT CIP
+			  LEFT OUTER JOIN LIONS_CLUB_PAYMENT CP
+				ON CIP.CLUB_CODE = CP.CLUB_CODE
+			   AND CIP.SESSION_YEAR = CP.SESSION_YEAR
+			   AND CIP.FIRST_SEC_KIND = CP.FIRST_SEC_KIND
+			   AND CIP.ITEM_KIND_CODE = CP.ITEM_KIND_CODE
+			   AND CIP.ITEM_CODE = CP.ITEM_CODE
+			  LEFT OUTER JOIN LIONS_CODE CODE
+				ON CODE.GROUP_CODE = CIP.ITEM_KIND_CODE
+			   AND CODE.CODE = CIP.ITEM_CODE
+			 WHERE CIP.SESSION_YEAR = @sessionYear
+			   AND (CIP.ITEM_KIND_CODE = '6120' AND CIP.ITEM_CODE = '3000')	/* 지구 입주 관리비 */
+			   AND CIP.FIRST_SEC_KIND = '2000'	/* 상반기 */
+			 GROUP BY CIP.CLUB_CODE
+		/* 상반기 미납금 */
+		), FIRST_UNPAID AS(
+			SELECT  P.CLUB_CODE
+				   ,SUM(P.firstUnPaid) AS firstUnPaid	/* 상반기 미납금 */
+				   ,SUM(P.secUnPaid) AS secUnPaid	/* 하반기 제의무금 미납금 */
+			  FROM(
+				SELECT  CIP.CLUB_CODE
+					   /** 
+						* 제의무금/신입회원
+						* 1. 달러일 경우
+						* (((제의무금 부과금달러 + 신입회원 부과금달러) - 납부금달러) * 현재환율) +  납부금(원)
+						* 2. 원(한국돈)일 경우
+						* 제의무금 부과금 + 신입회원 부과금
+						*/
+					   ,ISNULL(MIN(CIP.DUE), 0) + ISNULL(MIN(CIP.NEW_DUE), 0) AS firstUnPaid	/* 상반기 미납금 */
+					   ,(ISNULL(MIN(CIP.DUE), 0) + ISNULL(MIN(CIP.NEW_DUE), 0)) - ISNULL(SUM(CP.PAYMENT), 0) AS secUnPaid	/* 하반기 제의무금 미납금 */
+				  FROM LIONS_CLUB_ITEM_PAYMENT CIP
+				  LEFT OUTER JOIN LIONS_CLUB_PAYMENT CP
+					ON CIP.CLUB_CODE = CP.CLUB_CODE
+				   AND CIP.SESSION_YEAR = CP.SESSION_YEAR
+				   AND CIP.FIRST_SEC_KIND = CP.FIRST_SEC_KIND
+				   AND CIP.ITEM_KIND_CODE = CP.ITEM_KIND_CODE
+				   AND CIP.ITEM_CODE = CP.ITEM_CODE
+				  LEFT OUTER JOIN LIONS_CODE CODE
+					ON CODE.GROUP_CODE = CIP.ITEM_KIND_CODE
+				   AND CODE.CODE = CIP.ITEM_CODE
+				 WHERE CIP.SESSION_YEAR = @sessionYear
+				   AND CIP.FIRST_SEC_KIND = '1000'	/* 미납금 */
+				 GROUP BY  CIP.CLUB_CODE
+						  ,CIP.SESSION_YEAR
+						  ,CIP.FIRST_SEC_KIND
+						  ,CIP.ITEM_KIND_CODE
+						  ,CIP.ITEM_CODE
+						  ,CODE.CODE1
+				) P
+			GROUP BY P.CLUB_CODE
+		/* 하반기 제의무금, 신입회원 */
+		), SEC_MYDUES AS(
+			SELECT  P.CLUB_CODE
+				   ,SUM(P.secMyDues) AS secMyDues	/* 하반기 제의무금 부과금 */
+			  FROM(
+				SELECT  CIP.CLUB_CODE
+					   ,ISNULL(MIN(CIP.DUE), 0) + ISNULL(MIN(CIP.NEW_DUE), 0) AS secMyDues	/* 하반기 제의무금 부과금 */
+				  FROM LIONS_CLUB_ITEM_PAYMENT CIP
+				  LEFT OUTER JOIN LIONS_CLUB_PAYMENT CP
+					ON CIP.CLUB_CODE = CP.CLUB_CODE
+				   AND CIP.SESSION_YEAR = CP.SESSION_YEAR
+				   AND CIP.FIRST_SEC_KIND = CP.FIRST_SEC_KIND
+				   AND CIP.ITEM_KIND_CODE = CP.ITEM_KIND_CODE
+				   AND CIP.ITEM_CODE = CP.ITEM_CODE
+				  LEFT OUTER JOIN LIONS_CODE CODE
+					ON CODE.GROUP_CODE = CIP.ITEM_KIND_CODE
+				   AND CODE.CODE = CIP.ITEM_CODE
+				 WHERE CIP.SESSION_YEAR = @sessionYear
+				   AND (CIP.ITEM_KIND_CODE = '6120' AND CIP.ITEM_CODE != '3000')	/* 지구 입주 관리비 제외 */
+				   AND CIP.FIRST_SEC_KIND = '3000'	/* 하반기 */
+				 GROUP BY  CIP.CLUB_CODE
+						  ,CIP.SESSION_YEAR
+						  ,CIP.FIRST_SEC_KIND
+						  ,CIP.ITEM_KIND_CODE
+						  ,CIP.ITEM_CODE
+						  ,CODE.CODE1
+				) P
+			GROUP BY P.CLUB_CODE
+		
+		/* 하반기 지구 입주 관리비 */
+		), SEC_EXPENSES AS(
+			SELECT  CIP.CLUB_CODE
+				   ,ISNULL(MIN(CIP.DUE), 0) + ISNULL(MIN(CIP.NEW_DUE), 0) AS secExpenses	/* 지구 입주 관리비 부과금 */
+			  FROM LIONS_CLUB_ITEM_PAYMENT CIP
+			  LEFT OUTER JOIN LIONS_CLUB_PAYMENT CP
+				ON CIP.CLUB_CODE = CP.CLUB_CODE
+			   AND CIP.SESSION_YEAR = CP.SESSION_YEAR
+			   AND CIP.FIRST_SEC_KIND = CP.FIRST_SEC_KIND
+			   AND CIP.ITEM_KIND_CODE = CP.ITEM_KIND_CODE
+			   AND CIP.ITEM_CODE = CP.ITEM_CODE
+			  LEFT OUTER JOIN LIONS_CODE CODE
+				ON CODE.GROUP_CODE = CIP.ITEM_KIND_CODE
+			   AND CODE.CODE = CIP.ITEM_CODE
+			 WHERE CIP.SESSION_YEAR = @sessionYear
+			   AND (CIP.ITEM_KIND_CODE = '6120' AND CIP.ITEM_CODE = '3000')	/* 관리비 */
+			   AND CIP.FIRST_SEC_KIND = '3000'	/* 하반기 */
+			 GROUP BY CIP.CLUB_CODE
+		/* 총금액 / 잔액 */
+		), BALCNCE AS(
+			SELECT  P.CLUB_CODE
+				   ,SUM(P.totDue) AS totDue	/* 총금액 */
+				   ,SUM(P.totPayment) AS totPayment /* 총납부금액 */
+				   ,ISNULL(SUM(P.totDue), 0) - ISNULL(SUM(P.totPayment), 0) AS balance	/* 잔액 */
+			  FROM(
+				SELECT  CIP.CLUB_CODE
+					   ,ISNULL(MIN(CIP.DUE), 0) + ISNULL(MIN(CIP.NEW_DUE), 0) AS totDue
+					   ,SUM(CP.PAYMENT) AS totPayment
+				  FROM LIONS_CLUB_ITEM_PAYMENT CIP
+				  LEFT OUTER JOIN LIONS_CLUB_PAYMENT CP
+					ON CIP.CLUB_CODE = CP.CLUB_CODE
+				   AND CIP.SESSION_YEAR = CP.SESSION_YEAR
+				   AND CIP.FIRST_SEC_KIND = CP.FIRST_SEC_KIND
+				   AND CIP.ITEM_KIND_CODE = CP.ITEM_KIND_CODE
+				   AND CIP.ITEM_CODE = CP.ITEM_CODE
+				  LEFT OUTER JOIN LIONS_CODE CODE
+					ON CODE.GROUP_CODE = CIP.ITEM_KIND_CODE
+				   AND CODE.CODE = CIP.ITEM_CODE
+				 WHERE CIP.SESSION_YEAR = @sessionYear
+				 GROUP BY  CIP.CLUB_CODE
+						  ,CIP.SESSION_YEAR
+						  ,CIP.FIRST_SEC_KIND
+						  ,CIP.ITEM_KIND_CODE
+						  ,CIP.ITEM_CODE
+						  ,CODE.CODE1
+				) P
+			GROUP BY P.CLUB_CODE
+		)
+	</sql>
+	
+	<sql id="lionsclubs.com.MM3.MM3_4.MM3_21.selectQuery">
+	<![CDATA[
+		SELECT  BC.CLUB_CODE AS clubCode
+			   ,dbo.FN_LIONS_ORGAN_NAME(BC.CLUB_CODE) AS clubName
+			   ,FU.firstUnPaid	/* 상반기 미납 부과금 */
+			   ,FM.firstMyDues	/* 상반기 제의무금 부과금 */
+			   ,FE.firstExpenses	/* 상반기 지구 입주 관리비 부과금 */
+			   ,ISNULL(FM.secUnPaid, 0) + ISNULL(FE.secUnPaid, 0) + ISNULL(FU.secUnPaid, 0) AS secUnPaid	/* 하반기 미납 부과금 */
+			   ,SM.secMyDues	/* 하반기 제의무금 부과금 */
+			   ,SE.secExpenses	/* 하반기 지구 입주 관리비 부과금 */
+			   ,B.totDue	/* 총금액 */
+			   ,B.balance	/* 잔액 */
+		  FROM BASE_CLUB BC
+		  LEFT OUTER JOIN FIRST_MYDUES FM
+		    ON BC.CLUB_CODE = FM.CLUB_CODE
+		  LEFT OUTER JOIN FIRST_EXPENSES FE
+			ON BC.CLUB_CODE = FE.CLUB_CODE
+		  LEFT OUTER JOIN FIRST_UNPAID FU
+			ON BC.CLUB_CODE = FU.CLUB_CODE
+		  LEFT OUTER JOIN SEC_MYDUES SM
+		    ON BC.CLUB_CODE = SM.CLUB_CODE
+		  LEFT OUTER JOIN SEC_EXPENSES SE
+		    ON BC.CLUB_CODE = SE.CLUB_CODE
+		  LEFT OUTER JOIN BALCNCE B
+		    ON BC.CLUB_CODE = B.CLUB_CODE
+	]]>
+	</sql>
+	
+	<select id="lionsclubs.com.MM3.MM3_4.MM3_21.selectList" resultClass="MM3_21VO">
+		<include refid="lionsclubs.com.MM3.MM3_4.MM3_21.selectDeclare"/>
+		<include refid="lionsclubs.com.MM3.MM3_4.MM3_21.selectQuery"/>
+	</select>
+	
+	<select id="lionsclubs.com.MM3.MM3_4.MM3_21.expensesSum" resultClass="MM3_21VO">
+		<include refid="lionsclubs.com.MM3.MM3_4.MM3_21.selectDeclare"/>
+		SELECT  SUM(TOT.firstUnPaid) AS firstUnPaid	/* 상반기 미납 부과금 */
+			   ,SUM(TOT.firstMyDues) AS firstMyDues	/* 상반기 제의무금 부과금 */
+			   ,SUM(TOT.firstExpenses) AS firstExpenses	/* 상반기 지구 입주 관리비 부과금 */
+			   ,SUM(TOT.secUnPaid) AS secUnPaid	/* 하반기 미납 부과금 */
+			   ,SUM(TOT.secMyDues) AS secMyDues	/* 하반기 제의무금 부과금 */
+			   ,SUM(TOT.secExpenses) AS secExpenses	/* 하반기 지구 입주 관리비 부과금 */
+			   ,SUM(TOT.totDue) AS totDue	/* 총금액 */
+			   ,SUM(TOT.balance) AS balance	/* 잔액 */
+		  FROM(		
+			<include refid="lionsclubs.com.MM3.MM3_4.MM3_21.selectQuery"/>
+		) TOT
+	</select>
+	
+	<select id="lionsclubs.com.MM3.MM3_4.MM3_21.objectPaymentSettle" resultClass="MM3_21VO">
+		DECLARE @sessionYear NVARCHAR(4)	/* 회기년도 */
+		DECLARE @districtCode NVARCHAR(6)	/* 지구코드 */
+		
+		SET @sessionYear = #sessionYear#;
+		SET @districtCode = REPLACE(#districtCode#, '-', '');
+		
+		SELECT  CONFIRM_DATE AS confirmDate	/* 정산일 */
+			   ,ISNULL(CONFIRM_YN, 'N') AS confirmYn	/* 정산여부 */
+			   ,CONFIRM_COUNT AS confirmCount	/* 정산횟수 */
+			   ,CONFIRM_LOCK_DATE AS confirmLockDate	/* 정산확정일 */
+			   ,ISNULL(CONFIRM_LOCK_YN, 'N') AS confirmLockYn	/* 정산확정여부 */
+		  FROM LIONS_PAYMENT_SETTLE
+		 WHERE DISTRICT_CODE = @districtCode
+		   AND SESSION_YEAR = @sessionYear
+	</select>
+	
+	<insert id="lionsclubs.com.MM3.MM3_4.MM3_21.insertPaymentSettleConfirm">
+		INSERT INTO LIONS_PAYMENT_SETTLE(
+			 DISTRICT_CODE
+			,SESSION_YEAR
+			,CONFIRM_DATE
+			,CONFIRM_YN
+			,CONFIRM_COUNT
+			,INSERT_DATE
+			,INSERT_NAME
+			,UPDATE_DATE
+			,UPDATE_NAME
+		) VALUES (
+			 #districtCode#
+			,#sessionYear#
+			,CONVERT(VARCHAR(8), GETDATE(), 112)
+			,'Y'
+			,1
+			,GETDATE()	
+			,#insertName#
+			,GETDATE()
+			,#updateName#
+		)
+	</insert>
+	
+	<update id="lionsclubs.com.MM3.MM3_4.MM3_21.updatePaymentSettleConfirm">
+		UPDATE LIONS_PAYMENT_SETTLE
+		   SET  CONFIRM_DATE = CONVERT(VARCHAR(8), GETDATE(), 112)
+			   ,CONFIRM_YN = #confirmYn#
+			   ,CONFIRM_COUNT = #confirmCount#
+			   ,UPDATE_DATE =  GETDATE()
+			   ,UPDATE_NAME = #updateName#             
+		 WHERE DISTRICT_CODE = #districtCode#
+		   AND SESSION_YEAR = #sessionYear#
+	</update>
+	
+	<update id="lionsclubs.com.MM3.MM3_4.MM3_21.updatePaymentSettleConfirmLock">
+		UPDATE LIONS_PAYMENT_SETTLE
+		   SET  CONFIRM_LOCK_DATE = CONVERT(VARCHAR(8), GETDATE(), 112)
+			   ,CONFIRM_LOCK_YN = #confirmLockYn#
+			   ,UPDATE_DATE =  GETDATE()
+			   ,UPDATE_NAME = #updateName#             
+		 WHERE DISTRICT_CODE = #districtCode#
+		   AND SESSION_YEAR = #sessionYear#
+	</update>
+	
+	<delete id="lionsclubs.com.MM3.MM3_4.MM3_21.deleteDistrictItemPaymentUnPaid">
+		DECLARE @sessionYear NVARCHAR(4)	/* 회기년도 */
+		DECLARE @districtCode NVARCHAR(6)	/* 지구코드 */
+				
+		SET @sessionYear = #sessionYear# + 1;
+		SET @districtCode = REPLACE(#districtCode#, '-', '');
+	
+		DELETE FROM LIONS_CLUB_ITEM_PAYMENT
+		 WHERE DISTRICT_CODE = @districtCode
+		   AND SESSION_YEAR = @sessionYear
+		   AND FIRST_SEC_KIND = '1000'
+	</delete>
+	
+	<insert id="lionsclubs.com.MM3.MM3_4.MM3_21.insertDistrictItemPaymentUnPaid">
+		DECLARE @sessionYear NVARCHAR(4)	/* 현회기 */
+		DECLARE @districtCode NVARCHAR(6)	/* 지구코드 */
+		DECLARE @insertName NVARCHAR(MAX)	/* 입력자 */
+		DECLARE @updateName NVARCHAR(MAX)	/* 수정자 */
+				
+		SET @sessionYear = #sessionYear#;
+		SET @districtCode = REPLACE(#districtCode#, '-', '');
+		SET @insertName = #insertName#;
+		SET @updateName = #updateName#;
+		
+		INSERT INTO LIONS_CLUB_ITEM_PAYMENT
+		SELECT  MIN(P.DISTRICT_CODE) AS DIStRICT_CODE	/* 지구코드 */
+			   ,P.CLUB_CODE	/* 클럽코드 */
+			   ,P.SESSION_YEAR + 1 AS SESSION_YEAR	/* 회기년 */
+			   ,'1000' AS FIRST_SEC_KIND	/* 미납금 */
+			   ,P.ITEM_KIND_CODE	/* 부과항목구분코드 */
+			   ,P.ITEM_CODE	/* 부과항목코드 */
+			   ,SUM(P.DUE) AS DUE	/* 부과금(미납금은 부과금으로 입력) */
+			   ,NULL AS NEW_DUE
+			   ,SUM(P.DUE_DOLLAR) AS DUE_DOLLAR	/* 부과금(미납금은 부과금으로 입력) */
+			   ,NULL AS NEW_DUE_DOLLAR
+			   ,GETDATE() AS INSERT_DATE
+			   ,@insertName AS INSERT_NAME
+			   ,GETDATE() AS UPDATE_DATE
+			   ,@updateName AS UPDATE_NAME
+		  FROM(
+			SELECT  MIN(CIP.DISTRICT_CODE) AS DISTRICT_CODE
+				   ,CIP.CLUB_CODE
+				   ,CIP.SESSION_YEAR
+				   ,CIP.ITEM_KIND_CODE
+				   ,CIP.ITEM_CODE
+				   ,CODE.CODE1
+				   ,(ISNULL(MIN(CIP.DUE), 0) + ISNULL(MIN(CIP.NEW_DUE), 0)) - ISNULL(SUM(CP.PAYMENT),0) AS DUE
+				   ,(ISNULL(MIN(CIP.DUE_DOLLAR), 0) + ISNULL(MIN(CIP.NEW_DUE_DOLLAR), 0)) - ISNULL(SUM(CP.PAYMENT_DOLLAR), 0) AS DUE_DOLLAR
+			  FROM LIONS_CLUB_ITEM_PAYMENT CIP
+			  LEFT OUTER JOIN LIONS_CLUB_PAYMENT CP
+				ON CIP.CLUB_CODE = CP.CLUB_CODE
+			   AND CIP.SESSION_YEAR = CP.SESSION_YEAR
+			   AND CIP.FIRST_SEC_KIND = CP.FIRST_SEC_KIND
+			   AND CIP.ITEM_KIND_CODE = CP.ITEM_KIND_CODE
+			   AND CIP.ITEM_CODE = CP.ITEM_CODE
+			  LEFT OUTER JOIN LIONS_CODE CODE
+				ON CODE.GROUP_CODE = CIP.ITEM_KIND_CODE
+			   AND CODE.CODE = CIP.ITEM_CODE
+			 WHERE CIP.SESSION_YEAR = @sessionYear
+			   AND CIP.DISTRICT_CODE = @districtCode
+			 GROUP BY  CIP.CLUB_CODE
+					  ,CIP.SESSION_YEAR
+					  ,CIP.FIRST_SEC_KIND
+					  ,CIP.ITEM_KIND_CODE
+					  ,CIP.ITEM_CODE
+					  ,CODE.CODE1
+			) P
+		 WHERE (DUE > 0 OR DUE_DOLLAR > 0)
+		 GROUP BY  P.CLUB_CODE
+				  ,P.SESSION_YEAR
+				  ,P.ITEM_KIND_CODE
+				  ,P.ITEM_CODE
+	</insert>
+</sqlMap>

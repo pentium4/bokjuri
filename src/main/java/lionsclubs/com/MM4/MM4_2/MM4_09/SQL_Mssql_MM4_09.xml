@@ -1,0 +1,225 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://www.ibatis.com/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="lionsclubs.com.MM4.MM4_2.MM4_09">
+
+	<typeAlias alias="MM4_09VO_PARAM" type="lionsclubs.com.MM4.MM4_2.MM4_09.MM4_09VO_PARAM"/>
+	
+	<sql id="lionsclubs.com.MM4.MM4_2.MM4_09.commonSql">
+	<![CDATA[
+DECLARE @yearCode INT
+DECLARE @month NVARCHAR(2)
+DECLARE @monthFrom NVARCHAR(2)
+DECLARE @fromDate NVARCHAR(8)
+DECLARE @toDate   NVARCHAR(8)
+DECLARE @orgCode NVARCHAR(10)
+DECLARE @uYear NVARCHAR(4)
+DECLARE @uYearFrom NVARCHAR(4)
+
+SET @orgCode = #orgCode#;
+SET @yearCode = #yearCode#;
+SET @month = CASE WHEN #month# = '' THEN '06' ELSE #month# END;
+SET @monthFrom = CASE WHEN #month# = '' THEN '07' ELSE #month# END;
+SET @uYear = CASE WHEN @month < '07' THEN CAST(@yearCode as NVARCHAR(4)) ELSE CAST(@yearCode - 1 as NVARCHAR(4)) END;
+SET @uYearFrom = CASE WHEN @monthFrom < '07' THEN CAST(@yearCode as NVARCHAR(4)) ELSE CAST(@yearCode - 1 as NVARCHAR(4)) END;
+SET @toDate = @uYear + @month + CONVERT(NVARCHAR(2), day(dateadd(month,1,@uYear + @month + '04')-(day(@uYear + @month + '04'))));
+SET @fromDate = CAST(@yearCode - 1 as NVARCHAR(4)) + '0701';
+
+	WITH 
+	ORG_TREE_TO AS ( /* 조직트리 */
+		SELECT
+			 A2.ORGAN_CODE
+			,A2.UPPER_ORGAN_CODE
+		FROM dbo.LIONS_ORGAN_CODE_HISTORY A2 
+		INNER JOIN dbo.LIONS_ORGAN_CODE D ON D.ORGAN_CODE = A2.ORGAN_CODE
+		WHERE D.SPOT_NIGHT != '' 
+			   AND (D.ORGAN_ABOLISH_DATE >= @fromDate OR D.ORGAN_ABOLISH_DATE = '')	
+			   AND A2.IDN_NO IN (
+					SELECT
+					MAX(B.IDN_NO) OVER(PARTITION BY B.ORGAN_CODE) as IDN_NO
+					FROM (
+						SELECT
+						ORGAN_CODE,
+						MAX(CHANGE_DATE) CHANGE_DATE
+						FROM dbo.LIONS_ORGAN_CODE_HISTORY
+						WHERE CHANGE_DATE BETWEEN @fromDate AND @toDate
+						GROUP BY ORGAN_CODE
+					) A
+					INNER JOIN dbo.LIONS_ORGAN_CODE_HISTORY B
+					ON B.ORGAN_CODE = A.ORGAN_CODE AND B.CHANGE_DATE = A.CHANGE_DATE
+			)
+	),
+	ORG_CODE_TO AS ( /* 조직 정보(현재) */
+		SELECT
+			A.ORGAN_CODE as LVL1_CODE			/* 연합회 코드 */
+			,B.ORGAN_CODE as LVL2_CODE			/* 복합지구코드 */
+			,C.ORGAN_CODE as LVL3_CODE			/* 지구코드 */
+			,D.ORGAN_CODE as LVL4_CODE 			/* 클럽코드 */		
+		FROM ORG_TREE_TO A 
+		INNER JOIN ORG_TREE_TO B ON B.UPPER_ORGAN_CODE = A.ORGAN_CODE
+		INNER JOIN ORG_TREE_TO C ON C.UPPER_ORGAN_CODE = B.ORGAN_CODE
+		INNER JOIN ORG_TREE_TO D ON D.UPPER_ORGAN_CODE = C.ORGAN_CODE
+		 ]]>
+			<isEqual property="lvl" compareValue="1">
+			<![CDATA[
+					WHERE convert(NVARCHAR(10),A.ORGAN_CODE) = @orgCode
+			]]>
+			</isEqual>
+			<isEqual property="lvl" compareValue="2">
+			<![CDATA[
+					WHERE convert(NVARCHAR(10),B.ORGAN_CODE) = @orgCode
+			]]>
+			</isEqual>
+			<isEqual property="lvl" compareValue="3">
+			<![CDATA[
+					WHERE convert(NVARCHAR(10),C.ORGAN_CODE) = @orgCode
+			]]>
+			</isEqual>
+			<![CDATA[
+		
+	),
+	ORG_GROUP_TO AS (
+		SELECT
+			]]>
+			<isEqual property="lvl" compareValue="1">
+			<![CDATA[
+					LVL2_CODE as ORGAN_CODE
+			]]>
+			</isEqual>
+			<isEqual property="lvl" compareValue="2">
+			<![CDATA[
+					LVL3_CODE as ORGAN_CODE
+			]]>
+			</isEqual>
+			<isEqual property="lvl" compareValue="3">
+			<![CDATA[
+					LVL4_CODE as ORGAN_CODE
+			]]>
+			</isEqual>
+			<![CDATA[
+		FROM ORG_CODE_TO
+		]]>
+			<isEqual property="lvl" compareValue="1">
+			<![CDATA[
+					GROUP BY LVL2_CODE
+			]]>
+			</isEqual>
+			<isEqual property="lvl" compareValue="2">
+			<![CDATA[
+					GROUP BY LVL3_CODE
+			]]>
+			</isEqual>
+			<isEqual property="lvl" compareValue="3">
+			<![CDATA[
+					GROUP BY LVL4_CODE
+			]]>
+			</isEqual>
+			<![CDATA[
+	),
+	
+	DETAIL_CODE AS (
+		SELECT
+			 CODE
+			,CODE_NAME
+		FROM dbo.LIONS_CODE
+		WHERE GROUP_CODE = '6100'
+		AND CODE1 = '*'
+		AND USE_YN = 'Y'
+	),
+	
+	LIST_CAYM AS (
+		
+			SELECT		
+				]]>
+				<isEqual property="lvl" compareValue="1">
+				<![CDATA[
+						C.LVL2_CODE as ORGAN_CODE
+				]]>
+				</isEqual>
+				<isEqual property="lvl" compareValue="2">
+				<![CDATA[
+						C.LVL3_CODE as ORGAN_CODE
+				]]>
+				</isEqual>
+				<isEqual property="lvl" compareValue="3">
+				<![CDATA[
+						C.LVL4_CODE as ORGAN_CODE
+				]]>
+				</isEqual>
+				<![CDATA[
+				,A.DETAIL_ITEM_CODE			
+				,SUM(A.AMOUNT) as ASUM			
+			
+			FROM dbo.LIONS_INCOME_EXPEND A
+			INNER JOIN DETAIL_CODE B ON B.CODE = A.DETAIL_ITEM_CODE	
+			INNER JOIN ORG_CODE_TO C ON C.LVL4_CODE = A.ORGAN_CODE	
+			WHERE
+				A.CLASS_ITEM_CODE = '1040' 
+			AND A.INEX_CODE = '1010'	
+			AND A.CA_YM BETWEEN @uYearFrom+@monthFrom AND @uYear+@month
+			
+			]]>
+			<isEqual property="lvl" compareValue="1">
+			<![CDATA[
+					GROUP BY C.LVL2_CODE ,A.DETAIL_ITEM_CODE
+			]]>
+			</isEqual>
+			<isEqual property="lvl" compareValue="2">
+			<![CDATA[
+					GROUP BY C.LVL3_CODE ,A.DETAIL_ITEM_CODE
+			]]>
+			</isEqual>
+			<isEqual property="lvl" compareValue="3">
+			<![CDATA[
+					GROUP BY C.LVL4_CODE ,A.DETAIL_ITEM_CODE
+			]]>
+			</isEqual>
+			<![CDATA[	
+	)
+	
+
+	]]>
+	</sql>	
+
+ 	<select id="lionsclubs.com.MM4.MM4_2.MM4_09.selectList" resultClass="java.util.HashMap" parameterClass="MM4_09VO_PARAM">
+ 	<include refid="lionsclubs.com.MM4.MM4_2.MM4_09.commonSql" />
+ 	<![CDATA[	
+	SELECT
+		G.ORGAN_CODE as orgCode
+		,B.KO_ABBR as orgName
+		]]>
+		<iterate property="outCode" conjunction="," prepend=",">		
+			<![CDATA[				 
+				 ISNULL([$outCode[]$],0) as [$outCode[]$]
+			]]>
+		</iterate>
+		<![CDATA[
+		, ISNULL((SELECT SUM(ASUM) FROM LIST_CAYM WHERE ORGAN_CODE=G.ORGAN_CODE),0) as amountSum
+	FROM ORG_GROUP_TO G
+	INNER JOIN dbo.LIONS_ORGAN_CODE B ON B.ORGAN_CODE = G.ORGAN_CODE 
+	LEFT OUTER JOIN (
+		select
+			ORGAN_CODE
+			]]>
+			<iterate property="outCode" conjunction="," prepend=",">		
+				<![CDATA[				 
+					 [$outCode[]$]
+				]]>
+			</iterate>
+			<![CDATA[	
+		from LIST_CAYM	
+		PIVOT(SUM(ASUM) FOR DETAIL_ITEM_CODE IN(
+			]]>
+			<iterate property="outCode" conjunction="," >		
+				<![CDATA[				 
+					 [$outCode[]$]
+				]]>
+			</iterate>
+			<![CDATA[	
+		)) as ALIST
+	) X ON X.ORGAN_CODE=G.ORGAN_CODE
+	]]>
+	</select>
+	
+ 	
+</sqlMap>

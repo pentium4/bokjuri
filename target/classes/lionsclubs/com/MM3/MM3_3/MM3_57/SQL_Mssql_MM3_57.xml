@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://www.ibatis.com/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="lionsclubs.com.MM3.MM3_3.MM3_57">
+	<typeAlias alias="MM3_57VO" type="lionsclubs.com.MM3.MM3_3.MM3_57.MM3_57VO"/>
+	
+	<sql id="lionsclubs.com.MM3.MM3_3.MM3_57.declare">
+		DECLARE @organCode NVARCHAR(6);	/* 조직코드 */
+		DECLARE @sessionYear NVARCHAR(4);
+				
+		SET @organCode = REPLACE(#organCode#, '-', '');
+		SET @sessionYear = CONVERT(NVARCHAR(4), GETDATE(), 112);
+	</sql>
+	
+	<select id="lionsclubs.com.MM3.MM3_3.MM3_57.MM3_57" resultClass="MM3_57VO">
+		<include refid="lionsclubs.com.MM3.MM3_3.MM3_57.declare" />
+		
+		SELECT  R.ORGAN_CODE AS organCode
+			   ,dbo.FN_LIONS_ORGAN_NAME(R.ORGAN_CODE) AS organName
+			   ,R.CA_YM AS caYm
+			   ,R.CONFIRM_DATE AS confirmDate
+			   ,R.CONFIRM_COUNT AS confirmCount
+			   ,R.CONFIRM_LOCK_DATE	AS confirmLockDate
+		  FROM (
+			SELECT  ROW_NUMBER() OVER (PARTITION BY C.ORGAN_CODE ORDER BY C.CA_YM DESC) AS rnum
+				   ,C.ORGAN_CODE
+				   ,C.CA_YM
+				   ,C.CONFIRM_DATE
+				   ,C.CONFIRM_COUNT
+				   ,C.CONFIRM_LOCK_DATE
+			  FROM dbo.FN_LIONS_SUB_TREE_YEAR_ORGAN(@sessionYear, @organCode) STYO
+			  LEFT OUTER JOIN LIONS_CALCULATE C
+				ON STYO.ORGAN_CODE = C.ORGAN_CODE
+			 WHERE STYO.LVL = 2
+			   AND C.CONFIRM_LOCK_YN = 'Y'
+		  ) R
+		 WHERE R.rnum = 1
+		<dynamic prepend="ORDER BY">
+			<isEqual property="order" compareValue="1">
+				R.ORGAN_CODE
+			</isEqual>
+			<isEqual property="order" compareValue="2">
+				 R.CA_YM DESC
+				,R.ORGAN_CODE
+			</isEqual>
+		</dynamic> 		
+	</select>
+</sqlMap>

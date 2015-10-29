@@ -1,0 +1,590 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://www.ibatis.com/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="lionsclubs.com.MM3.MM3_13.MM3_54">
+	<typeAlias alias="MM3_54VO" type="lionsclubs.com.MM3.MM3_13.MM3_54.MM3_54VO"/>
+	
+	<sql id="lionsclubs.com.MM3.MM3_13.MM3_54.declare">
+		DECLARE @SQL NVARCHAR(MAX);
+		DECLARE @Prod NVARCHAR(MAX);
+		DECLARE @organCode NVARCHAR(6);
+		DECLARE @subOrganCode NVARCHAR(6);
+		DECLARE @startYearMonth NVARCHAR(6);
+		DECLARE @endYearMonth NVARCHAR(6);
+		DECLARE @startDate NVARCHAR(8);
+		DECLARE @endDate NVARCHAR(8);
+		DECLARE @sSessionYear NVARCHAR(4);
+		DECLARE @eSessionYear NVARCHAR(4);		
+		DECLARE @paymentKindCode NVARCHAR(4);
+		DECLARE @memberNo NVARCHAR(8);
+		
+		SET @organCode = REPLACE(#organCode#, '-', '');
+		SET @subOrganCode = 'M' + SUBSTRING(REPLACE(@organCode, '-', ''),2, 6);
+		SET @startYearMonth = REPLACE(#startYearMonth#, '.', '');
+		SET @endYearMonth = REPLACE(#endYearMonth#, '.', '');
+		SET @startDate = CONVERT(NVARCHAR(8), DATEADD(S, 1, DATEADD(MM, DATEDIFF(M, 0, @startYearMonth + '01'), 0)), 112);
+		SET @endDate = CONVERT(NVARCHAR(8), DATEADD(S, - 1, DATEADD(MM, DATEDIFF(M, 0, @endYearMonth + '01') + 1, 0)), 112);
+		SET @sSessionYear = dbo.FN_SESSION_YEAR(@startDate);
+		SET @eSessionYear = dbo.FN_SESSION_YEAR(@endDate);
+		SET @paymentKindCode = #paymentKindCode#;
+		SET @memberNo = #memberNo#;
+		SET @Prod = '';
+	</sql>
+	
+	<select id="lionsclubs.com.MM3.MM3_13.MM3_54.headInfo" resultClass="java.util.HashMap">
+		<include refid="lionsclubs.com.MM3.MM3_13.MM3_54.declare"/>
+		<![CDATA[
+		SELECT * FROM(
+			SELECT  SP.PAYMENT_MAIN_CODE + SP.PAYMENT_DETAIL_CODE AS plusItemCode
+				   ,dbo.FN_LIONS_CODE_NAME(SP.PAYMENT_MAIN_CODE, SP.PAYMENT_DETAIL_CODE) AS paymentItemName
+			  FROM LIONS_SECRETARY_INFO SI
+			 INNER JOIN LIONS_SECRETARY_PAY SP
+				ON SI.ORGAN_CODE = SP.ORGAN_CODE
+			   AND SI.MEMBER_NO = SP.MEMBER_NO
+			   AND SI.PAYMENT_YEAR_MONTH = SP.PAYMENT_YEAR_MONTH
+			   AND SI.PAYMENT_KIND_CODE = SP.PAYMENT_KIND_CODE
+			 WHERE SI.ORGAN_CODE = @organCode
+			   AND SI.PAYMENT_YEAR_MONTH >= SUBSTRING(@startDate, 1, 6)
+			   AND SI.PAYMENT_YEAR_MONTH <= SUBSTRING(@endDate, 1, 6)
+			 GROUP BY  SP.PAYMENT_MAIN_CODE
+					  ,SP.PAYMENT_DETAIL_CODE
+					  
+			 UNION ALL
+			 
+			 SELECT  '86109999' AS plusItemCode
+		 			,'급여계' AS paymentItemName
+			 
+			 UNION ALL
+			 
+			 SELECT  '86209999' AS plusItemCode
+		 			,'공제계' AS paymentItemName
+			 
+			 UNION ALL
+			 
+			 SELECT  '99999999' AS plusItemCode
+		 			,'차감지급액' AS paymentItemName
+		) R
+		  ORDER BY R.plusItemCode
+ 		]]>
+ 	</select>	
+	
+	<select id="lionsclubs.com.MM3.MM3_13.MM3_54.MM3_54" resultClass="java.util.HashMap" remapResults="true">
+		<include refid="lionsclubs.com.MM3.MM3_13.MM3_54.declare"/>
+		<![CDATA[
+		SELECT @Prod = @Prod + '[' + CODE + '],'
+		  FROM (
+				SELECT DISTINCT SP.PAYMENT_MAIN_CODE + SP.PAYMENT_DETAIL_CODE AS CODE
+				  FROM LIONS_SECRETARY_INFO SI
+				 INNER JOIN LIONS_SECRETARY_PAY SP
+					ON SI.ORGAN_CODE = SP.ORGAN_CODE
+				   AND SI.MEMBER_NO = SP.MEMBER_NO
+				   AND SI.PAYMENT_YEAR_MONTH = SP.PAYMENT_YEAR_MONTH
+				   AND SI.PAYMENT_KIND_CODE = SP.PAYMENT_KIND_CODE
+				 WHERE SI.ORGAN_CODE = @organCode
+				   AND SI.PAYMENT_YEAR_MONTH >= SUBSTRING(@startDate, 1, 6)
+				   AND SI.PAYMENT_YEAR_MONTH <= SUBSTRING(@endDate, 1, 6)
+				  
+				 UNION ALL
+				 
+				 SELECT '86109999' AS CODE
+				 
+				 UNION ALL
+				 
+				 SELECT '86209999' AS CODE
+				 
+				 UNION ALL
+				 
+				 SELECT '99999999' AS CODE
+
+		  ) R
+		  ORDER BY CODE
+		]]>
+		  
+		SET @Prod = LEFT(@Prod, LEN(@Prod) - 1);
+		
+		SET @SQL = '
+			/* 클럽직책 */
+			WITH CLUB_TITLE AS(
+				SELECT  APP.MEMBER_NO
+					   ,APP.APP_KIND_CODE
+					   ,APP.APP_DESC_CODE
+					   ,(SELECT CODE_NAME FROM dbo.LIONS_CODE WHERE GROUP_CODE = (SELECT CODE1 FROM dbo.LIONS_CODE WHERE CODE = APP.APP_KIND_CODE AND GROUP_CODE = ''2700'') AND CODE = APP.APP_DESC_CODE) + CASE WHEN LEN(APP.APP_DESC) > 0 THEN ''('' + APP.APP_DESC + '')'' ELSE '''' END + ''('' + CONVERT(NVARCHAR(10), CONVERT(DATETIME, APP.START_DATE), 102) + '')'' AS APP_DESC_CODE_NAME
+				  FROM dbo.LIONS_APPOINTMENT APP
+				 WHERE APP.APP_KIND_CODE IN(''1000'', ''1010'')
+				   <![CDATA[
+				   AND (
+						   (START_DATE >= ''' + @startDate + ''' AND START_DATE <= ''' + @endDate + ''') 
+						OR (END_DATE >= ''' + @startDate + ''' AND END_DATE <= ''' + @endDate + ''') 
+						OR (START_DATE <= ''' + @startDate + ''' AND END_DATE >= ''' + @startDate + ''') 
+						OR (START_DATE <= ''' + @endDate + ''' AND END_DATE >= ''' + @endDate + ''')
+					)
+				   ]]>
+			), SECRETARY AS (
+					SELECT  SI.PAYMENT_YEAR_MONTH AS paymentYearMonth
+						   ,dbo.FN_LIONS_CODE_NAME(''8600'', SI.PAYMENT_KIND_CODE) AS paymentKindName
+						   ,(SELECT NAME FROM LIONS_MEMBER_INFO WHERE MEMBER_NO = SI.MEMBER_NO) AS memberName
+						   ,ISNULL(
+							   STUFF((
+									 SELECT '','' + CT.APP_DESC_CODE_NAME
+									   FROM CLUB_TITLE CT
+									  WHERE CT.MEMBER_NO = SI.MEMBER_NO
+										FOR XML PATH('''')
+								), 1, 1, '''')
+							, ''회원'') AS sectorTitle
+						   ,SP.PAYMENT_MAIN_CODE + SP.PAYMENT_DETAIL_CODE AS plusItemCode 
+						   ,SP.PAYMENT AS payment
+						   ,SI.ORGAN_CODE
+					       ,SI.MEMBER_NO
+					       ,SI.PAYMENT_YEAR_MONTH
+					       ,SI.PAYMENT_KIND_CODE
+					       ,SP.PAYMENT_MAIN_CODE
+					       ,CT.APP_KIND_CODE
+					       ,CT.APP_DESC_CODE
+					  FROM LIONS_SECRETARY_INFO SI
+					 INNER JOIN CLUB_TITLE CT
+					    ON SI.MEMBER_NO = CT.MEMBER_NO
+					 INNER JOIN LIONS_SECRETARY_PAY SP
+						ON SI.ORGAN_CODE = SP.ORGAN_CODE
+					   AND SI.MEMBER_NO = SP.MEMBER_NO
+					   AND SI.PAYMENT_YEAR_MONTH = SP.PAYMENT_YEAR_MONTH
+					   AND SI.PAYMENT_KIND_CODE = SP.PAYMENT_KIND_CODE
+					 WHERE SI.ORGAN_CODE = ''' + @organCode + '''
+					 <![CDATA[
+					   AND SI.PAYMENT_YEAR_MONTH >= SUBSTRING(''' + @startDate + ''', 1, 6)
+					   AND SI.PAYMENT_YEAR_MONTH <= SUBSTRING(''' + @endDate + ''', 1, 6)
+				     ]]>
+				     <isNotEmpty prepend="AND" property="paymentKindCode">
+				     	SI.PAYMENT_KIND_CODE = ''' + @paymentKindCode + '''
+				     </isNotEmpty>
+				     <isNotEmpty prepend="AND" property="memberNo">
+				     	SI.MEMBER_NO = ''' + @memberNo + '''
+				     </isNotEmpty>				     
+			)
+			
+			 SELECT * FROM(
+					SELECT  paymentYearMonth
+						   ,PAYMENT_KIND_CODE AS paymentKindCode
+						   ,paymentKindName
+						   ,MEMBER_NO AS memberNo
+						   ,memberName
+						   ,sectorTitle
+						   ,plusItemCode 
+						   ,payment
+						   ,APP_KIND_CODE
+					       ,APP_DESC_CODE
+					  FROM SECRETARY
+					 UNION ALL
+					SELECT  MIN(paymentYearMonth) AS paymentYearMonth
+						   ,PAYMENT_KIND_CODE AS paymentKindCode
+						   ,MIN(paymentKindName) AS paymentKindName
+						   ,MEMBER_NO AS memberNo
+						   ,MIN(memberName) AS memberName
+						   ,MIN(sectorTitle) AS sectorTitle
+						   ,PAYMENT_MAIN_CODE + ''9999'' AS plusItemCode 
+						   ,SUM(PAYMENT) AS payment
+						   ,MIN(APP_KIND_CODE) AS APP_KIND_CODE
+					       ,MIN(APP_DESC_CODE) AS APP_DESC_CODE
+					  FROM SECRETARY
+					 GROUP BY  ORGAN_CODE
+						      ,MEMBER_NO
+						      ,PAYMENT_YEAR_MONTH
+						      ,PAYMENT_KIND_CODE
+						      ,PAYMENT_MAIN_CODE
+					 UNION ALL
+					SELECT  MIN(paymentYearMonth) AS paymentYearMonth
+						   ,PAYMENT_KIND_CODE AS paymentKindCode
+						   ,MIN(paymentKindName) AS paymentKindName
+						   ,MEMBER_NO AS memberNo
+						   ,MIN(memberName) AS memberName
+						   ,MIN(sectorTitle) AS sectorTitle
+						   ,''99999999'' AS plusItemCode 
+						   ,CASE WHEN PAYMENT_MAIN_CODE = ''8610'' 
+								 THEN SUM(PAYMENT) 
+								 WHEN PAYMENT_MAIN_CODE = ''8620'' 
+								 THEN -SUM(PAYMENT) 
+								  END AS payment
+						   ,MIN(APP_KIND_CODE) AS APP_KIND_CODE
+					       ,MIN(APP_DESC_CODE) AS APP_DESC_CODE
+					  FROM SECRETARY
+					 GROUP BY ORGAN_CODE, MEMBER_NO, PAYMENT_YEAR_MONTH, PAYMENT_KIND_CODE, PAYMENT_MAIN_CODE
+			 ) TB1
+			 PIVOT (SUM(TB1.payment) FOR TB1.plusItemCode IN(' + @Prod + ')) AS PVT
+			 <dynamic prepend="ORDER BY">
+			 	<isEqual property="ord" compareValue="1">
+				    dbo.FN_LIONS_CODE_ORD(''2700'', APP_KIND_CODE) DESC
+				   ,dbo.FN_LIONS_DETAILCODE_ORD(''2700'', APP_KIND_CODE, APP_DESC_CODE)
+				   ,memberNo			
+				   ,paymentYearMonth DESC
+				   ,dbo.FN_LIONS_CODE_ORD(''8600'', paymentKindCode)			 		
+			 	</isEqual>
+			 	<isEqual property="ord" compareValue="2">
+					memberNo
+				   ,paymentYearMonth DESC
+				   ,dbo.FN_LIONS_CODE_ORD(''8600'', paymentKindCode)			 		
+			 	</isEqual>
+			 	<isEqual property="ord" compareValue="3">
+					memberName
+				   ,paymentYearMonth DESC
+				   ,dbo.FN_LIONS_CODE_ORD(''8600'', paymentKindCode)	
+			 	</isEqual>
+			 	<isEqual property="ord" compareValue="4">
+					dbo.FN_LIONS_CODE_ORD(''8600'', paymentKindCode)
+				   ,memberNo
+				   ,paymentYearMonth DESC
+			 	</isEqual>
+			 	<isEqual property="ord" compareValue="5">
+					paymentYearMonth DESC
+				   ,memberNo
+				   ,dbo.FN_LIONS_CODE_ORD(''8600'', paymentKindCode)	
+			 	</isEqual>
+			 </dynamic>			 
+		'
+		
+		EXEC SP_EXECUTESQL @SQL	
+	</select>
+	
+	<select id="lionsclubs.com.MM3.MM3_13.MM3_54.sum" resultClass="java.util.HashMap" remapResults="true">
+		<include refid="lionsclubs.com.MM3.MM3_13.MM3_54.declare"/>
+		<![CDATA[
+		SELECT @Prod = @Prod + '[' + CODE + '],'
+		  FROM (
+				SELECT DISTINCT SP.PAYMENT_MAIN_CODE + SP.PAYMENT_DETAIL_CODE AS CODE
+				  FROM LIONS_SECRETARY_INFO SI
+				 INNER JOIN LIONS_SECRETARY_PAY SP
+					ON SI.ORGAN_CODE = SP.ORGAN_CODE
+				   AND SI.MEMBER_NO = SP.MEMBER_NO
+				   AND SI.PAYMENT_YEAR_MONTH = SP.PAYMENT_YEAR_MONTH
+				   AND SI.PAYMENT_KIND_CODE = SP.PAYMENT_KIND_CODE
+				 WHERE SI.ORGAN_CODE = 'K26000'
+				   AND SI.PAYMENT_YEAR_MONTH >= SUBSTRING(@startDate, 1, 6)
+				   AND SI.PAYMENT_YEAR_MONTH <= SUBSTRING(@endDate, 1, 6)
+				  
+				 UNION ALL
+				 
+				 SELECT '86109999' AS CODE
+				 
+				 UNION ALL
+				 
+				 SELECT '86209999' AS CODE
+				 
+				 UNION ALL
+				 
+				 SELECT '99999999' AS CODE
+
+		  ) R
+		  ORDER BY CODE
+		]]>
+		  
+		SET @Prod = LEFT(@Prod, LEN(@Prod) - 1);
+		
+		SET @SQL = '
+			/* 클럽직책 */
+			WITH CLUB_TITLE AS(
+				SELECT  APP.MEMBER_NO
+					   ,APP.APP_KIND_CODE
+					   ,APP.APP_DESC_CODE
+					   ,(SELECT CODE_NAME FROM dbo.LIONS_CODE WHERE GROUP_CODE = (SELECT CODE1 FROM dbo.LIONS_CODE WHERE CODE = APP.APP_KIND_CODE AND GROUP_CODE = ''2700'') AND CODE = APP.APP_DESC_CODE) + CASE WHEN LEN(APP.APP_DESC) > 0 THEN ''('' + APP.APP_DESC + '')'' ELSE '''' END + ''('' + CONVERT(NVARCHAR(10), CONVERT(DATETIME, APP.START_DATE), 102) + '')'' AS APP_DESC_CODE_NAME
+				  FROM dbo.LIONS_APPOINTMENT APP
+				 WHERE APP.APP_KIND_CODE IN(''1000'', ''1010'')	/* 선임구분(2700) : 선임(클럽임원선임) */
+				   <![CDATA[
+				   AND (
+						   (START_DATE >= ''' + @startDate + ''' AND START_DATE <= ''' + @endDate + ''') 
+						OR (END_DATE >= ''' + @startDate + ''' AND END_DATE <= ''' + @endDate + ''') 
+						OR (START_DATE <= ''' + @startDate + ''' AND END_DATE >= ''' + @startDate + ''') 
+						OR (START_DATE <= ''' + @endDate + ''' AND END_DATE >= ''' + @endDate + ''')
+					)
+				   ]]>			), SECRETARY AS (
+					SELECT  SP.PAYMENT_MAIN_CODE + SP.PAYMENT_DETAIL_CODE AS plusItemCode 
+						   ,SP.PAYMENT AS payment
+						   ,SI.ORGAN_CODE
+					       ,SI.MEMBER_NO
+					       ,SI.PAYMENT_YEAR_MONTH
+					       ,SI.PAYMENT_KIND_CODE
+					       ,SP.PAYMENT_MAIN_CODE						   
+					  FROM LIONS_SECRETARY_INFO SI
+					 INNER JOIN CLUB_TITLE CT
+					    ON SI.MEMBER_NO = CT.MEMBER_NO
+					 INNER JOIN LIONS_SECRETARY_PAY SP
+						ON SI.ORGAN_CODE = SP.ORGAN_CODE
+					   AND SI.MEMBER_NO = SP.MEMBER_NO
+					   AND SI.PAYMENT_YEAR_MONTH = SP.PAYMENT_YEAR_MONTH
+					   AND SI.PAYMENT_KIND_CODE = SP.PAYMENT_KIND_CODE
+					 WHERE SI.ORGAN_CODE = ''' + @organCode + '''
+					 <![CDATA[
+					   AND SI.PAYMENT_YEAR_MONTH >= SUBSTRING(''' + @startDate + ''', 1, 6)
+					   AND SI.PAYMENT_YEAR_MONTH <= SUBSTRING(''' + @endDate + ''', 1, 6)
+					 ]]>
+				     <isNotEmpty prepend="AND" property="paymentKindCode">
+				     	SI.PAYMENT_KIND_CODE = ''' + @paymentKindCode + '''
+				     </isNotEmpty>					   			
+			)
+
+			 SELECT * FROM(
+					SELECT  plusItemCode 
+						   ,payment
+					  FROM SECRETARY
+					  
+					 UNION ALL
+									 
+					SELECT  PAYMENT_MAIN_CODE + ''9999'' AS plusItemCode 
+						   ,SUM(PAYMENT) AS payment
+					  FROM SECRETARY
+					 GROUP BY  ORGAN_CODE
+						      ,MEMBER_NO
+						      ,PAYMENT_YEAR_MONTH
+						      ,PAYMENT_KIND_CODE
+						      ,PAYMENT_MAIN_CODE
+						      				   
+					 UNION ALL
+									 
+					SELECT  ''99999999'' AS plusItemCode 
+						   ,CASE WHEN PAYMENT_MAIN_CODE = ''8610'' 
+								 THEN SUM(PAYMENT) 
+								 WHEN PAYMENT_MAIN_CODE = ''8620'' 
+								 THEN -SUM(PAYMENT) 
+								  END AS payment
+					  FROM SECRETARY
+					 GROUP BY  ORGAN_CODE
+						      ,MEMBER_NO
+						      ,PAYMENT_YEAR_MONTH	
+						      ,PAYMENT_KIND_CODE
+						      ,PAYMENT_MAIN_CODE
+			 ) TB1
+			 PIVOT (SUM(TB1.payment) FOR TB1.plusItemCode IN(' + @Prod + ')) AS PVT
+		'
+		
+		EXEC SP_EXECUTESQL @SQL		
+	</select>
+		
+	<select id="lionsclubs.com.MM3.MM3_13.MM3_54.listSecretaryInfo" resultClass="MM3_54VO">
+		<include refid="lionsclubs.com.MM3.MM3_13.MM3_54.declare" />
+		
+		<![CDATA[
+		/* 기본정보 */
+		WITH BASE_INFO AS(
+			SELECT 	MIN(MCH.ORGAN_CODE) AS ORGAN_CODE
+				   ,INFO.MEMBER_NO
+				   ,MIN(INFO.NAME) AS NAME
+				   ,MIN(MCH.START_DATE) AS START_DATE
+			  FROM LIONS_MEMBER_INFO INFO
+			 INNER JOIN LIONS_MEMBER_CLUB_HIST MCH
+				ON INFO.MEMBER_NO = MCH.MEMBER_NO
+			   AND MCH.ORGAN_CODE IN(
+					SELECT ORGAN_CODE 
+					  FROM dbo.FN_LIONS_SUB_TREE_YEAR_ORGAN(dbo.FN_SESSION_YEAR(@startYearMonth + '01'), @subOrganCode)
+					 WHERE LVL = 2
+					 
+					 UNION
+		
+					SELECT ORGAN_CODE 
+					  FROM dbo.FN_LIONS_SUB_TREE_YEAR_ORGAN(dbo.FN_SESSION_YEAR(@endYearMonth + '01'), @subOrganCode)
+					 WHERE LVL = 2
+			   ) AND (
+					   (MCH.START_DATE >= @startDate AND MCH.START_DATE <= @endDate)
+					OR (MCH.END_DATE   >= @startDate AND MCH.END_DATE <= @endDate)
+					OR (MCH.START_DATE <= @startDate AND MCH.END_DATE >= @startDate) /* '20120701' >= START_DATE AND '20120701' <= END_DATE */
+					OR (MCH.START_DATE <= @endDate AND MCH.END_DATE >= @endDate)
+			   )
+			 GROUP BY INFO.MEMBER_NO
+		/* 클럽직책 */
+		),CLUB_TITLE AS(
+			SELECT  APP.MEMBER_NO
+				   ,APP.APP_KIND_CODE
+				   ,APP.APP_DESC_CODE
+				   ,(SELECT CODE_NAME
+					   FROM dbo.LIONS_CODE
+					  WHERE GROUP_CODE = (SELECT CODE1 FROM dbo.LIONS_CODE WHERE CODE = APP.APP_KIND_CODE AND GROUP_CODE = '2700')
+					    AND CODE = APP.APP_DESC_CODE	   
+					) + 
+					CASE WHEN LEN(APP.APP_DESC) > 0
+						 THEN '(' + APP.APP_DESC + ')'
+						 ELSE ''
+						  END
+				    + '(' + CONVERT(NVARCHAR(10), CONVERT(DATETIME, APP.START_DATE), 102) + ')' AS APP_DESC_CODE_NAME
+				   ,(SELECT ORD
+					   FROM dbo.LIONS_CODE
+					  WHERE GROUP_CODE = (SELECT CODE1 FROM dbo.LIONS_CODE WHERE CODE = APP.APP_KIND_CODE AND GROUP_CODE = '2700')
+					    AND CODE = APP.APP_DESC_CODE	   
+					) AS ORD
+			  FROM dbo.LIONS_APPOINTMENT APP
+		     WHERE APP.APP_KIND_CODE IN('1000', '1010')	/* 선임구분(2700) : 선임(클럽임원선임) */
+			   AND (
+					   (START_DATE >= @startDate AND START_DATE <= @endDate)
+					OR (END_DATE   >= @startDate AND END_DATE <= @endDate)
+					OR (START_DATE <= @startDate AND END_DATE >= @startDate) /* '20120701' >= START_DATE AND '20120701' <= END_DATE */
+					OR (START_DATE <= @endDate AND END_DATE >= @endDate)
+				)
+		/* 퇴회정보 */
+		),RETIRE AS(
+			SELECT  MEMBER_NO
+				   ,KIND_FLAG
+				   ,END_DATE
+				   ,APP_DESC_CODE
+			  FROM LIONS_APPOINTMENT APP
+			 INNER JOIN(
+				SELECT IDN_NO FROM(
+					SELECT  ROW_NUMBER() OVER (PARTITION BY MEMBER_NO ORDER BY END_DATE DESC, START_DATE DESC, IDN_NO DESC) AS rnum
+						   ,IDN_NO
+						   ,APP_KIND_CODE						   
+					  FROM LIONS_APPOINTMENT
+					 WHERE (
+								   (START_DATE >= @startDate AND START_DATE <= @endDate)
+								OR (END_DATE   >= @startDate AND END_DATE <= @endDate)
+								OR (START_DATE <= @startDate AND END_DATE >= @startDate) /* '20120701' >= START_DATE AND '20120701' <= END_DATE */
+								OR (START_DATE <= @endDate AND END_DATE >= @endDate)
+							)
+				) IDN
+				 WHERE IDN.rnum = 1
+				   AND IDN.APP_KIND_CODE = '1050'	/* 선임구분(2700) : 선임-퇴회 */
+			  ) X
+				 ON APP.IDN_NO = X.IDN_NO
+		)
+		]]>
+		
+		SELECT  INFO.MEMBER_NO AS memberNo	/* 회원번호 */
+			   ,INFO.NAME AS memberName	/* 회원명 */
+			   ,INFO.START_DATE AS signDate	/* 입회 시작일 */
+			   ,ISNULL(
+				   STUFF((
+						 SELECT ',' + CT.APP_DESC_CODE_NAME
+						   FROM CLUB_TITLE CT
+						  WHERE CT.MEMBER_NO = INFO.MEMBER_NO
+							FOR XML PATH('')
+					), 1, 1, '')
+				, '회원') AS sectorTitle	/* 클럽직책 */
+		  FROM BASE_INFO INFO
+		 INNER JOIN CLUB_TITLE CT
+		    ON CT.MEMBER_NO = INFO.MEMBER_NO
+		   AND (
+				   CT.APP_KIND_CODE = '1000' AND CT.APP_DESC_CODE = '9010'
+				OR CT.APP_KIND_CODE = '1010' AND CT.APP_DESC_CODE IN('9000', '9010')
+		   )
+		  LEFT OUTER JOIN RETIRE R
+		    ON INFO.MEMBER_NO = R.MEMBER_NO
+		 WHERE R.KIND_FLAG != 'O'
+		    OR R.KIND_FLAG IS NULL
+		 ORDER BY  dbo.FN_LIONS_CODE_ORD('2700', CT.APP_KIND_CODE) DESC
+				  ,dbo.FN_LIONS_DETAILCODE_ORD('2700', CT.APP_KIND_CODE, CT.APP_DESC_CODE)
+				  ,INFO.MEMBER_NO
+	</select>
+
+	<select id="lionsclubs.com.MM3.MM3_13.MM3_54.listSecretaryPaymentCode" resultClass="MM3_54VO">
+		SELECT  C.GROUP_CODE AS groupCode
+			   ,(SELECT GROUP_CODE_NAME FROM LIONS_GROUP_CODE WHERE GROUP_CODE = C.GROUP_CODE) AS groupCodeName
+			   ,C.CODE AS code
+			   ,C.CODE_NAME AS codeName
+		  FROM LIONS_CODE C
+		 WHERE C.GROUP_CODE IN('8610', '8620')
+		 ORDER BY  C.GROUP_CODE
+				  ,C.ORD
+	</select>
+	
+	<select id="lionsclubs.com.MM3.MM3_13.MM3_54.listSecretaryPaymentGroupCode" resultClass="MM3_54VO">
+		SELECT  COUNT(*) AS groupCodeCnt
+			   ,(SELECT GROUP_CODE_NAME FROM LIONS_GROUP_CODE WHERE GROUP_CODE = C.GROUP_CODE) AS groupCodeName
+		  FROM LIONS_CODE C
+		 WHERE C.GROUP_CODE IN('8610', '8620')
+		 GROUP BY C.GROUP_CODE
+	</select>
+
+	<select id="lionsclubs.com.MM3.MM3_13.MM3_54.listPaymentKind" resultClass="MM3_54VO">
+		SELECT  CODE AS code
+			   ,CODE_NAME AS codeName
+		  FROM LIONS_CODE
+		 WHERE GROUP_CODE = '8600'
+	</select>
+	
+	<insert id="lionsclubs.com.MM3.MM3_13.MM3_54.insertSecretaryInfo">
+		INSERT INTO LIONS_SECRETARY_INFO(
+			 ORGAN_CODE	/* 조직코드 */
+			,MEMBER_NO	/* 회원번호 */
+			,PAYMENT_YEAR_MONTH	/* 지급년월 */
+			,PAYMENT_KIND_CODE	/* 급여구분 */
+			,INSERT_DATE	/* 생성일자 */
+			,INSERT_NAME	/* 생성자 */
+			,UPDATE_DATE	/* 수정일자 */
+			,UPDATE_NAME	/* 수정자 */
+		) VALUES (
+			 #organCode#	/* 조직코드 */
+			,#memberNo#	/* 회원번호 */
+			,SUBSTRING(REPLACE(#paymentYearMonth#, '.', ''), 1, 6)	/* 지급년월 */
+			,SUBSTRING(#paymentKindCode#, 1, 4)	/* 급여구분 */
+			,GETDATE()	/* 생성일자 */
+			,#insertName#	/* 생성자 */
+			,GETDATE()	/* 수정일자 */
+			,#updateName#	/* 수정자 */			
+		)
+	</insert>
+	
+	<insert id="lionsclubs.com.MM3.MM3_13.MM3_54.insertSecretaryPay">
+		INSERT INTO LIONS_SECRETARY_PAY(
+			 ORGAN_CODE	/* 조직코드 */
+			,MEMBER_NO	/* 회원번호 */
+			,PAYMENT_YEAR_MONTH	/* 지급년월 */
+			,PAYMENT_KIND_CODE	/* 급여구분 */
+			,PAYMENT_MAIN_CODE	/* 급여대분류코드 */
+			,PAYMENT_DETAIL_CODE	/* 급여상세코드 */
+			,PAYMENT	/* 급여 */
+			,INSERT_DATE	/* 생성일자 */
+			,INSERT_NAME	/* 생성자 */
+			,UPDATE_DATE	/* 수정일자 */
+			,UPDATE_NAME	/* 수정자 */
+		) VALUES (
+			 #organCode#	/* 조직코드 */
+			,#memberNo#	/* 회원번호 */
+			,SUBSTRING(REPLACE(#paymentYearMonth#, '.', ''), 1, 6)	/* 지급년월 */
+			,SUBSTRING(#paymentKindCode#, 1, 4)	/* 급여구분 */
+			,#paymentMainCode#	/* 급여대분류코드 */
+			,#paymentDetailCode#	/* 급여상세코드 */
+			,#payment#	/* 급여 */
+			,GETDATE()	/* 생성일자 */
+			,#insertName#	/* 생성자 */
+			,GETDATE()	/* 수정일자 */
+			,#updateName#	/* 수정자 */			
+		)
+	</insert>
+	
+	<delete id="lionsclubs.com.MM3.MM3_13.MM3_54.deleteSecretaryInfo">
+		DELETE FROM LIONS_SECRETARY_INFO
+		 WHERE ORGAN_CODE = #organCode#
+		   AND MEMBER_NO = #memberNo#
+		   AND PAYMENT_YEAR_MONTH = SUBSTRING(REPLACE(#paymentYearMonth#, '.', ''), 1, 6)
+		   AND PAYMENT_KIND_CODE = SUBSTRING(#paymentKindCode#, 1, 4)
+	</delete>
+
+	<delete id="lionsclubs.com.MM3.MM3_13.MM3_54.deleteSecretaryPay">
+		DELETE FROM LIONS_SECRETARY_PAY
+		 WHERE ORGAN_CODE = #organCode#
+		   AND MEMBER_NO = #memberNo#
+		   AND PAYMENT_YEAR_MONTH = SUBSTRING(REPLACE(#paymentYearMonth#, '.', ''), 1, 6)
+		   AND PAYMENT_KIND_CODE = SUBSTRING(#paymentKindCode#, 1, 4)
+	</delete>
+
+	<select id="lionsclubs.com.MM3.MM3_13.MM3_54.listMemberNo" resultClass="MM3_54VO">
+		<include refid="lionsclubs.com.MM3.MM3_13.MM3_54.declare"/>
+		<![CDATA[
+		SELECT 	INFO.MEMBER_NO AS memberNo
+			   ,MIN(INFO.NAME) AS memberName
+		  FROM LIONS_MEMBER_INFO INFO
+		 INNER JOIN LIONS_MEMBER_CLUB_HIST MCH
+			ON INFO.MEMBER_NO = MCH.MEMBER_NO
+		   AND MCH.ORGAN_CODE IN(
+				SELECT ORGAN_CODE 
+				  FROM dbo.FN_LIONS_SUB_TREE_YEAR_ORGAN(@sSessionYear, @subOrganCode)
+				 WHERE LVL = 2
+				 
+				 UNION 
+				 
+				SELECT ORGAN_CODE 
+				  FROM dbo.FN_LIONS_SUB_TREE_YEAR_ORGAN(@eSessionYear, @subOrganCode)
+				 WHERE LVL = 2				 
+		   ) AND (
+				   (MCH.START_DATE >= @startDate AND MCH.START_DATE <= @endDate)
+				OR (MCH.END_DATE >= @startDate AND MCH.END_DATE <= @endDate)
+				OR (MCH.START_DATE <= @startDate AND MCH.END_DATE >= @startDate) /* '20120701' >= START_DATE AND '20120701' <= END_DATE */
+				OR (MCH.START_DATE <= @endDate AND MCH.END_DATE >= @endDate)
+		   )
+		 GROUP BY INFO.MEMBER_NO
+		]]>
+	</select>
+</sqlMap>

@@ -1,0 +1,647 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://www.ibatis.com/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="lionsclubs.com.MM1.MM1_4.MM1_20">
+	<typeAlias alias="MM1_20VO" type="lionsclubs.com.MM1.MM1_4.MM1_20.MM1_20VO"/>
+	
+	<sql id="lionsclubs.com.MM1.MM1_4.MM1_20.declare">
+		DECLARE @organCode NVARCHAR(6);	/* 조직코드 */
+		DECLARE @startDate NVARCHAR(8);	/* 시작일자 */
+		DECLARE @endDate NVARCHAR(8);	/* 종료일자 */
+		
+		SET @organCode = REPLACE(#organCode#, '-', '');
+		SET @startDate = REPLACE(#startDate#, '.', '');
+		SET @endDate = REPLACE(#endDate#, '.', '');
+
+		<![CDATA[
+		WITH ORGAN_CODE_HISTORY AS(
+			SELECT 	HISTORY.ORGAN_CODE   
+				   ,HISTORY.UPPER_ORGAN_CODE	/* 상위조직 코드 */
+			  FROM LIONS_ORGAN_CODE_HISTORY HISTORY
+			 INNER JOIN(
+				SELECT IDN_NO FROM(
+					SELECT  ROW_NUMBER() OVER (PARTITION BY ORGAN_CODE ORDER BY CHANGE_DATE DESC, IDN_NO DESC) AS rnum
+						   ,IDN_NO
+					  FROM LIONS_ORGAN_CODE_HISTORY
+					 WHERE (
+							   (CHANGE_DATE >= CAST(dbo.FN_SESSION_YEAR(@startDate) - 1 AS NVARCHAR(4)) + '0701' AND CHANGE_DATE <= CAST(dbo.FN_SESSION_YEAR(@startDate) AS NVARCHAR(4)) + '0630')
+							OR (CHANGE_DATE >= CAST(dbo.FN_SESSION_YEAR(@endDate) - 1 AS NVARCHAR(4)) + '0701' AND CHANGE_DATE <= CAST(dbo.FN_SESSION_YEAR(@endDate) AS NVARCHAR(4)) + '0630')
+					 )
+				) IDN
+				 WHERE rnum = 1
+			 ) X
+				ON HISTORY.IDN_NO = X.IDN_NO
+		), ORGAN_TREE AS 
+		(
+			SELECT  1 AS LVL
+				   ,ORGAN.ORGAN_CODE	/* 조직코드 */
+			  FROM LIONS_ORGAN_CODE ORGAN 
+			  LEFT OUTER JOIN ORGAN_CODE_HISTORY HISTORY 
+			    ON ORGAN.ORGAN_CODE = HISTORY.ORGAN_CODE
+			 WHERE HISTORY.ORGAN_CODE = @organCode
+		
+			 UNION ALL
+		
+			SELECT  TREE.lvl + 1 AS LVL
+			       ,HISTORY.ORGAN_CODE	/* 조직코드 */
+			  FROM ORGAN_TREE AS TREE
+			 INNER JOIN ORGAN_CODE_HISTORY HISTORY
+			   ON HISTORY.UPPER_ORGAN_CODE = TREE.ORGAN_CODE
+			 INNER JOIN dbo.FN_LIONS_AUTH_ORGAN_CODE_LIST(#authMemberNo#) AUTH
+			    ON HISTORY.ORGAN_CODE = AUTH.ORGAN_CODE
+		), BASE_MEMBER_NO AS(
+			SELECT DISTINCT MCH.MEMBER_NO
+			  FROM dbo.LIONS_MEMBER_CLUB_HIST MCH
+			 INNER JOIN ORGAN_TREE OT
+			    ON MCH.ORGAN_CODE = OT.ORGAN_CODE
+			 WHERE (
+				   (MCH.START_DATE >= @startDate AND MCH.START_DATE <= @endDate)
+				OR (MCH.END_DATE >= @startDate AND MCH.END_DATE <= @endDate)
+				OR (MCH.START_DATE <= @startDate AND MCH.END_DATE >= @startDate) /* '20120701' >= START_DATE AND '20120701' <= END_DATE */
+				OR (MCH.START_DATE <= @endDate AND MCH.END_DATE >= @endDate)
+			 )
+		/* 클럽직책 */
+		), CLUB_TITLE AS(
+			SELECT  APP.MEMBER_NO
+				   ,APP.APP_DESC_CODE
+				   ,(SELECT CODE_NAME
+					   FROM dbo.LIONS_CODE
+					  WHERE GROUP_CODE = ( SELECT CODE1 FROM dbo.LIONS_CODE WHERE CODE = APP.APP_KIND_CODE AND GROUP_CODE = '2700')
+					   AND CODE = APP.APP_DESC_CODE	   
+					) + 
+					CASE WHEN LEN(APP.APP_DESC) > 0
+						 THEN '(' + APP.APP_DESC + ')'
+						 ELSE ''
+						  END AS APP_DESC_CODE_NAME
+			  FROM dbo.LIONS_APPOINTMENT APP
+			  WHERE APP_KIND_CODE = '1000'	/* 선임구분(2700) : 선임-클럽임원선임*/
+				AND (SELECT CODE1 FROM LIONS_CODE WHERE GROUP_CODE = (SELECT CODE1 FROM LIONS_CODE WHERE CODE=APP.APP_KIND_CODE AND GROUP_CODE = '2700') AND CODE = APP.APP_DESC_CODE) = '*'	/* *표시가 있는건 클럽직책 */
+				AND (
+					(START_DATE >= @startDate AND START_DATE <= @endDate)
+				 OR (END_DATE   >= @startDate AND END_DATE <= @endDate)
+				 OR (START_DATE <= @startDate AND END_DATE >= @startDate) /* '20120701' >= START_DATE AND '20120701' <= END_DATE */
+				 OR (START_DATE <= @endDate AND END_DATE >= @endDate)
+				)
+		/* 분과소속 */
+		), DIVISION_SECTOR AS(
+			SELECT  APP.MEMBER_NO
+				   ,(SELECT CODE_NAME
+					   FROM dbo.LIONS_CODE
+					  WHERE GROUP_CODE = ( SELECT CODE1 FROM dbo.LIONS_CODE WHERE CODE = APP.APP_KIND_CODE AND GROUP_CODE = '2700')
+					   AND CODE = APP.APP_DESC_CODE	   
+					) +
+					CASE WHEN LEN(APP.APP_DESC) > 0
+						 THEN '(' + APP.APP_DESC + ')'
+						 ELSE ''
+						  END
+					 AS APP_DESC_CODE_NAME
+			  FROM dbo.LIONS_APPOINTMENT APP
+			 WHERE APP_KIND_CODE = '1000'	/* 선임구분(2700) : 선임-클럽임원선임*/
+			   AND (SELECT CODE1 FROM LIONS_CODE WHERE GROUP_CODE = (SELECT CODE1 FROM LIONS_CODE WHERE CODE=APP.APP_KIND_CODE AND GROUP_CODE = '2700') AND CODE = APP.APP_DESC_CODE) != '*'	/* *표시가 없는건 분과소속 */
+			   AND (
+					   (START_DATE >= @startDate AND START_DATE <= @endDate)
+					OR (END_DATE   >= @startDate AND END_DATE <= @endDate)
+					OR (START_DATE <= @startDate AND END_DATE >= @startDate) /* '20120701' >= START_DATE AND '20120701' <= END_DATE */
+					OR (START_DATE <= @endDate AND END_DATE >= @endDate)
+			   )
+		), /* 지구직책 */ 
+		DISTRICT_TITLE AS(
+			SELECT  APP.MEMBER_NO
+				   ,APP.APP_DESC_CODE
+				   ,(SELECT CODE_NAME
+					   FROM dbo.LIONS_CODE
+					  WHERE GROUP_CODE = ( SELECT CODE1 FROM dbo.LIONS_CODE WHERE CODE = APP.APP_KIND_CODE AND GROUP_CODE = '2700')
+					   AND CODE = APP.APP_DESC_CODE	   
+					) AS APP_DESC_CODE_NAME
+			  FROM dbo.LIONS_APPOINTMENT APP	
+			 WHERE APP_KIND_CODE = '1010'
+			   AND (
+					   (START_DATE >= @startDate AND START_DATE <= @endDate)
+					OR (END_DATE   >= @startDate AND END_DATE <= @endDate)
+					OR (START_DATE <= @startDate AND END_DATE >= @startDate) /* '20120701' >= START_DATE AND '20120701' <= END_DATE */
+					OR (START_DATE <= @endDate AND END_DATE >= @endDate)
+				)
+		), /* 복합지구직책 */ 
+		COMPLEX_TITLE AS(
+			SELECT  APP.MEMBER_NO
+				   ,APP.APP_DESC_CODE
+				   ,(SELECT CODE_NAME
+					   FROM dbo.LIONS_CODE
+					  WHERE GROUP_CODE = ( SELECT CODE1 FROM dbo.LIONS_CODE WHERE CODE = APP.APP_KIND_CODE AND GROUP_CODE = '2700')
+					   AND CODE = APP.APP_DESC_CODE	   
+					) AS APP_DESC_CODE_NAME
+			  FROM dbo.LIONS_APPOINTMENT APP	
+			 WHERE APP_KIND_CODE = '1020'
+			   AND (
+					   (START_DATE >= @startDate AND START_DATE <= @endDate)
+					OR (END_DATE   >= @startDate AND END_DATE <= @endDate)
+					OR (START_DATE <= @startDate AND END_DATE >= @startDate) /* '20120701' >= START_DATE AND '20120701' <= END_DATE */
+					OR (START_DATE <= @endDate AND END_DATE >= @endDate)
+				)
+		), /* 연합회직책 */ 
+		ASSOCIATION_TITLE AS(
+			SELECT  APP.MEMBER_NO
+				   ,APP.APP_DESC_CODE
+				   ,(SELECT CODE_NAME
+					   FROM dbo.LIONS_CODE
+					  WHERE GROUP_CODE = ( SELECT CODE1 FROM dbo.LIONS_CODE WHERE CODE = APP.APP_KIND_CODE AND GROUP_CODE = '2700')
+					   AND CODE = APP.APP_DESC_CODE	   
+					) AS APP_DESC_CODE_NAME
+			  FROM dbo.LIONS_APPOINTMENT APP	
+			 WHERE APP_KIND_CODE = '1030'
+			   AND (
+					   (START_DATE >= @startDate AND START_DATE <= @endDate)
+					OR (END_DATE   >= @startDate AND END_DATE <= @endDate)
+					OR (START_DATE <= @startDate AND END_DATE >= @startDate) /* '20120701' >= START_DATE AND '20120701' <= END_DATE */
+					OR (START_DATE <= @endDate AND END_DATE >= @endDate)
+				)
+		),/* 입회일자 */ 
+		SING_DATE AS(
+			SELECT  APP.MEMBER_NO
+				   ,MAX(APP.START_DATE) AS START_DATE
+			  FROM dbo.LIONS_APPOINTMENT APP
+			 WHERE APP.APP_KIND_CODE = '1040'	/* 선임구분(2700) : 선임-입회 퇴회 재입회 */
+			 GROUP BY MEMBER_NO
+		),/* 최초 입회일자 */ 
+		FIRST_SING_DATE AS(
+			SELECT  APP.MEMBER_NO
+				   ,MAX(APP.START_DATE) AS START_DATE
+			  FROM dbo.LIONS_APPOINTMENT APP
+			 WHERE APP.APP_KIND_CODE = '1040'	/* 선임구분(2700) : 선임-입회 퇴회 재입회 */
+			   AND APP.APP_DESC_CODE = '1000'	/* 선임-입회 퇴회 재입회(2820) : 입회 */
+			 GROUP BY MEMBER_NO			 
+		), /* 입회구분(재입회, 전입회원) */
+		SING_DIVISION_DATE AS(
+			SELECT  APP.MEMBER_NO
+				   ,APP.START_DATE
+				   ,APP.END_DATE
+				   ,dbo.FN_LIONS_DETAILCODE_NAME('2700', APP.APP_KIND_CODE, APP.APP_DESC_CODE) AS APP_DESC_CODE_NAME
+			  FROM LIONS_APPOINTMENT APP
+			 INNER JOIN(
+				 SELECT IDN_NO FROM(
+					 SELECT  ROW_NUMBER() OVER (PARTITION BY APP.MEMBER_NO ORDER BY APP.END_DATE DESC, APP.IDN_NO DESC) AS rnum
+							,APP.IDN_NO
+					   FROM LIONS_APPOINTMENT APP
+					  WHERE APP.APP_KIND_CODE = '1040'	/* 선임구분(2700) : 선임-입회 재입회 */
+						AND APP.APP_DESC_CODE IN('1020', '1030')	/* 선임-입회 재입회(2820) : 재입회, 전입회원 */
+						AND (
+							(START_DATE >= @startDate AND START_DATE <= @endDate)
+						 OR (END_DATE >= @startDate AND END_DATE <= @endDate)
+						 OR (START_DATE <= @startDate AND END_DATE >= @startDate) /* '20120701' >= START_DATE AND '20120701' <= END_DATE */
+						 OR (START_DATE <= @endDate AND END_DATE >= @endDate)
+						)
+					) IDN
+					 WHERE rnum = 1
+			) X
+			    ON APP.IDN_NO = X.IDN_NO
+		), /* 퇴회일자 */
+		QUIT_DATE AS(
+			SELECT  MEMBER_NO
+				   ,END_DATE
+				   ,dbo.FN_LIONS_DETAILCODE_NAME('2700', APP_KIND_CODE, APP_DESC_CODE) AS APP_DESC_CODE_NAME
+			  FROM LIONS_APPOINTMENT APP
+			 INNER JOIN(
+				SELECT IDN_NO FROM(
+					SELECT  ROW_NUMBER() OVER (PARTITION BY MEMBER_NO ORDER BY END_DATE DESC, START_DATE DESC, IDN_NO DESC) AS rnum
+						   ,IDN_NO
+						   ,APP_KIND_CODE
+					  FROM LIONS_APPOINTMENT
+					 WHERE (
+						   (START_DATE >= @startDate AND START_DATE <= @endDate)
+						OR (END_DATE >= @startDate AND END_DATE <= @endDate)
+						OR (START_DATE <= @startDate AND END_DATE >= @startDate) /* '20120701' >= START_DATE AND '20120701' <= END_DATE */
+						OR (START_DATE <= @endDate AND END_DATE >= @endDate)
+					)
+				) IDN
+			     WHERE IDN.rnum = 1
+			       AND IDN.APP_KIND_CODE = '1050'	/* 선임구분(2700) : 선임-퇴회 */			 
+			) X
+			    ON APP.IDN_NO = X.IDN_NO
+		),/* 소속클럽 */
+		SECTOR_CLUB AS(
+			SELECT  APP.IDN_NO
+				   ,APP.MEMBER_NO
+				   ,APP.ORGAN_CODE
+				   ,dbo.FN_LIONS_ORGAN_NAME(APP.ORGAN_CODE) AS ORGAN_CODE_NAME		   
+			  FROM LIONS_APPOINTMENT APP
+			 INNER JOIN(
+				 SELECT IDN_NO FROM(
+					 SELECT  ROW_NUMBER() OVER (PARTITION BY APP.MEMBER_NO ORDER BY APP.END_DATE DESC, APP.IDN_NO DESC) AS rnum
+							,APP.IDN_NO
+					   FROM LIONS_APPOINTMENT APP
+					  WHERE (
+							(START_DATE >= @startDate AND START_DATE <= @endDate)
+						 OR (END_DATE   >= @startDate AND END_DATE <= @endDate)
+						 OR (START_DATE <= @startDate AND END_DATE >= @startDate) /* '20120701' >= START_DATE AND '20120701' <= END_DATE */
+						 OR (START_DATE <= @endDate AND END_DATE >= @endDate)
+						 )
+					) IDN
+					 WHERE rnum = 1
+			) X
+			    ON APP.IDN_NO = X.IDN_NO
+		)
+		]]>
+		 , BASE_INFO AS(
+			SELECT  INFO.MEMBER_NO AS memberNo	/* 회원번호*/
+					<isEqual prepend="," property="sectorDistrict" compareValue="Y">
+					    dbo.FN_GetIdxDataLikeSplit(TREE.PATH, 3, '/') AS sectorDistrict	/* 소속지구 */
+					</isEqual>
+					<isEqual prepend="," property="clubCode" compareValue="Y">
+					    SC.ORGAN_CODE AS clubCode	/* 소속클럽 코드 */
+					</isEqual>
+					<isEqual prepend="," property="sectorClub" compareValue="Y">
+					    SC.ORGAN_CODE_NAME AS sectorClub	/* 소속클럽명 */
+					</isEqual>
+					<isEqual prepend="," property="area" compareValue="Y">
+					    dbo.FN_LIONS_CODE_NAME('2620', AZ.AREA) AS area  /* 지역번호 */
+					</isEqual>
+					<isEqual prepend="," property="zone" compareValue="Y">
+					    dbo.FN_LIONS_CODE_NAME('2640', AZ.ZONE) AS zone   /* 지대번호 */
+					</isEqual>
+					<isEqual prepend="," property="name" compareValue="Y">
+					    INFO.NAME AS name	/* 성명 */
+					</isEqual>
+					<isEqual prepend="," property="chinName" compareValue="Y">
+					    INFO.CHIN_NAME AS chinName	/* 한자 */
+					</isEqual>
+					<isEqual prepend="," property="engName" compareValue="Y">
+					    INFO.ENG_NAME AS engName	/* 영문 */
+					</isEqual>
+					<isEqual prepend="," property="districtTitle" compareValue="Y">
+					    STUFF((
+							 SELECT ',' + DT.APP_DESC_CODE_NAME
+							   FROM DISTRICT_TITLE DT
+							  WHERE DT.MEMBER_NO = INFO.MEMBER_NO
+								FOR XML PATH('')
+						), 1, 1, '') AS districtTitle	/* 지구직책 */
+					</isEqual>
+					<isEqual prepend="," property="division" compareValue="Y">
+						dbo.FN_LIONS_CODE_NAME('1140', INFO.DIVISION) AS division	/* 회원구분 */
+					</isEqual>
+					<isEqual prepend="," property="birth" compareValue="Y">
+					    INFO.BIRTH AS birth	/* 생년월일 */
+					</isEqual>
+					<isEqual prepend="," property="singDate" compareValue="Y">
+					    SD.START_DATE AS singDate	/* 입회일자 */
+					</isEqual>
+					<isEqual prepend="," property="quitKind" compareValue="Y">
+					    CASE WHEN LEN(QD.END_DATE) > 0 
+							 THEN '퇴회회원'
+							 WHEN LEN(SDD.END_DATE) > 0 
+							 THEN SDD.APP_DESC_CODE_NAME
+							 ELSE '회원'
+							  END AS quitKind	/* 회원/퇴회/재입/전입 구분 */
+					</isEqual>
+					<isEqual prepend="," property="quitDate" compareValue="Y">
+					    QD.END_DATE AS quitDate	/* 퇴회일자 */
+					</isEqual>
+					<isEqual prepend="," property="quitDivision" compareValue="Y">
+					    QD.APP_DESC_CODE_NAME AS quitDivision	/* 퇴회사유 */
+					</isEqual>
+					<isEqual prepend="," property="address" compareValue="Y">
+					    INFO.ADDRESS AS address	/* 현주소 */
+					</isEqual>
+					<isEqual prepend="," property="zipCode" compareValue="Y">
+					    INFO.ZIP_CODE AS zipCode	/* 우편번호 */
+					</isEqual>
+					<isEqual prepend="," property="mobile" compareValue="Y">
+					    INFO.MOBILE AS mobile	/* 휴대전화 */
+					</isEqual>
+					<isEqual prepend="," property="workTel" compareValue="Y">
+					    INFO.WORK_TEL AS workTel	/* 직장전화 */
+					</isEqual>
+					<isEqual prepend="," property="homeTel" compareValue="Y">
+					    INFO.HOME_TEL AS homeTel	/* 자택전화 */
+					</isEqual>
+					<isEqual prepend="," property="fax" compareValue="Y">
+					    INFO.FAX AS fax	/* 팩스번호 */
+					</isEqual>
+					<isEqual prepend="," property="mailAddress" compareValue="Y">
+					    INFO.MAIL_ADDRESS AS mailAddress	/* 메일주소 */
+					</isEqual>
+					<isEqual prepend="," property="gmail" compareValue="Y">
+					    INFO.GMAIL AS gmail	/* HP/Gmail */
+					</isEqual>
+					<isEqual prepend="," property="businessClass" compareValue="Y">
+					    dbo.FN_LIONS_CODE_NAME('1200', INFO.BUSINESS_CLASS) AS businessClass	/* 업종분류 */
+					</isEqual>
+					<isEqual prepend="," property="industry" compareValue="Y">
+					    dbo.FN_LIONS_DETAILCODE_NAME('1200', INFO.BUSINESS_CLASS, INFO.INDUSTRY) AS industry	/* 업종 */						
+				    </isEqual>
+					<isEqual prepend="," property="companyTitle" compareValue="Y">
+					    dbo.FN_LIONS_CODE_NAME('2500', INFO.COMPANY_TITLE) AS companyTitle	/* 업체직책 */
+					</isEqual>
+					<isEqual prepend="," property="companyName" compareValue="Y">
+					    INFO.COMPANY_NAME AS companyName	/* 업체명 */
+					</isEqual>
+					<isEqual prepend="," property="companyAddress" compareValue="Y">
+					    INFO.COMPANY_ADDRESS AS companyAddress	/* 업체주소 */
+					</isEqual>
+					<isEqual prepend="," property="endEducation" compareValue="Y">
+					      dbo.FN_LIONS_CODE_NAME('2520', INFO.END_EDUCATION) AS endEducation	/* 최종학력 */
+					</isEqual>
+					<isEqual prepend="," property="nativeSchool" compareValue="Y">
+					    INFO.NATIVE_SCHOOL AS nativeSchool	/* 출신학교 */
+					</isEqual>
+					<isEqual prepend="," property="majorSubject" compareValue="Y">
+					    INFO.MAJOR_SUBJECT AS majorSubject	/* 전공과목 */
+					</isEqual>
+					<isEqual prepend="," property="army" compareValue="Y">
+					     dbo.FN_LIONS_CODE_NAME('2540', INFO.ARMY) AS army	/* 병력관계 */
+					</isEqual>
+					<isEqual prepend="," property="blood" compareValue="Y">
+					    dbo.FN_LIONS_CODE_NAME('2560', INFO.BLOOD) AS blood	/* 혈액형 */
+					</isEqual>
+					<isEqual prepend="," property="hobby" compareValue="Y">
+					    INFO.HOBBY AS hobby	/* 취미활동 */
+					</isEqual>
+					<isEqual prepend="," property="height" compareValue="Y">
+					    INFO.HEIGHT AS height	/* 신장 */
+					</isEqual>
+					<isEqual prepend="," property="recommMemberNo" compareValue="Y">
+					    (SELECT MEMBER_NO FROM LIONS_MEMBER_INFO WHERE MEMBER_NO = INFO.RECOMM_MEMBER_NO) AS recommMemberNo	/* 추천자 회번 */
+					</isEqual>
+					<isEqual prepend="," property="recommMemberName" compareValue="Y">
+					    (SELECT NAME FROM LIONS_MEMBER_INFO WHERE MEMBER_NO = INFO.RECOMM_MEMBER_NO) AS recommMemberName	/* 추천자 성명 */
+					</isEqual>
+					<isEqual prepend="," property="recommRealtionship" compareValue="Y">
+					    INFO.RECOMM_REALTIONSHIP AS recommRealtionship	/* 추천관계 */
+					</isEqual>
+					<isEqual prepend="," property="marryStatus" compareValue="Y">
+					    INFO.MARRY_STATUS AS marryStatus	/* 결혼여부 */
+					</isEqual>
+					<isEqual prepend="," property="gameteName" compareValue="Y">
+					    INFO.GAMETE_NAME AS gameteName	/* 배우자 성명 */
+					</isEqual>
+					<isEqual prepend="," property="family" compareValue="Y">
+					    INFO.FAMILY AS family	/* 본인가족 */
+					</isEqual>
+					<isEqual prepend="," property="children" compareValue="Y">
+					    INFO.CHILDREN AS children	/* 자녀 */
+					</isEqual>
+					<isEqual prepend="," property="clubTitle" compareValue="Y">
+					    ISNULL(
+						   STUFF((
+								 SELECT ',' + CT.APP_DESC_CODE_NAME
+								   FROM CLUB_TITLE CT
+								  WHERE CT.MEMBER_NO = INFO.MEMBER_NO
+									FOR XML PATH('')
+							), 1, 1, '')
+						, '회원') AS clubTitle	/* 현클럽직책 */
+					</isEqual>
+					<isEqual prepend="," property="divisionSector" compareValue="Y">
+					    STUFF((
+							 SELECT ',' + DS.APP_DESC_CODE_NAME
+							   FROM DIVISION_SECTOR DS
+							  WHERE DS.MEMBER_NO = INFO.MEMBER_NO
+								FOR XML PATH('')
+						), 1, 1, '') AS divisionSector	/* 현클럽분과소속 */
+					</isEqual>
+					<isEqual prepend="," property="firstSingDate" compareValue="Y">
+					    FSD.START_DATE AS firstSingDate	/* 입회일자 */
+					</isEqual>					
+			  FROM LIONS_MEMBER_INFO INFO
+			 INNER JOIN BASE_MEMBER_NO BMN
+			    ON INFO.MEMBER_NO = BMN.MEMBER_NO
+			  LEFT OUTER JOIN SING_DATE SD	/* 최근 입회일자 */
+				ON INFO.MEMBER_NO = SD.MEMBER_NO
+			  LEFT OUTER JOIN FIRST_SING_DATE FSD	/* 최초 입회일자 */
+				ON INFO.MEMBER_NO = FSD.MEMBER_NO				
+			  LEFT OUTER JOIN SING_DIVISION_DATE SDD	/* 입회구분(재입회원) */
+				ON INFO.MEMBER_NO = SDD.MEMBER_NO
+			  LEFT OUTER JOIN QUIT_DATE QD	/* 퇴회일자 */
+				ON INFO.MEMBER_NO = QD.MEMBER_NO
+			  LEFT OUTER JOIN SECTOR_CLUB SC	/* 소속클럽 */
+				ON INFO.MEMBER_NO = SC.MEMBER_NO
+			  LEFT OUTER JOIN SECTOR_CLUB SC2	/* 추천자소속클럽 */
+				ON INFO.RECOMM_MEMBER_NO = SC2.MEMBER_NO
+			  LEFT OUTER JOIN LIONS_ORGAN_TREE_VIEW TREE
+				ON TREE.ORGAN_CODE = SC.ORGAN_CODE
+			  LEFT OUTER JOIN LIONS_AREA_ZONE AZ
+			    ON SC.ORGAN_CODE = AZ.ORGAN_CODE
+			   AND AZ.SESSION_YEAR = dbo.FN_SESSION_YEAR(@startDate)
+			<dynamic prepend="WHERE">
+				<isEqual prepend="OR" property="activeMember" compareValue="Y">
+					<![CDATA[
+					INFO.MEMBER_NO NOT IN ( SELECT MEMBER_NO FROM QUIT_DATE WHERE END_DATE > '' )
+					]]>
+				</isEqual>
+				<isEqual prepend="OR" property="quitMember" compareValue="Y">
+					QD.END_DATE > ''
+				</isEqual>
+			</dynamic>
+		)
+	</sql>
+	
+	<select id="lionsclubs.com.MM1.MM1_4.MM1_20.MM1_20" resultClass="java.util.LinkedHashMap" remapResults="true">
+		<include refid="lionsclubs.com.MM1.MM1_4.MM1_20.declare" />
+		SELECT BI.*
+		  FROM BASE_INFO BI
+		  LEFT OUTER JOIN SECTOR_CLUB SC	/* 소속클럽 */
+			ON BI.memberNo = SC.MEMBER_NO		  
+		  LEFT OUTER JOIN SING_DATE SD	/* 입회일자 */
+			ON BI.memberNo = SD.MEMBER_NO
+		  LEFT OUTER JOIN DISTRICT_TITLE DT
+			ON BI.memberNo = DT.MEMBER_NO					    
+		<dynamic prepend="ORDER BY">
+			<isEqual prepend="," property="order" compareValue="1">
+				 BI.memberNo
+				,SC.ORGAN_CODE
+				,dbo.FN_LIONS_DISTRICT_TITLE_ORD(dbo.FN_SESSION_YEAR(@startDate), DT.APP_DESC_CODE)
+			</isEqual>		  
+			<isEqual prepend="," property="order" compareValue="2">
+				 dbo.FN_LIONS_DISTRICT_TITLE_ORD(dbo.FN_SESSION_YEAR(@startDate), DT.APP_DESC_CODE)
+				,SC.ORGAN_CODE
+				,BI.memberNo
+			</isEqual>
+			<isEqual prepend="," property="order" compareValue="3">
+				 (SELECT NAME FROM LIONS_MEMBER_INFO WHERE MEMBER_NO = BI.memberNo)
+				,SC.ORGAN_CODE
+				,dbo.FN_LIONS_DISTRICT_TITLE_ORD(dbo.FN_SESSION_YEAR(@startDate), DT.APP_DESC_CODE)
+				,BI.memberNo
+			</isEqual>
+			<isEqual prepend="," property="order" compareValue="4">
+				 SD.START_DATE
+				,SC.ORGAN_CODE
+				,dbo.FN_LIONS_DISTRICT_TITLE_ORD(dbo.FN_SESSION_YEAR(@startDate), DT.APP_DESC_CODE)
+				,BI.memberNo
+			</isEqual>
+		</dynamic>
+	</select>
+	
+	<select id="lionsclubs.com.MM1.MM1_4.MM1_20.appointment" resultClass="java.util.LinkedHashMap" remapResults="true">
+		<include refid="lionsclubs.com.MM1.MM1_4.MM1_20.declare" />
+		SELECT  A.START_DATE AS appStartDate	/* 선임시작일 */
+			   ,A.END_DATE AS appEndDate	/* 선임종료일 */
+			   ,dbo.FN_LIONS_CODE_NAME('2700', A.APP_KIND_CODE) AS appKindName	/* 선임구분 */
+			   ,dbo.FN_LIONS_DETAILCODE_NAME('2700', A.APP_KIND_CODE, A.APP_DESC_CODE) AS appDescName	/* 선임 직책 및 내용 */
+			   ,BI.*
+		  FROM LIONS_APPOINTMENT A
+		 INNER JOIN BASE_INFO BI
+		    ON A.MEMBER_NO = BI.memberNo
+		  LEFT OUTER JOIN SECTOR_CLUB SC	/* 소속클럽 */
+			ON BI.memberNo = SC.MEMBER_NO		  
+		  LEFT OUTER JOIN SING_DATE SD	/* 입회일자 */
+			ON BI.memberNo = SD.MEMBER_NO
+		  LEFT OUTER JOIN DISTRICT_TITLE DT
+			ON BI.memberNo = DT.MEMBER_NO					    
+		   <![CDATA[
+		 WHERE (
+				   (A.START_DATE >= @startDate AND A.START_DATE <= @endDate)
+				OR (A.END_DATE   >= @startDate AND A.END_DATE <= @endDate)
+				OR (A.START_DATE <= @startDate AND A.END_DATE >= @startDate) /* '20120701' >= START_DATE AND '20120701' <= END_DATE */
+				OR (A.START_DATE <= @endDate AND A.END_DATE >= @endDate)
+		   )
+		   ]]>
+		<isNotEmpty prepend="AND" property="appKindCode">
+			A.APP_KIND_CODE = #appKindCode#
+		</isNotEmpty>
+		<isNotEmpty prepend="AND" property="appDescCode">
+			A.APP_DESC_CODE = #appDescCode#
+		</isNotEmpty>
+		<dynamic prepend="ORDER BY">
+			<isEqual prepend="," property="order" compareValue="1">
+				 BI.memberNo
+				,SC.ORGAN_CODE
+				,dbo.FN_LIONS_DISTRICT_TITLE_ORD(dbo.FN_SESSION_YEAR(@startDate), DT.APP_DESC_CODE)
+			</isEqual>		  
+			<isEqual prepend="," property="order" compareValue="2">
+				 dbo.FN_LIONS_DISTRICT_TITLE_ORD(dbo.FN_SESSION_YEAR(@startDate), DT.APP_DESC_CODE)
+				,SC.ORGAN_CODE
+				,BI.memberNo
+			</isEqual>
+			<isEqual prepend="," property="order" compareValue="3">
+				 (SELECT NAME FROM LIONS_MEMBER_INFO WHERE MEMBER_NO = BI.memberNo)
+				,SC.ORGAN_CODE
+				,dbo.FN_LIONS_DISTRICT_TITLE_ORD(dbo.FN_SESSION_YEAR(@startDate), DT.APP_DESC_CODE)
+				,BI.memberNo
+			</isEqual>
+			<isEqual prepend="," property="order" compareValue="4">
+				 SD.START_DATE
+				,SC.ORGAN_CODE
+				,dbo.FN_LIONS_DISTRICT_TITLE_ORD(dbo.FN_SESSION_YEAR(@startDate), DT.APP_DESC_CODE)
+				,BI.memberNo
+			</isEqual>
+		</dynamic>
+	</select>
+	
+	<select id="lionsclubs.com.MM1.MM1_4.MM1_20.prize" resultClass="java.util.LinkedHashMap" remapResults="true">
+		<include refid="lionsclubs.com.MM1.MM1_4.MM1_20.declare" />
+		SELECT  LS.SANCTION_START_DATE AS sanctionStartDate	/* 시작기간 */
+			   ,LS.SANCTION_END_DATE AS sanctionEndDate	/* 종료기간 */
+			   ,dbo.FN_LIONS_DETAILCODE_NAME('3110', LS.KIND_CODE, LS.EDUCATION_CODE) AS educationName	/* 주관 */
+			   ,dbo.FN_LIONS_DETAILCODE_NAME((SELECT CODE1 FROM LIONS_CODE WHERE GROUP_CODE = '3110' AND CODE = LS.KIND_CODE), LS.EDUCATION_CODE, LS.ITEM_CODE) AS itemName	/* 항목 */
+			   ,dbo.FN_LIONS_CODE_NAME('3000', LS.AWARD_GRANTOR_CODE) AS awardGrantorName	/* 포상수여자 */
+			   ,LS.[DESC] AS [desc]	/* 내용 */
+			   ,BI.*
+		  FROM LIONS_SANCTION LS
+		 INNER JOIN BASE_INFO BI
+		    ON LS.MEMBER_NO = BI.memberNo
+		  LEFT OUTER JOIN SECTOR_CLUB SC	/* 소속클럽 */
+			ON BI.memberNo = SC.MEMBER_NO		  
+		  LEFT OUTER JOIN SING_DATE SD	/* 입회일자 */
+			ON BI.memberNo = SD.MEMBER_NO
+		  LEFT OUTER JOIN DISTRICT_TITLE DT
+			ON BI.memberNo = DT.MEMBER_NO					    
+		 WHERE LS.KIND_CODE = '1020'
+		   <![CDATA[
+		   AND (
+				   (LS.SANCTION_START_DATE >= @startDate AND LS.SANCTION_START_DATE <= @endDate)
+				OR (LS.SANCTION_END_DATE >= @startDate AND LS.SANCTION_END_DATE <= @endDate)
+				OR (LS.SANCTION_START_DATE <= @startDate AND LS.SANCTION_END_DATE >= @startDate) /* '20120701' >= START_DATE AND '20120701' <= END_DATE */
+				OR (LS.SANCTION_START_DATE <= @endDate AND LS.SANCTION_END_DATE >= @endDate)
+		   )
+		   ]]>
+		<isNotEmpty prepend="AND" property="prizeEducationCode">
+			LS.EDUCATION_CODE = #prizeEducationCode#
+		</isNotEmpty>
+		<isNotEmpty prepend="AND" property="prizeItemCode">
+			LS.ITEM_CODE = #prizeItemCode#
+		</isNotEmpty>
+		<isNotEmpty prepend="AND" property="prizeAwardGrantorCode">
+			LS.AWARD_GRANTOR_CODE = #prizeAwardGrantorCode#
+		</isNotEmpty>
+		<dynamic prepend="ORDER BY">
+			<isEqual prepend="," property="order" compareValue="1">
+				 BI.memberNo
+				,SC.ORGAN_CODE
+				,dbo.FN_LIONS_DISTRICT_TITLE_ORD(dbo.FN_SESSION_YEAR(@startDate), DT.APP_DESC_CODE)
+			</isEqual>		  
+			<isEqual prepend="," property="order" compareValue="2">
+				 dbo.FN_LIONS_DISTRICT_TITLE_ORD(dbo.FN_SESSION_YEAR(@startDate), DT.APP_DESC_CODE)
+				,SC.ORGAN_CODE
+				,BI.memberNo
+			</isEqual>
+			<isEqual prepend="," property="order" compareValue="3">
+				 (SELECT NAME FROM LIONS_MEMBER_INFO WHERE MEMBER_NO = BI.memberNo)
+				,SC.ORGAN_CODE
+				,dbo.FN_LIONS_DISTRICT_TITLE_ORD(dbo.FN_SESSION_YEAR(@startDate), DT.APP_DESC_CODE)
+				,BI.memberNo
+			</isEqual>
+			<isEqual prepend="," property="order" compareValue="4">
+				 SD.START_DATE
+				,SC.ORGAN_CODE
+				,dbo.FN_LIONS_DISTRICT_TITLE_ORD(dbo.FN_SESSION_YEAR(@startDate), DT.APP_DESC_CODE)
+				,BI.memberNo
+			</isEqual>
+		</dynamic>			 
+	</select>
+	
+	<select id="lionsclubs.com.MM1.MM1_4.MM1_20.education" resultClass="java.util.LinkedHashMap" remapResults="true">
+		<include refid="lionsclubs.com.MM1.MM1_4.MM1_20.declare" />
+		SELECT  LS.SANCTION_START_DATE AS sanctionStartDate	/* 시작기간 */
+			   ,LS.SANCTION_END_DATE AS sanctionEndDate	/* 종료기간 */
+			   ,dbo.FN_LIONS_DETAILCODE_NAME('3110', LS.KIND_CODE, LS.EDUCATION_CODE) AS educationName	/* 주관 */
+			   ,dbo.FN_LIONS_DETAILCODE_NAME((SELECT CODE1 FROM LIONS_CODE WHERE GROUP_CODE = '3110' AND CODE = LS.KIND_CODE), LS.EDUCATION_CODE, LS.ITEM_CODE) AS itemName	/* 항목 */
+			   ,LS.[DESC] AS [desc]	/* 내용 */
+			   ,BI.*
+		  FROM LIONS_SANCTION LS
+		 INNER JOIN BASE_INFO BI
+		    ON LS.MEMBER_NO = BI.memberNo
+		  LEFT OUTER JOIN SECTOR_CLUB SC	/* 소속클럽 */
+			ON BI.memberNo = SC.MEMBER_NO		  
+		  LEFT OUTER JOIN SING_DATE SD	/* 입회일자 */
+			ON BI.memberNo = SD.MEMBER_NO
+		  LEFT OUTER JOIN DISTRICT_TITLE DT
+			ON BI.memberNo = DT.MEMBER_NO					    
+		 WHERE LS.KIND_CODE = '1000'
+		   <![CDATA[
+		   AND (
+				   (LS.SANCTION_START_DATE >= @startDate AND LS.SANCTION_START_DATE <= @endDate)
+				OR (LS.SANCTION_END_DATE >= @startDate AND LS.SANCTION_END_DATE <= @endDate)
+				OR (LS.SANCTION_START_DATE <= @startDate AND LS.SANCTION_END_DATE >= @startDate) /* '20120701' >= START_DATE AND '20120701' <= END_DATE */
+				OR (LS.SANCTION_START_DATE <= @endDate AND LS.SANCTION_END_DATE >= @endDate)
+		   )
+		   ]]>		   
+		<isNotEmpty prepend="AND" property="educationEducationCode">
+			LS.EDUCATION_CODE = #educationEducationCode#
+		</isNotEmpty>
+		<isNotEmpty prepend="AND" property="educationItemCode">
+			LS.ITEM_CODE = #educationItemCode#
+		</isNotEmpty>
+		<dynamic prepend="ORDER BY">
+			<isEqual prepend="," property="order" compareValue="1">
+				 SC.ORGAN_CODE
+				,BI.memberNo
+				,dbo.FN_LIONS_DISTRICT_TITLE_ORD(dbo.FN_SESSION_YEAR(@startDate), DT.APP_DESC_CODE)
+			</isEqual>		  
+			<isEqual prepend="," property="order" compareValue="2">
+				 SC.ORGAN_CODE
+				,dbo.FN_LIONS_DISTRICT_TITLE_ORD(dbo.FN_SESSION_YEAR(@startDate), DT.APP_DESC_CODE)
+				,BI.memberNo
+			</isEqual>
+			<isEqual prepend="," property="order" compareValue="3">
+				 SC.ORGAN_CODE
+				,(SELECT NAME FROM LIONS_MEMBER_INFO WHERE MEMBER_NO = BI.memberNo)
+				,dbo.FN_LIONS_DISTRICT_TITLE_ORD(dbo.FN_SESSION_YEAR(@startDate), DT.APP_DESC_CODE)
+				,BI.memberNo
+			</isEqual>
+			<isEqual prepend="," property="order" compareValue="4">
+				 SC.ORGAN_CODE
+				,SD.START_DATE
+				,dbo.FN_LIONS_DISTRICT_TITLE_ORD(dbo.FN_SESSION_YEAR(@startDate), DT.APP_DESC_CODE)
+				,BI.memberNo
+			</isEqual>
+		</dynamic>		 
+	</select>
+</sqlMap>

@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://www.ibatis.com/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="lionsclubs.com.MM2.MM2_1.MM2_09">
+
+	<typeAlias alias="MM2_09VO" type="lionsclubs.com.MM2.MM2_1.MM2_09.MM2_09VO"/>
+	
+	<sql id="lionsclubs.com.MM2.MM2_1.MM2_09.selectQuery">
+		SELECT  A.MEMBER_NO AS memberNo	/* 회원번호 */
+			   ,A.MEMBER_NAME AS memberName	/* 회원명 */
+			   ,A.NESS_NAME AS nessName	/* 네스 회원명 */
+			   ,A.MEMBER_PICTURE_FILE AS memberPictureFile	/* 회원사진파일 */
+			   ,A.NESS_PICTURE_FILE AS nessPictureFile	/* 네스사진파일 */
+			   ,CASE WHEN APP2.APP_DESC_CODE IS NULL 
+					 THEN '회원' 
+					 ELSE dbo.FN_LIONS_CODE_NAME('2740',APP2.APP_DESC_CODE) END AS sectorTitle	/* 직책타이틀 */
+			   ,A.START_DATE AS startDate	/* 입회 시작일 */					 
+			   ,APP2.START_DATE AS titleStartDate	/* 직책 시작일 */
+			   ,RETIRE.END_DATE AS retireDate	/* 퇴직자 구분코드 */
+		  FROM (
+				SELECT 	MCH.ORGAN_CODE
+					   ,INFO.MEMBER_NO
+					   ,INFO.NAME AS MEMBER_NAME
+					   ,INFO.GAMETE_NAME AS NESS_NAME
+					   ,MCH.START_DATE
+					   ,INFO.MEMBER_PICTURE_FILE AS MEMBER_PICTURE_FILE
+					   ,INFO.NESS_PICTURE_FILE AS NESS_PICTURE_FILE
+				  FROM LIONS_MEMBER_INFO INFO
+				 INNER JOIN LIONS_MEMBER_CLUB_HIST MCH
+					 ON INFO.MEMBER_NO = MCH.MEMBER_NO
+					AND MCH.ORGAN_CODE = #organCode#
+					<isNotEmpty prepend="AND" property="sessionYear">
+						<![CDATA[
+						(
+							   (MCH.START_DATE >= CAST(#sessionYear# - 1 AS NVARCHAR(4)) + '0701' AND MCH.START_DATE <= CAST(#sessionYear# AS NVARCHAR(4)) + '0630')
+							OR (MCH.END_DATE   >= CAST(#sessionYear# - 1 AS NVARCHAR(4)) + '0701' AND MCH.END_DATE <= CAST(#sessionYear# AS NVARCHAR(4)) + '0630')
+							OR (MCH.START_DATE <= CAST(#sessionYear# - 1 AS NVARCHAR(4)) + '0701' AND MCH.END_DATE >= CAST(#sessionYear# - 1 AS NVARCHAR(4)) + '0701') /* '20120701' >= START_DATE AND '20120701' <= END_DATE */
+							OR (MCH.START_DATE <= CAST(#sessionYear# AS NVARCHAR(4)) + '0630' AND MCH.END_DATE >= CAST(#sessionYear# AS NVARCHAR(4)) + '0630')
+						)
+						]]>
+					</isNotEmpty>
+				/*
+				  LEFT OUTER JOIN dbo.J_ATTACHFILE MF
+					ON MF.FILE_ID = INFO.MEMBER_PICTURE_FILE
+				  LEFT OUTER JOIN dbo.J_ATTACHFILE NF
+					ON NF.FILE_ID = INFO.NESS_PICTURE_FILE
+				*/
+		) A
+		  LEFT OUTER JOIN (
+				SELECT  MEMBER_NO 
+					   ,APP_KIND_CODE
+					   ,APP_DESC_CODE
+					   ,START_DATE
+				  FROM LIONS_APPOINTMENT
+				 WHERE ORGAN_CODE = #organCode#
+				   AND APP_KIND_CODE = '1000'	/* 선임구분(2700) : 선임(클럽임원선임) */
+				<isNotEmpty prepend="AND" property="sessionYear">
+					 <![CDATA[
+					  (
+							   (START_DATE >= CAST(#sessionYear# - 1 AS NVARCHAR(4)) + '0701' AND START_DATE <= CAST(#sessionYear# AS NVARCHAR(4)) + '0630')
+							OR (END_DATE   >= CAST(#sessionYear# - 1 AS NVARCHAR(4)) + '0701' AND END_DATE <= CAST(#sessionYear# AS NVARCHAR(4)) + '0630')
+							OR (START_DATE <= CAST(#sessionYear# - 1 AS NVARCHAR(4)) + '0701' AND END_DATE >= CAST(#sessionYear# - 1 AS NVARCHAR(4)) + '0701') /* '20120701' >= START_DATE AND '20120701' <= END_DATE */
+							OR (START_DATE <= CAST(#sessionYear# AS NVARCHAR(4)) + '0630' AND END_DATE >= CAST(#sessionYear# AS NVARCHAR(4)) + '0630')
+					  )
+					  ]]>
+				</isNotEmpty>
+		  ) APP2 
+		    ON A.MEMBER_NO  = APP2.MEMBER_NO
+		  LEFT OUTER JOIN(
+				SELECT  MEMBER_NO
+					   ,KIND_FLAG
+					   ,END_DATE
+				  FROM LIONS_APPOINTMENT APP
+				 INNER JOIN(
+					SELECT IDN_NO FROM(
+						SELECT  ROW_NUMBER() OVER (PARTITION BY APP.MEMBER_NO ORDER BY APP.END_DATE DESC, APP.IDN_NO DESC) AS rnum
+							   ,APP.IDN_NO
+						  FROM LIONS_APPOINTMENT APP
+						 WHERE APP.ORGAN_CODE = #organCode#
+						   AND APP.APP_KIND_CODE = '1050'	/* 선임구분(2700) : 선임-퇴회 */
+						<isNotEmpty prepend="AND" property="sessionYear">
+							 <![CDATA[
+							  (
+									   (APP.START_DATE >= CAST(#sessionYear# - 1 AS NVARCHAR(4)) + '0701' AND APP.START_DATE <= CAST(#sessionYear# AS NVARCHAR(4)) + '0630')
+									OR (APP.END_DATE   >= CAST(#sessionYear# - 1 AS NVARCHAR(4)) + '0701' AND APP.END_DATE <= CAST(#sessionYear# AS NVARCHAR(4)) + '0630')
+									OR (APP.START_DATE <= CAST(#sessionYear# - 1 AS NVARCHAR(4)) + '0701' AND APP.END_DATE >= CAST(#sessionYear# - 1 AS NVARCHAR(4)) + '0701') /* '20120701' >= START_DATE AND '20120701' <= END_DATE */
+									OR (APP.START_DATE <= CAST(#sessionYear# AS NVARCHAR(4)) + '0630' AND APP.END_DATE >= CAST(#sessionYear# AS NVARCHAR(4)) + '0630')
+							  )
+							  ]]>
+						</isNotEmpty>
+					) IDN
+					 WHERE rnum = 1
+				) X
+			     ON APP.IDN_NO = X.IDN_NO
+		  ) RETIRE
+		    ON A.MEMBER_NO  = RETIRE.MEMBER_NO
+		<dynamic prepend="WHERE">
+			<isEqual prepend="AND" removeFirstPrepend="true" property="s3" compareValue="1">
+				RETIRE.KIND_FLAG IS NULL
+	 		</isEqual>
+	 		<isEqual prepend="AND" removeFirstPrepend="true" property="s5" compareValue="1">
+				A.MEMBER_NO IN (
+					SELECT  APP.MEMBER_NO
+					  FROM LIONS_APPOINTMENT APP
+					 WHERE IDN_NO IN(
+						SELECT MAX(IDN_NO) 
+						  FROM LIONS_APPOINTMENT APP
+						 WHERE APP_KIND_CODE = '1000'	/* 선임구분(2700) : 선임-클럽임원선임*/
+						   AND (SELECT CODE1 FROM LIONS_CODE WHERE GROUP_CODE = (SELECT CODE1 FROM LIONS_CODE WHERE CODE=APP.APP_KIND_CODE AND GROUP_CODE='2700') AND CODE = APP.APP_DESC_CODE) != '*'	/* *표시가 있는건 분과소속 */
+						   AND APP.ORGAN_CODE = #organCode#
+							<isNotEmpty property="sessionYear">
+								<![CDATA[
+								AND (
+									   (APP.START_DATE >= CAST(#sessionYear# - 1 AS NVARCHAR(4)) + '0701' AND APP.START_DATE <= CAST(#sessionYear# AS NVARCHAR(4)) + '0630')
+									OR (APP.END_DATE   >= CAST(#sessionYear# - 1 AS NVARCHAR(4)) + '0701' AND APP.END_DATE <= CAST(#sessionYear# AS NVARCHAR(4)) + '0630')
+									OR (APP.START_DATE <= CAST(#sessionYear# - 1 AS NVARCHAR(4)) + '0701' AND APP.END_DATE >= CAST(#sessionYear# - 1 AS NVARCHAR(4)) + '0701') /* '20120701' >= START_DATE AND '20120701' <= END_DATE */
+									OR (APP.START_DATE <= CAST(#sessionYear# AS NVARCHAR(4)) + '0630' AND APP.END_DATE >= CAST(#sessionYear# AS NVARCHAR(4)) + '0630')
+								)
+								]]>
+							</isNotEmpty>						   
+						 GROUP BY  APP.APP_KIND_CODE
+								  ,APP.MEMBER_NO
+					)
+				)
+	 		</isEqual>
+		</dynamic>
+		<dynamic prepend="ORDER BY">
+			<isEqual prepend="," property="s1" compareValue="1">
+	 			A.MEMBER_NAME 
+	 		</isEqual>
+			<isEqual prepend="," property="s2" compareValue="1">
+	 			A.START_DATE 
+	 		</isEqual>
+			<isEqual prepend="," property="s4" compareValue="1">
+	 			 (CASE WHEN APP2.APP_DESC_CODE IS NULL THEN 'Z' ELSE APP2.APP_DESC_CODE END)
+	 			,APP2.START_DATE
+	 			<isEmpty prepend="," property="s2">
+	 				A.START_DATE
+	 			</isEmpty>
+	 		</isEqual>
+	 		<isNotEqual property="s1" compareValue="1">
+		 		<isNotEqual property="s2" compareValue="1">
+		 			<isNotEqual prepend="," removeFirstPrepend="true" property="s4" compareValue="1">
+	 					(CASE WHEN APP2.APP_DESC_CODE IS NULL THEN 'Z' ELSE APP2.APP_DESC_CODE END) 
+			 		</isNotEqual>
+		 		</isNotEqual>
+	 		</isNotEqual>
+		</dynamic>
+	</sql>
+	
+	
+	<select id="lionsclubs.com.MM2.MM2_1.MM2_09.List" resultClass="MM2_09VO">
+ 		<include refid="lionsclubs.com.MM2.MM2_1.MM2_09.selectQuery"/>
+ 	</select>
+</sqlMap>

@@ -1,0 +1,290 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://www.ibatis.com/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="lionsclubs.com.MM3.MM3_4.MM3_20">
+
+	<typeAlias alias="CODE_ADD_INFO" type="lionsclubs.com.MM3.MM3_4.MM3_20.CODE_ADD_INFO"/>
+	<typeAlias alias="MM3_20VO" type="lionsclubs.com.MM3.MM3_4.MM3_20.MM3_20VO"/>
+	
+	<select id="lionsclubs.com.MM3.MM3_4.MM3_20.codeList" resultClass="CODE_ADD_INFO">
+		DECLARE @organCode NVARCHAR(10)
+		SET @organCode = REPLACE(#districtCode#, '-', '')
+			
+		SELECT  REPLACE(C1.CODE1, '-', '') AS duesDstCode
+		       ,C1.CODE2 AS groupCode
+		       ,C2.CODE AS code
+		       ,C2.CODE_NAME AS codeName
+		       ,(SELECT CODE1 FROM LIONS_CODE WHERE GROUP_CODE = C2.CODE1 AND CODE = C2.CODE2) AS dollarKind
+		       ,C2.USE_YN AS useYn
+		  FROM LIONS_CODE C1
+		 INNER JOIN LIONS_CODE C2
+		    ON C1.CODE2 = C2.GROUP_CODE
+		 WHERE C1.GROUP_CODE = '8200'
+		   AND REPLACE(C1.CODE1, '-', '') = @organCode
+		 ORDER BY  C1.CODE1
+		 		  ,C1.CODE2
+		 		  ,C2.CODE	
+	</select>
+	
+	<sql id="lionsclubs.com.MM3.MM3_4.MM3_20.selectQuery">
+		<![CDATA[
+
+			SELECT 
+				 CLUB_CODE AS clubCode
+				,NEWCOMER AS newComer
+		]]>
+		<iterate property="moneyCode" conjunction="," prepend=",">		
+			<![CDATA[
+				 $moneyCode[]$
+			]]>
+		</iterate>
+		<![CDATA[
+				FROM (
+					SELECT 
+					   B.IDN_NO
+					  ,B.CLUB_CODE
+					  ,A.ITEM_CODE
+					  ,B.NEWCOMER
+					  ,ISNULL(A.DUE,0) AS DUE
+					FROM LIONS_MYDUES_MONTH B 
+					LEFT OUTER JOIN  LIONS_MYDUES_MONTH_ITEM A
+					  ON(A.IDN_NO = B.IDN_NO)
+					WHERE B.SESSION_YYYYMM = @thisYearMonth 
+					AND B.DISTRICT_CODE = @districtCode
+				) X
+				PIVOT (SUM(X.DUE) FOR X.ITEM_CODE IN(
+		]]>
+		<iterate property="moneyCode" conjunction=",">		
+			<![CDATA[
+				 $moneyCode[]$
+			]]>
+		</iterate>
+		<![CDATA[
+				)
+			) AS PVT
+		]]>
+	</sql>
+	
+	<select id="lionsclubs.com.MM3.MM3_4.MM3_20.selectList"  resultClass="java.util.HashMap" remapResults="true">
+		<![CDATA[
+		DECLARE @districtCode NVARCHAR(10)
+		DECLARE @thisYear INT
+		DECLARE @thisMonth NVARCHAR(10)
+		DECLARE @thisYearMonth NVARCHAR(10)
+		
+		SET @districtCode = #districtCode#;
+		SET @thisYear = #thisYear#;		
+		SET @thisMonth = #thisMonth#;
+		SET @thisYearMonth = CASE WHEN CAST(@thisMonth as INT) < 7 THEN CAST(@thisYear AS NVARCHAR(4))+@thisMonth  ELSE CAST(@thisYear - 1 AS NVARCHAR(4))+@thisMonth  END;
+		
+		SELECT
+		  Y.*
+		 ,B.KO_ABBR2 as clubName
+		]]>
+		<dynamic prepend=",">
+			<iterate property="moneyCode" conjunction="+">		
+				<![CDATA[
+					 ISNULL($moneyCode[]$,0)
+				]]>
+			</iterate>
+			as totSum
+		</dynamic>
+		<![CDATA[		 
+		FROM (
+		]]>
+		<include refid="lionsclubs.com.MM3.MM3_4.MM3_20.selectQuery"/>
+		<![CDATA[
+		) Y
+		INNER JOIN LIONS_ORGAN_CODE B ON B.ORGAN_CODE = Y.clubCode
+		ORDER BY Y.clubCode
+		]]>
+	</select>
+	
+	<select id="lionsclubs.com.MM3.MM3_4.MM3_20.selectSum"  resultClass="java.util.HashMap" remapResults="true">
+		<![CDATA[
+		DECLARE @districtCode NVARCHAR(10)
+		DECLARE @thisYear INT
+		DECLARE @thisMonth NVARCHAR(10)
+		DECLARE @thisYearMonth NVARCHAR(10)
+		
+		SET @districtCode = #districtCode#;
+		SET @thisYear = #thisYear#;		
+		SET @thisMonth = #thisMonth#;
+		SET @thisYearMonth = CASE WHEN CAST(@thisMonth as INT) < 7 THEN CAST(@thisYear AS NVARCHAR(4))+@thisMonth  ELSE CAST(@thisYear - 1 AS NVARCHAR(4))+@thisMonth  END;
+
+		SELECT
+		     SUM(ISNULL(newComer,0)) as newComer
+		]]>
+		<iterate property="moneyCode" conjunction="," prepend=",">		
+			<![CDATA[
+			SUM(ISNULL($moneyCode[]$,0)) as $moneyCode[]$
+			]]>
+		</iterate>
+		<dynamic prepend=",">
+			<iterate property="moneyCode" conjunction="+">		
+				<![CDATA[
+				SUM(ISNULL($moneyCode[]$,0))
+				]]>
+			</iterate>
+			as totSum
+		</dynamic>		
+		<![CDATA[
+		FROM (
+		]]>
+		<include refid="lionsclubs.com.MM3.MM3_4.MM3_20.selectQuery"/>
+		<![CDATA[
+		) Y
+		INNER JOIN LIONS_ORGAN_CODE B ON B.ORGAN_CODE = Y.clubCode
+		]]>
+	</select>
+	
+	
+	<select id="lionsclubs.com.MM3.MM3_4.MM3_20.excelTemplateDownload" resultClass="java.util.LinkedHashMap" remapResults="true">
+		<![CDATA[
+		DECLARE @districtCode NVARCHAR(6);
+		DECLARE @thisYear INT;
+		DECLARE @thisMonth NVARCHAR(10);
+		DECLARE @thisYearMonth NVARCHAR(10);
+		DECLARE @startDate NVARCHAR(10);
+		DECLARE @endDate NVARCHAR(10);
+		
+		SET @districtCode = REPLACE(#districtCode#, '-', '');
+		SET @thisYear = #thisYear#;
+		SET @thisMonth = #thisMonth#;
+		SET @thisYearMonth = CASE WHEN CAST(@thisMonth as INT) < 7 
+								  THEN CAST(@thisYear AS NVARCHAR(4)) + @thisMonth 
+								  ELSE CAST(@thisYear - 1 AS NVARCHAR(4)) + @thisMonth 
+								   END;
+		
+		/* 템플릿 기본 조회 */
+		WITH ORG_TREE AS ( /* 조직트리 */
+			SELECT  HISTORY.ORGAN_CODE
+				   ,HISTORY.UPPER_ORGAN_CODE 
+			  FROM(
+				SELECT  ROW_NUMBER() OVER (PARTITION BY ORGAN_CODE ORDER BY CHANGE_DATE DESC, IDN_NO DESC) AS rnum
+					   ,ORGAN_CODE
+					   ,UPPER_ORGAN_CODE
+				FROM LIONS_ORGAN_CODE_HISTORY
+			   WHERE CHANGE_DATE BETWEEN CAST(@thisYear - 1 AS NVARCHAR(4)) + '0701' AND CAST(@thisYear AS NVARCHAR(4)) + '0630'
+			) HISTORY
+			 INNER JOIN dbo.LIONS_ORGAN_CODE D
+			    ON D.ORGAN_CODE = HISTORY.ORGAN_CODE
+			   AND (
+						D.ORGAN_ABOLISH_DATE IS NULL 
+					OR	D.ORGAN_ABOLISH_DATE = '' 
+					OR	D.ORGAN_ABOLISH_DATE >= @thisYearMonth + '01'
+				)
+			 WHERE HISTORY.rnum = 1
+			   AND HISTORY.UPPER_ORGAN_CODE = @districtCode
+		)
+		
+		SELECT  ROW_NUMBER() OVER(ORDER BY A.ORGAN_CODE) AS rnum
+			   ,A.ORGAN_CODE as clubCode
+			   ,B.KO_ABBR2 AS club
+			   ,ISNULL(C.MEMBER_CNT,0) AS newComer
+		  FROM ORG_TREE A
+		 INNER JOIN dbo.LIONS_ORGAN_CODE B
+		    ON B.ORGAN_CODE = A.ORGAN_CODE
+		  LEFT OUTER JOIN (
+			  SELECT  ORGAN_CODE
+					 ,COUNT(MEMBER_NO) MEMBER_CNT
+				FROM LIONS_APPOINTMENT
+			   WHERE APP_KIND_CODE = '1040'	/* 선임구분(2700) : 선임-입회 퇴회 재입회 */
+				 AND APP_DESC_CODE IN ('1000','1020','1030')	/* 선임-입회(1000) 재입회(1020) 클럽변경(1030) (GROUP:2820) */
+				 AND START_DATE BETWEEN @thisYearMonth + '01' AND @thisYearMonth + '31'
+			   GROUP BY ORGAN_CODE
+			) C
+		    ON A.ORGAN_CODE = C.ORGAN_CODE
+		 ORDER BY A.ORGAN_CODE ASC
+		]]>
+	</select>
+	
+	<delete id="lionsclubs.com.MM3.MM3_4.MM3_20.expensesDelete">
+	<![CDATA[
+		DECLARE @districtCode NVARCHAR(10)
+		DECLARE @thisYear INT
+		DECLARE @thisMonth NVARCHAR(10)
+		DECLARE @thisYearMonth NVARCHAR(10)
+		
+		SET @districtCode = #districtCode#;
+		SET @thisYear = #thisYear#;		
+		SET @thisMonth = #thisMonth#;
+		SET @thisYearMonth = CASE WHEN CAST(@thisMonth as INT) < 7 THEN CAST(@thisYear AS NVARCHAR(4))+@thisMonth  ELSE CAST(@thisYear - 1 AS NVARCHAR(4))+@thisMonth  END;
+		
+		DELETE FROM LIONS_MYDUES_MONTH WHERE DISTRICT_CODE = @districtCode AND SESSION_YYYYMM = @thisYearMonth
+	]]>
+	</delete>
+	
+	<delete id="lionsclubs.com.MM3.MM3_4.MM3_20.expensesDelete2">
+	<![CDATA[
+		DECLARE @districtCode NVARCHAR(10)
+		DECLARE @thisYear INT
+		DECLARE @thisMonth NVARCHAR(10)
+		DECLARE @thisYearMonth NVARCHAR(10)
+		
+		SET @districtCode = #districtCode#;
+		SET @thisYear = #thisYear#;		
+		SET @thisMonth = #thisMonth#;
+		SET @thisYearMonth = CASE WHEN CAST(@thisMonth as INT) < 7 THEN CAST(@thisYear AS NVARCHAR(4))+@thisMonth  ELSE CAST(@thisYear - 1 AS NVARCHAR(4))+@thisMonth  END;
+		
+		DELETE FROM LIONS_MYDUES_MONTH_ITEM
+		WHERE IDN_NO IN (SELECT IDN_NO FROM LIONS_MYDUES_MONTH WHERE DISTRICT_CODE = @districtCode AND SESSION_YYYYMM = @thisYearMonth )
+	]]>
+	</delete>
+	 
+	 <insert id="lionsclubs.com.MM3.MM3_4.MM3_20.expensesInsert">
+		<![CDATA[
+			DECLARE @districtCode NVARCHAR(10)
+			DECLARE @thisYear INT
+			DECLARE @thisMonth NVARCHAR(10)
+			DECLARE @thisYearMonth NVARCHAR(10)
+			
+			SET @districtCode = #districtCode#;
+			SET @thisYear = #thisYear#;		
+			SET @thisMonth = #thisMonth#;
+			SET @thisYearMonth = CASE WHEN CAST(@thisMonth as INT) < 7 THEN CAST(@thisYear AS NVARCHAR(4))+@thisMonth  ELSE CAST(@thisYear - 1 AS NVARCHAR(4))+@thisMonth  END;
+		
+			INSERT INTO LIONS_MYDUES_MONTH(
+				 DISTRICT_CODE
+				,CLUB_CODE
+				,SESSION_YYYYMM
+				,NEWCOMER
+				,INSERT_DATE
+				,INSERT_NAME
+				,UPDATE_DATE
+				,UPDATE_NAME
+			) VALUES (
+				 #districtCode#	
+				,#clubCode#	
+				,@thisYearMonth
+				,#newComer#	
+				,GETDATE()	
+				,#insertName#
+				,GETDATE()	
+				,#updateName#	
+			)
+		]]>
+	</insert>
+	
+	<insert id="lionsclubs.com.MM3.MM3_4.MM3_20.expensesInsert2">
+		INSERT INTO LIONS_MYDUES_MONTH_ITEM(
+			 IDN_NO
+			,ITEM_CODE
+			,DUE
+			,DUE_DOLLAR
+		) VALUES (
+			 #idnNo#	
+			,#itemCode#	
+			,#due#
+			,#dueDollar#
+		)
+	</insert>
+	
+	<select id="lionsclubs.com.MM3.MM3_4.MM3_20.currentIdnNo" resultClass="java.lang.Integer">
+		SELECT * 
+		FROM( 
+			select IDENT_CURRENT('[LIONS_MYDUES_MONTH]') AS maxIdnNo 
+		) A 
+	</select>
+	
+</sqlMap>

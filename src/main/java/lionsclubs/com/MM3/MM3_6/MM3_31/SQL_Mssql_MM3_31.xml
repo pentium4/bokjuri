@@ -1,0 +1,381 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://www.ibatis.com/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="lionsclubs.com.MM3.MM3_6.MM3_31">
+
+	<typeAlias alias="MM3_31VO" type="lionsclubs.com.MM3.MM3_6.MM3_31.MM3_31VO"/>
+	
+	<sql id="lionsclubs.com.MM3.MM3_6.MM3_31.queryList">
+		DECLARE @sessionYear NVARCHAR(4)	/* 현회기 */
+		DECLARE @organCode NVARCHAR(6)	/* 조직코드 */
+		DECLARE @searchArea NVARCHAR(4)	/* 지역 */
+		DECLARE @searchZone NVARCHAR(4)	/* 지대 */
+		
+		SET @sessionYear = #sessionYear#;
+		SET @organCode = REPLACE(#organCode#, '-', '');
+		SET @searchArea = #searchArea#;
+		SET @searchZone = #searchZone#;
+						
+		/* 지역부총재 / 지대위원장 / 회장 */
+		WITH TITLE AS(
+			SELECT  APP.MEMBER_NO
+				   ,APP.APP_KIND_CODE
+				   ,APP.APP_DESC_CODE
+				   ,APP.ORGAN_CODE
+				   ,APP.IDN_NO
+				   ,APP.END_DATE
+			  FROM LIONS_APPOINTMENT APP
+			 INNER JOIN(
+				 SELECT IDN_NO FROM(
+					 SELECT  ROW_NUMBER() OVER (PARTITION BY APP.ORGAN_CODE ORDER BY APP.END_DATE DESC, APP.IDN_NO DESC) AS rnum
+						    ,IDN_NO
+					   FROM LIONS_APPOINTMENT APP
+					  WHERE APP_KIND_CODE = '1000'	/* 2700: 선임구분 - 선임(클럽임원선임)*/
+						AND APP_DESC_CODE = '1000'	/* 2740: 선임(클럽임원선임) - 회장*/
+						<![CDATA[
+						AND (
+							(START_DATE >= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701' AND START_DATE <= CAST(@sessionYear AS NVARCHAR(4)) + '0630')
+						 OR (END_DATE   >= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701' AND END_DATE <= CAST(@sessionYear AS NVARCHAR(4)) + '0630')
+						 OR (START_DATE <= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701' AND END_DATE >= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701') /* '20120701' >= START_DATE AND '20120701' <= END_DATE */
+						 OR (START_DATE <= CAST(@sessionYear AS NVARCHAR(4)) + '0630' AND END_DATE >= CAST(@sessionYear AS NVARCHAR(4)) + '0630')
+						)
+						]]>
+				) IDN
+				 WHERE rnum = 1
+			) X
+				ON APP.IDN_NO = X.IDN_NO
+			    
+			 UNION ALL
+			 
+			SELECT  APP.MEMBER_NO
+				   ,APP.APP_KIND_CODE
+				   ,APP.APP_DESC_CODE
+				   ,APP.ORGAN_CODE
+				   ,APP.IDN_NO
+				   ,APP.END_DATE				   
+			  FROM LIONS_APPOINTMENT APP
+			 INNER JOIN(
+				 SELECT IDN_NO FROM(
+					 SELECT  ROW_NUMBER() OVER (PARTITION BY APP.ORGAN_CODE ORDER BY APP.END_DATE DESC, APP.IDN_NO DESC) AS rnum
+						    ,IDN_NO
+					   FROM LIONS_APPOINTMENT APP
+					  WHERE APP_KIND_CODE = '1010'	/* 2700: 선임구분 - 선임(지구임원선임) */
+						AND APP_DESC_CODE IN('3900')	/* 2760: 선임(지구임원선임) - 3900: 지역부총재 */
+						<![CDATA[
+						AND (
+							(START_DATE >= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701' AND START_DATE <= CAST(@sessionYear AS NVARCHAR(4)) + '0630')
+						 OR (END_DATE   >= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701' AND END_DATE <= CAST(@sessionYear AS NVARCHAR(4)) + '0630')
+						 OR (START_DATE <= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701' AND END_DATE >= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701') /* '20120701' >= START_DATE AND '20120701' <= END_DATE */
+						 OR (START_DATE <= CAST(@sessionYear AS NVARCHAR(4)) + '0630' AND END_DATE >= CAST(@sessionYear AS NVARCHAR(4)) + '0630')
+						)
+						]]>
+				) IDN
+				 WHERE rnum = 1
+			) X
+				ON APP.IDN_NO = X.IDN_NO
+				
+			 UNION ALL
+			 
+			SELECT  APP.MEMBER_NO
+				   ,APP.APP_KIND_CODE
+				   ,APP.APP_DESC_CODE
+				   ,APP.ORGAN_CODE
+				   ,APP.IDN_NO
+				   ,APP.END_DATE				   
+			  FROM LIONS_APPOINTMENT APP
+			 INNER JOIN(
+				 SELECT IDN_NO FROM(
+					 SELECT  ROW_NUMBER() OVER (PARTITION BY APP.ORGAN_CODE ORDER BY APP.END_DATE DESC, APP.IDN_NO DESC) AS rnum
+						    ,IDN_NO
+					   FROM LIONS_APPOINTMENT APP
+					  WHERE APP_KIND_CODE = '1010'	/* 2700: 선임구분 - 선임(지구임원선임) */
+						AND APP_DESC_CODE IN('4400')	/* 2760: 선임(지구임원선임) - 4400: 지대위원장 */
+						<![CDATA[
+						AND (
+							(START_DATE >= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701' AND START_DATE <= CAST(@sessionYear AS NVARCHAR(4)) + '0630')
+						 OR (END_DATE   >= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701' AND END_DATE <= CAST(@sessionYear AS NVARCHAR(4)) + '0630')
+						 OR (START_DATE <= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701' AND END_DATE >= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701') /* '20120701' >= START_DATE AND '20120701' <= END_DATE */
+						 OR (START_DATE <= CAST(@sessionYear AS NVARCHAR(4)) + '0630' AND END_DATE >= CAST(@sessionYear AS NVARCHAR(4)) + '0630')
+						)
+						]]>
+				) IDN
+				 WHERE rnum = 1
+			) X
+				ON APP.IDN_NO = X.IDN_NO
+		/*  지역지대 기본 */
+		), AREA_ZONE AS(
+			SELECT  AZ.ORGAN_CODE
+				   ,AZ.SESSION_YEAR
+				   ,AZ.AREA
+				   ,AZ.ZONE
+				   ,AZ.UNIQUENESS
+				   ,AZ.APP_KIND_CODE
+				   ,AZ.APP_DESC_CODE
+				   ,dbo.FN_LIONS_DETAILCODE_NAME('2700', AZ.APP_KIND_CODE, AZ.APP_DESC_CODE) AS APP_DESC_CODE_NAME
+				   ,AZ.MEMBER_NO
+				   ,AZ.NAME
+				   ,AZ.MOBILE	/* 휴대폰 */
+				   ,AZ.MEMBER_PICTURE_FILE
+			  FROM(
+					/* 회장 */
+					SELECT * FROM(					
+						SELECT  ROW_NUMBER() OVER (PARTITION BY AZ.ORGAN_CODE, AZ.AREA, AZ.ZONE ORDER BY T.END_DATE DESC, T.IDN_NO DESC) AS RNUM					
+							   ,AZ.ORGAN_CODE
+							   ,AZ.SESSION_YEAR
+							   ,AZ.AREA
+							   ,AZ.ZONE
+							   ,AZ.UNIQUENESS
+							   ,T.APP_KIND_CODE
+							   ,T.APP_DESC_CODE
+							   ,T.MEMBER_NO	/* 회원번호 */
+							   ,INFO.NAME	/* 회원명 */
+							   ,INFO.MOBILE	/* 휴대폰 */
+							   ,INFO.MEMBER_PICTURE_FILE	/* 회원사진파일ID */
+						  FROM LIONS_AREA_ZONE AZ
+						  LEFT OUTER JOIN TITLE T
+						    ON AZ.ORGAN_CODE = T.ORGAN_CODE
+						   AND T.APP_KIND_CODE = '1000'	/* 2700: 선임구분 - 선임(클럽임원선임) */
+						   AND T.APP_DESC_CODE = '1000'	/* 2740: 선임(클럽임원선임) - 회장 */
+						  LEFT OUTER JOIN LIONS_MEMBER_INFO INFO
+						    ON T.MEMBER_NO = INFO.MEMBER_NO
+						 WHERE SESSION_YEAR = @sessionYear
+						<isNotEmpty prepend="AND" property="searchArea">
+							AZ.AREA = @searchArea
+						</isNotEmpty>
+					    <isNotEmpty prepend="AND" property="searchZone">
+							AZ.ZONE = @searchZone
+						</isNotEmpty>
+					) P
+					 WHERE P.RNUM = 1
+					 
+					 UNION
+
+					/* 지역부총재 */
+					SELECT * FROM(
+						SELECT  ROW_NUMBER() OVER (PARTITION BY AZ.AREA ORDER BY T.END_DATE DESC, T.IDN_NO DESC) AS RNUM
+							   ,AZ.ORGAN_CODE
+							   ,AZ.SESSION_YEAR AS SESSION_YEAR
+							   ,AZ.AREA
+							   ,0 AS ZONE
+							   ,AZ.UNIQUENESS AS UNIQUENESS
+							   ,T.APP_KIND_CODE
+							   ,T.APP_DESC_CODE
+							   ,T.MEMBER_NO	/* 회원번호 */
+							   ,INFO.NAME	/* 회원명 */
+							   ,INFO.MOBILE	/* 휴대폰 */
+							   ,INFO.MEMBER_PICTURE_FILE	/* 회원사진파일ID */
+						  FROM LIONS_AREA_ZONE AZ
+						  LEFT OUTER JOIN TITLE T
+							ON AZ.ORGAN_CODE = T.ORGAN_CODE	
+						   AND T.APP_KIND_CODE = '1010'	/* 2700: 선임구분 - 선임(지구임원선임) */
+						   AND T.APP_DESC_CODE = '3900'	/* 2760: 선임(지구임원선임) - 3900: 지역부총재 */
+						  LEFT OUTER JOIN LIONS_MEMBER_INFO INFO
+							ON T.MEMBER_NO = INFO.MEMBER_NO
+						 WHERE SESSION_YEAR = @sessionYear
+						<isNotEmpty prepend="AND" property="searchArea">
+							AZ.AREA = @searchArea
+						</isNotEmpty>
+					) V
+					 WHERE V.RNUM = 1
+
+					 UNION
+
+					/* 지대위원장 */
+					SELECT * FROM(					
+						SELECT  ROW_NUMBER() OVER (PARTITION BY AZ.AREA, AZ.ZONE ORDER BY T.END_DATE DESC, T.IDN_NO DESC) AS RNUM
+							   ,AZ.ORGAN_CODE
+							   ,AZ.SESSION_YEAR AS SESSION_YEAR
+							   ,AZ.AREA
+							   ,AZ.ZONE
+							   ,AZ.UNIQUENESS AS UNIQUENESS
+							   ,T.APP_KIND_CODE
+							   ,T.APP_DESC_CODE
+							   ,T.MEMBER_NO	/* 회원번호 */
+							   ,INFO.NAME	/* 회원명 */
+							   ,INFO.MOBILE	/* 휴대폰 */
+							   ,INFO.MEMBER_PICTURE_FILE	/* 회원사진파일ID */
+						  FROM LIONS_AREA_ZONE AZ
+						  LEFT OUTER JOIN TITLE T
+							ON AZ.ORGAN_CODE = T.ORGAN_CODE					  
+						   AND T.APP_KIND_CODE = '1010'	/* 2700: 선임구분 - 선임(지구임원선임) */
+						   AND T.APP_DESC_CODE = '4400'	/* 2760: 선임(지구임원선임) - 4400: 지대위원장 */
+						  LEFT OUTER JOIN LIONS_MEMBER_INFO INFO
+							ON T.MEMBER_NO = INFO.MEMBER_NO						   
+						 WHERE SESSION_YEAR = @sessionYear
+						<isNotEmpty prepend="AND" property="searchArea">
+							AZ.AREA = @searchArea
+						</isNotEmpty>
+					    <isNotEmpty prepend="AND" property="searchZone">
+							AZ.ZONE = @searchZone
+						</isNotEmpty>					 
+					) Z
+					 WHERE Z.RNUM = 1
+			) AZ
+		/* 조직 이력 */
+		), ORGAN_CODE_HISTORY AS(
+		  SELECT ORGAN_CODE
+		    FROM LIONS_ORGAN_CODE_HISTORY HISTORY
+		   INNER JOIN (
+				SELECT IDN_NO FROM(
+					SELECT  ROW_NUMBER() OVER (PARTITION BY ORGAN_CODE ORDER BY CHANGE_DATE DESC, IDN_NO DESC) AS rnum
+						   ,IDN_NO
+					  FROM LIONS_ORGAN_CODE_HISTORY
+					 WHERE UPPER_ORGAN_CODE = @organCode
+					 <![CDATA[
+					   AND CHANGE_DATE >= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701'
+					   AND CHANGE_DATE <= CAST(@sessionYear AS NVARCHAR(4)) + '0630'
+				   	 ]]>
+				) IDN
+				 WHERE rnum = 1
+			) X
+			   ON HISTORY.IDN_NO = X.IDN_NO
+		/* 1부회장 */
+		), VICE1 AS(
+			SELECT  APP.ORGAN_CODE
+				   ,APP.MEMBER_NO
+				   ,APP.IDN_NO
+				   ,APP.END_DATE
+				   ,INFO.NAME
+				   ,INFO.MOBILE	/* 휴대폰 */
+				   ,INFO.MEMBER_PICTURE_FILE
+			  FROM LIONS_APPOINTMENT APP
+			 INNER JOIN LIONS_MEMBER_INFO INFO
+			    ON APP.MEMBER_NO = INFO.MEMBER_NO
+			 INNER JOIN(
+				 SELECT IDN_NO FROM(
+					 SELECT  ROW_NUMBER() OVER (PARTITION BY APP.ORGAN_CODE ORDER BY APP.END_DATE DESC, APP.IDN_NO DESC) AS rnum
+						    ,IDN_NO
+					   FROM LIONS_APPOINTMENT APP
+					  WHERE APP_KIND_CODE = '1000'	/* 2700: 선임구분 - 선임(클럽임원선임) */
+						AND APP_DESC_CODE = '1030'	/* 2740: 선임(클럽임원선임) - 1부회장 */
+						<![CDATA[
+						AND (
+							(START_DATE >= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701' AND START_DATE <= CAST(@sessionYear AS NVARCHAR(4)) + '0630')
+						 OR (END_DATE   >= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701' AND END_DATE <= CAST(@sessionYear AS NVARCHAR(4)) + '0630')
+						 OR (START_DATE <= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701' AND END_DATE >= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701') /* '20120701' >= START_DATE AND '20120701' <= END_DATE */
+						 OR (START_DATE <= CAST(@sessionYear AS NVARCHAR(4)) + '0630' AND END_DATE >= CAST(@sessionYear AS NVARCHAR(4)) + '0630')
+						)
+						]]>
+				) IDN
+				 WHERE rnum = 1
+			) X
+				ON APP.IDN_NO = X.IDN_NO
+		/* 총무 */
+		), MANAGER AS(
+			SELECT  APP.ORGAN_CODE
+				   ,APP.MEMBER_NO
+				   ,APP.IDN_NO
+				   ,APP.END_DATE
+				   ,INFO.NAME
+				   ,INFO.MOBILE	/* 휴대폰 */
+				   ,INFO.MEMBER_PICTURE_FILE
+			  FROM LIONS_APPOINTMENT APP
+			 INNER JOIN LIONS_MEMBER_INFO INFO
+			    ON APP.MEMBER_NO = INFO.MEMBER_NO			  
+			 INNER JOIN(
+				 SELECT IDN_NO FROM(
+					 SELECT  ROW_NUMBER() OVER (PARTITION BY APP.ORGAN_CODE ORDER BY APP.END_DATE DESC, APP.IDN_NO DESC) AS rnum
+						    ,IDN_NO
+					   FROM LIONS_APPOINTMENT APP
+					  WHERE APP_KIND_CODE = '1000'	/* 2700: 선임구분 - 선임(클럽임원선임) */
+						AND APP_DESC_CODE = '1060'	/* 2740: 선임(클럽임원선임) - 총무 */
+						<![CDATA[
+						AND (
+							(START_DATE >= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701' AND START_DATE <= CAST(@sessionYear AS NVARCHAR(4)) + '0630')
+						 OR (END_DATE   >= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701' AND END_DATE <= CAST(@sessionYear AS NVARCHAR(4)) + '0630')
+						 OR (START_DATE <= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701' AND END_DATE >= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701') /* '20120701' >= START_DATE AND '20120701' <= END_DATE */
+						 OR (START_DATE <= CAST(@sessionYear AS NVARCHAR(4)) + '0630' AND END_DATE >= CAST(@sessionYear AS NVARCHAR(4)) + '0630')
+						)
+						]]>
+				) IDN
+				 WHERE rnum = 1
+			) X
+				ON APP.IDN_NO = X.IDN_NO
+		/* 재무 */
+		), FINANCE AS(
+			SELECT  APP.ORGAN_CODE
+				   ,APP.MEMBER_NO
+				   ,APP.IDN_NO
+				   ,APP.END_DATE
+				   ,INFO.NAME
+				   ,INFO.MOBILE	/* 휴대폰 */
+				   ,INFO.MEMBER_PICTURE_FILE
+			  FROM LIONS_APPOINTMENT APP
+			 INNER JOIN LIONS_MEMBER_INFO INFO
+			    ON APP.MEMBER_NO = INFO.MEMBER_NO			  
+			 INNER JOIN(
+				 SELECT IDN_NO FROM(
+					 SELECT  ROW_NUMBER() OVER (PARTITION BY APP.ORGAN_CODE ORDER BY APP.END_DATE DESC, APP.IDN_NO DESC) AS rnum
+						    ,IDN_NO
+					   FROM LIONS_APPOINTMENT APP
+					  WHERE APP_KIND_CODE = '1000'	/* 2700: 선임구분 - 선임(클럽임원선임) */
+						AND APP_DESC_CODE = '1070'	/* 2740: 선임(클럽임원선임) - 재무 */
+						<![CDATA[
+						AND (
+							(START_DATE >= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701' AND START_DATE <= CAST(@sessionYear AS NVARCHAR(4)) + '0630')
+						 OR (END_DATE   >= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701' AND END_DATE <= CAST(@sessionYear AS NVARCHAR(4)) + '0630')
+						 OR (START_DATE <= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701' AND END_DATE >= CAST(@sessionYear - 1 AS NVARCHAR(4)) + '0701') /* '20120701' >= START_DATE AND '20120701' <= END_DATE */
+						 OR (START_DATE <= CAST(@sessionYear AS NVARCHAR(4)) + '0630' AND END_DATE >= CAST(@sessionYear AS NVARCHAR(4)) + '0630')
+						)
+						]]>
+				) IDN
+				 WHERE rnum = 1
+			) X
+				ON APP.IDN_NO = X.IDN_NO
+		)
+
+		SELECT  dbo.FN_LIONS_CODE_NAME('2620', AZ.AREA) AS area	/* 지역 */
+			   ,dbo.FN_LIONS_CODE_NAME('2640', AZ.ZONE) AS zone	/* 지대 */
+			   ,AZ.APP_DESC_CODE_NAME AS titleName	/* 직책 */
+			   ,AZ.NAME AS areaZoneName	/* 지역부총재 / 지대위원장 / 회장 */
+			   ,AZ.MOBILE AS areaZoneMobile	/* 지역부총재 / 지대위원장 / 회장 휴대폰 */
+			   ,AZ.MEMBER_PICTURE_FILE AS areaZoneMemberPictureFile	/* 지역부총재 / 지대위원장 / 회장 사진파일ID */
+			   ,(SELECT KO_NAME FROM LIONS_ORGAN_CODE WHERE ORGAN_CODE = AZ.ORGAN_CODE) AS clubName	/* 클럽명 */
+			   ,AZ.ORGAN_CODE AS organCode	/* 클럽코드 */
+			   ,V.NAME AS vName	/* 1부회장 */
+			   ,V.MOBILE AS vMobile	/* 1부회장 휴대폰 */
+			   ,V.MEMBER_PICTURE_FILE AS vMemberPictureFile	/* 1부회장 사진파일ID */
+			   ,M.NAME AS mName	/* 총무 */
+			   ,M.MOBILE AS mMobile	/* 총무 휴대폰 */
+			   ,M.MEMBER_PICTURE_FILE AS mMemberPictureFile	/* 총무 사진파일ID */
+			   ,F.NAME AS fName	/* 재무 */
+			   ,F.MOBILE AS fMobile	/* 재무 휴대폰 */
+			   ,F.MEMBER_PICTURE_FILE AS fMemberPictureFile	/* 재무 사진파일ID */
+			   ,AZ.APP_KIND_CODE AS appKindCode	/* 선임구분코드 */
+			   ,AZ.APP_DESC_CODE AS appDescCode	/* 선임직책코드 */
+			   ,OC.ORGAN_MEETING
+		  FROM AREA_ZONE AZ
+		 INNER JOIN ORGAN_CODE_HISTORY HISTORY
+			ON AZ.ORGAN_CODE = HISTORY.ORGAN_CODE
+		  LEFT OUTER JOIN VICE1 V
+			ON AZ.ORGAN_CODE = V.ORGAN_CODE
+		   AND AZ.APP_KIND_CODE = '1000'
+		   AND AZ.APP_DESC_CODE = '1000'
+		  LEFT OUTER JOIN MANAGER M
+			ON AZ.ORGAN_CODE = M.ORGAN_CODE
+		   AND AZ.APP_KIND_CODE = '1000'
+		   AND AZ.APP_DESC_CODE = '1000'
+		  LEFT OUTER JOIN FINANCE F
+			ON AZ.ORGAN_CODE = F.ORGAN_CODE
+		   AND AZ.APP_KIND_CODE = '1000'
+		   AND AZ.APP_DESC_CODE = '1000'
+		  LEFT OUTER JOIN LIONS_ORGAN_CODE OC
+			ON AZ.ORGAN_CODE = OC.ORGAN_CODE
+		 WHERE AZ.SESSION_YEAR = @sessionYear
+		<isNotEmpty prepend="AND" property="titleKindCode">
+		 	AZ.APP_DESC_CODE = #titleKindCode#
+		</isNotEmpty>
+		 ORDER BY  dbo.FN_LIONS_CODE_ORD('2620', AZ.AREA)
+				  ,dbo.FN_LIONS_CODE_ORD('2640', AZ.ZONE)
+				  ,CASE WHEN AZ.APP_DESC_CODE = '3900' THEN 1	/* 지역부총재 */
+					    WHEN AZ.APP_DESC_CODE = '4400' THEN 2	/* 지대위원장 */
+					    WHEN AZ.APP_DESC_CODE = '1000' THEN 3	/* 회장 */
+					    ELSE AZ.APP_DESC_CODE END
+				  ,AZ.ORGAN_CODE
+				  ,OC.ORGAN_MEETING
+	</sql>
+			
+	<select id="lionsclubs.com.MM3.MM3_6.MM3_31.List" resultClass="MM3_31VO">
+		<include refid="lionsclubs.com.MM3.MM3_6.MM3_31.queryList"/>
+	</select>
+</sqlMap>

@@ -1,0 +1,158 @@
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=euc-kr" />
+<title>우편번호 찾기</title>
+<link rel="stylesheet" href="/css/lionsclubs/style.css" type="text/css" />
+<link rel="stylesheet" href="/css/lionsclubs/content_sub.css" type="text/css" />
+<script type="text/javascript" src="/js/lionsclubs/javascript.js"></script>
+<script type="text/javascript" src="/js/lionsclubs/script.js"></script>
+<script type="text/javascript">
+//<![CDATA[
+function closeWin(){
+    if(document) {
+        self.close();
+    }
+}
+function enterCheck() {
+    if(event.keyCode == 13) {
+        findZip();
+    }
+}
+function findZip() {
+    var dong = document.getElementById("dong").value;
+    if(dong == "") {
+        alert("지역명을 입력해주세요.");
+        return;
+    }
+    $.ajax({
+        url: '/zip/zipFind.do',
+        type: 'GET',
+        data: {'dong':encode(dong)},
+        dataType: 'text',
+        success: function(data) { SubmitResult(eval(data)); },
+        error: function(a, b, c){ alert(b); }
+    });
+}
+
+function ClearTable() {
+    $("#zips tbody tr").remove();
+}
+function SubmitResult(datas) {
+    ClearTable();
+    if(datas.length == 0) {
+        alert("조회 결과가 없습니다.");
+        return;
+    }
+    $.each(datas, function(index, zip) {
+        var zip1 = zip.zip.substring(0,3);
+        var zip2 = zip.zip.substring(4);
+        var addr1 = zip.sido + " " + zip.gugun + " " + zip.dong + " " + zip.bunji + zip.ho;
+        var addr2 = zip.sido + " " + zip.gugun + " " + zip.dong + " ";
+        var link = "javascript:moveZip('"+zip1+"','"+zip2+"','"+addr2+"');";
+        $("#zips tbody").append(
+        "<tr>" +
+            "<td width=\"30%\" align=\"center\"><a href=\""+link+"\">"+zip.zip+"</a></td>" +
+            "<td width=\"70%\"><a href=\""+link+"\">"+addr1+"</a></td>" +
+        "</tr>" );
+    });
+}
+function moveZip(zip1, zip2, addr) {
+    var f = opener.CompanyForm;
+    f.zipCode1.value = zip1;
+    f.zipCode2.value = zip2;
+    f.addr.value = addr;
+    self.close();
+} 
+//]]>
+</script>
+</head>
+
+<body leftmargin="0" topmargin="0" marginwidth="0" marginheight="0">
+
+<table width="100%" border="0" cellpadding="0" cellspacing="0">
+    <tr><td><img src="/images/lionsclubs/post_title.gif" alt="우편번호 찾기"></td></tr>
+    <tr><td align="center" style="padding:20px;">
+        <!-- 찾기박스 -->
+        <table width="500" border="0" cellpadding="0" cellspacing="0">
+            <tr><td><img src="/images/lionsclubs/post_find.gif" alt="찾고자 하는 주소의 동(읍/리/면)을 입력해주세요." /></td></tr>
+            <tr>
+                <td style="padding-top:10px;">
+                <div style="width: 500px;border:1px solid #cccccc;background-color:#f5f5f5;padding:20px;">
+                <b>지역명</b>&nbsp;&nbsp;<input type="text" id="dong" name="dong" onkeydown="enterCheck();" style="border:1px solid #cccccc; padding-left:5px; width:220px; height:23px;vertical-align:middle;" />&nbsp;<img src="/images/lionsclubs/btn_search.gif" alt="검색" onclick="findZip();" style="vertical-align:middle;cursor:pointer;" />
+                <br /><span style="font-size:12px;margin:10px 0 0 52px;">예) 서울시 강남구 역삼동이면  ‘역삼동’ 입력</span></div>
+                </td>
+            </tr>
+            <tr><td style="padding-top:20px;">
+                <table width="500px" border="0" cellpadding="3" cellspacing="0">
+                    <tr><td colspan="2" bgcolor="#999999" height="2"></td></tr>
+                    <tr>
+                        <th width="30%"><img src="/images/lionsclubs/txt_add1.gif" alt="우편번호" /></th>
+                        <th width="70%"><img src="/images/lionsclubs/txt_add2.gif" alt="주소" /></th>
+                    </tr>
+                    <tr>
+                        <td colspan="2" style="border:1px solid #cccccc;">
+                         <div style="width: 500px;height:150px;overflow-y:auto;">
+                         <table id="zips" class="zips" width="100%" border="0" cellpadding="3" cellspacing="0">
+                            <tbody>
+                            <tr>
+                                <td width="30%" align="center">150-680</td>
+                                <td width="70%">울산광역시 남구 신정3동</td>
+                            </tr>
+                            <tr>
+                                <td align="center">150-680</td>
+                                <td>울산광역시 남구 신정3동</td>
+                            </tr>
+                            <tr>
+                                <td align="center">150-680</td>
+                                <td>울산광역시 남구 신정3동</td>
+                            </tr>
+                            <tr>
+                                <td align="center">150-680</td>
+                                <td>울산광역시 남구 신정3동</td>
+                            </tr>
+                            <tr>
+                                <td align="center">150-680</td>
+                                <td>울산광역시 남구 신정3동</td>
+                            </tr>
+                            <tr>
+                                <td align="center">150-680</td>
+                                <td>울산광역시 남구 신정3동</td>
+                            </tr>
+                            <tr>
+                                <td align="center">150-680</td>
+                                <td>울산광역시 남구 신정3동</td>
+                            </tr>
+                            <tr>
+                                <td align="center">150-680</td>
+                                <td>울산광역시 남구 신정3동</td>
+                            </tr>
+                            <tr>
+                                <td align="center">150-680</td>
+                                <td>울산광역시 남구 신정3동</td>
+                            </tr>
+                            <tr>
+                                <td align="center">150-680</td>
+                                <td>울산광역시 남구 신정3동</td>
+                            </tr>
+                            </tbody>
+                         </table>
+                       </div>
+                      </td>
+                    </tr>
+                </table>
+                <!-- 찾기박스 -->
+              </td>
+            </tr>
+        </table>
+        </td>
+    </tr>
+    <tr>
+        <td align="center" valign="top" style="padding:5px 15px 0 15px" bgcolor="#808080" height="30">
+            <a href="javascript:closeWin();"><img src="/images/lionsclubs/close.gif" alt="close" /></a>
+        </td>
+    </tr>
+</table>
+
+</body>
+</html>
+

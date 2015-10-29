@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://www.ibatis.com/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="lionsclubs.com.MM3.MM3_1.COMM">
+
+	<typeAlias alias="LIST_VO" type="lionsclubs.com.MM3.MM3_1.COMM.LIST_VO"/>
+	<typeAlias alias="LIST_VO_DATA" type="lionsclubs.com.MM3.MM3_1.COMM.LIST_VO_DATA"/>
+	
+	<select id="lionsclubs.com.MM3.MM3_1.COMM.selectList" resultClass="LIST_VO_DATA" parameterClass="LIST_VO">
+		<![CDATA[
+		SELECT  A.IDN_NO AS idnNO
+			   ,A.ORGAN_CODE AS organCode
+  			   ,A.APP_KIND_CODE AS appKindCode
+			   ,A.APP_DESC_CODE AS appDescCode
+			   ,A.MEMBER_NO AS memberNo
+			   ,A.MEMBER_NAME AS memberName
+			   ,A.ORD AS ord
+			   ,A.F_AGE_CODE AS fAgeCode
+			   ,A.F_ORGAN_CODE_TEXT AS fOrganCodeText
+			   ,A.F_POS AS fPos
+			   ,A.F_CLUB_NAME AS fClubName
+			   ,COALESCE(B.MEMBER_PICTURE_FILE,C.FILE_ID,'') AS fileId
+			   ,'/lionsclubs/upload/' + SUBSTRING(F.FILE_MASK,1,6) + '/' + SUBSTRING(F.FILE_MASK,7,2) + '/' + F.FILE_MASK + '.thumb' as memPicFile
+			   ,CASE WHEN COALESCE(B.MEMBER_PICTURE_FILE,C.FILE_ID) IS NULL 
+			   		 THEN '' 
+			   		 ELSE 'Y' 
+			   		  END AS fileYn
+			   ,CASE WHEN RTRIM(ISNULL(B.MEMBER_PICTURE_FILE,'')) <> '' 
+			   		 THEN 'Y' 
+			   		 ELSE '' 
+			   		  END AS orgFileYn
+		  FROM dbo.LIONS_DUMMY_MEMBER_INFO A
+		  LEFT OUTER JOIN dbo.LIONS_MEMBER_INFO B
+		    ON B.MEMBER_NO = A.MEMBER_NO
+		  LEFT OUTER JOIN dbo.J_ATTACHFILE C
+		    ON C.FILE_ID = A.T_N_IMAGE
+		  LEFT OUTER JOIN dbo.J_ATTACHFILE F
+		    ON F.FILE_ID = COALESCE(B.MEMBER_PICTURE_FILE, C.FILE_ID, '')
+		 WHERE A.APP_KIND_CODE = #appKindCode#
+		   AND A.APP_DESC_CODE = #appDescCode#
+		]]>
+		<isNotEmpty prepend="AND" property="orgCode">
+			A.ORGAN_CODE = #orgCode#
+		</isNotEmpty>
+		 ORDER BY  A.ORGAN_CODE
+				  ,ORD
+	</select>
+</sqlMap>

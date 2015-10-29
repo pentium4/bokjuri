@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://www.ibatis.com/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="lionsclubs.com.scheduling">
+	<typeAlias alias="schedulingVO" type="lionsclubs.com.scheduling.SchedulingVO"/>
+	
+	<sql id="lionsclubs.com.scheduling.withDeleteFileId">
+		WITH FID AS(
+			/* 개인기본사항 - 회원사진파일 */
+			SELECT MEMBER_PICTURE_FILE AS FILE_ID
+			  FROM LIONS_MEMBER_INFO
+			 WHERE LEN(MEMBER_PICTURE_FILE) > 0
+			    
+			 UNION
+		
+			/* 개인기본사항 - 네스사진파일 */
+			SELECT NESS_PICTURE_FILE AS FILE_ID
+			  FROM LIONS_MEMBER_INFO
+			 WHERE LEN(NESS_PICTURE_FILE) > 0
+		
+			 UNION
+		
+			/* 총무보고(심의안건) - 문서파일 */ 
+			SELECT FILE_ID
+			  FROM LIONS_DELIBERATION_AGENDA
+			 WHERE LEN(FILE_ID) > 0
+			 
+			 UNION
+		
+			/* 총무보고(건의사항) - 문서파일 */ 
+			SELECT FILE_ID
+			  FROM LIONS_SUGGESTION
+			 WHERE LEN(FILE_ID) > 0
+			 
+			 UNION
+		
+			/* 총무보고(행사안내) - 문서파일 */ 
+			SELECT FILE_ID
+			  FROM LIONS_EVENT_INFORMATION
+			 WHERE LEN(FILE_ID) > 0
+			  
+			 UNION
+		
+			/* 총무보고(회의진행순서) - 문서파일 */ 
+			SELECT FILE_ID
+			  FROM LIONS_CONFERENCE_SEQ
+			 WHERE LEN(FILE_ID) > 0
+			  
+			 UNION
+		
+			/* 총재역임자조회 - 사인파일 */ 
+			SELECT FILE_ID
+			  FROM LIONS_GOVERNOR_SERVED
+			 WHERE LEN(FILE_ID) > 0
+		
+			 UNION
+		
+			/* 총장역임자조회 - 사진파일 */ 
+			SELECT FILE_ID
+			  FROM LIONS_GENERAL_SERVED
+			 WHERE LEN(FILE_ID) > 0
+		
+			 UNION
+		
+			/* 행사입력 - 첨부파일 */
+			SELECT FILE_ID
+			  FROM LIONS_EVENT_SPONSOR
+			 WHERE LEN(FILE_ID) > 0
+		
+			 UNION
+		
+			/* 개인행사참석 - 첨부파일 */
+			SELECT FILE_ID
+			  FROM LIONS_EVENT
+			 WHERE LEN(FILE_ID) > 0
+		
+			 UNION
+		
+			/* 게시판 - 첨부파일 */
+			SELECT FILE_ID
+			  FROM LIONS_NOTICE
+			 WHERE LEN(FILE_ID) > 0
+		
+			 UNION
+			 
+			/* 직접입력자료 - 핸드폰용본인사진 */
+			SELECT T_IMAGE 
+			  FROM LIONS_DUMMY_MEMBER_INFO
+			 WHERE LEN(T_IMAGE) > 0
+		
+			 UNION
+			 
+			/* 직접입력자료 - 핸드폰용네스사진 */
+			SELECT T_N_IMAGE 
+			  FROM LIONS_DUMMY_MEMBER_INFO
+			 WHERE LEN(T_N_IMAGE) > 0
+		
+			 UNION
+			  
+			 /* 신입회원 - 회원사진파일 */
+			SELECT MEMBER_PICTURE_FILE AS FILE_ID
+			  FROM LIONS_NEW_MEMBER
+			 WHERE LEN(MEMBER_PICTURE_FILE) > 0
+			    
+			 UNION
+		
+			/* 신입회원 - 네스사진파일 */
+			SELECT NESS_PICTURE_FILE AS FILE_ID
+			  FROM LIONS_NEW_MEMBER
+			 WHERE LEN(NESS_PICTURE_FILE) > 0
+			 
+			 UNION 
+			 
+			/* 클럽문서 - 첨부파일 */
+			SELECT FILE_ID
+			  FROM LIONS_DOC
+			 WHERE LEN(FILE_ID) > 0
+			 
+			 UNION
+			 
+			/* 문서템플릿 - 첨부파일 */
+			SELECT FILE_ID
+			  FROM LIONS_DOC_TEMPLATE
+			 WHERE LEN(FILE_ID) > 0
+		)
+	</sql>
+	
+
+	<select id="lionsclubs.com.scheduling.listDeleteFileId" resultClass="String">
+		<include refid="lionsclubs.com.scheduling.withDeleteFileId" />
+		SELECT DISTINCT FILE_ID AS fileId
+		  FROM J_ATTACHFILE
+		 WHERE FILE_ID NOT IN(
+			SELECT FILE_ID FROM FID
+		 )
+	</select>
+	
+	<delete id="lionsclubs.com.scheduling.deleteFileId">
+		<include refid="lionsclubs.com.scheduling.withDeleteFileId" />
+		DELETE FROM J_ATTACHFILE
+		 WHERE FILE_ID NOT IN(
+			SELECT FILE_ID FROM FID
+		 )
+	</delete>
+</sqlMap>

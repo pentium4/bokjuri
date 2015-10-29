@@ -1,0 +1,240 @@
+@CHARSET "UTF-8";
+* {
+	margin: 0;
+	padding: 0;
+}
+
+body {
+	font: 72.5%/1.6 "Lucida Grande", "Lucida Sans", "Lucida Sans Unicode", Verdana, sans-serif;
+	background-color:#D4D4D4;
+}
+
+h1 {
+	font-size: 2.4em;
+	font-weight: normal;
+}
+
+h2 {
+	font-size: 2.0em;
+	font-weight: normal;
+}
+
+p, li {
+/* 	font-size: 1.4em; */
+}
+
+h1, h2, p {
+	margin: 1em 0;
+}
+
+table {
+	border-collapse: collapse;
+}
+
+.branding h1 {
+	margin: 0;
+}
+
+.wrapper {
+	background-color: #fff;
+}
+
+.header {
+	height: 285px;
+	background-image: url('/images/home/355-d_main_sub.png');
+	padding: 20px;
+}
+
+.content .secondary .menuTitle {
+	padding-left: 50px;
+}
+
+.nav {
+	padding: 10px 0 0 55px;
+	list-style: none;
+	background: url('/images/home/subMenuMiddle.png') 50px 0 repeat-y;
+}
+
+.nav li {
+	width: 170px;
+	padding-left: 10px;
+	border-bottom: 1px dotted #aaa;
+	line-height: 25px;
+}
+
+.content .secondary .promo {
+	padding: 20px;
+}
+
+.footer {
+/* 	background-color:#b0b0b0; */
+	padding: 10px 20px;
+}
+
+/* The Core Technique
+================================= */
+body {
+	text-align: center; 
+	min-width: 1000px;
+}
+
+.wrapper {
+	width: 995px; 
+	margin: 0 auto; 
+	text-align: left;
+}
+
+.content {
+	overflow: hidden;
+}
+
+.content .primary { 
+	width: 700px;
+	padding-right: 20px;
+	float: right;
+}
+
+.content .secondary { 
+	width: 250px;
+	float: left; 
+} 
+
+.mainmenu {
+	padding: 40px 0 0 250px;
+}
+
+.mainmenu ul {
+	list-style: none;
+}
+
+.mainmenu li {
+	float: left;
+	padding-left: 35px;
+}
+
+.mainmenu a:link {
+	color: #607890;
+	text-decoration: none;
+}
+
+.mainmenu a:visited {
+	color: #607890;
+    text-decoration: none;
+}
+
+.mainmenu a:hover {
+	color: #0000ff;
+}
+
+.submenu {
+	padding: 33px 0 0 270px;
+}
+
+.submenu ul {
+	list-style: none;
+}
+
+.submenu li {
+	float: left;
+	padding-left: 20px;
+	font-size: 11px;
+}
+
+.submenu a:link {
+	color: #ffffff;
+    text-decoration: none;
+}
+
+.submenu a:visited {
+	color: #ffffff;
+    text-decoration: none;
+}
+
+.submenu a:hover {
+	font-weight: bold;
+}
+
+.nav a:link {
+	color: #607890;
+    text-decoration: none;
+}
+
+.nav a:visited {
+	color: #607890;
+    text-decoration: none;
+}
+
+.nav a:hover {
+	color: #0000ff;
+    text-decoration: underline;
+}
+
+.nav a:active {
+    text-decoration: underline;
+}
+
+/* 페이지 번호 */
+div.pagination{margin:10px 0 0 0;padding:0;text-align:center;clear:both;}
+div.pagination a,
+div.pagination strong{
+    display:inline-block;
+    width:20px;
+    margin:0 0 0 -2px;
+    padding:3px 2px;
+    border:1px solid #dfdfdf;
+    font-size:11px;
+    vertical-align:middle;
+    text-decoration: none;
+}
+div.pagination strong{background:#fff;border:2px solid #555;color:#333;}
+div.pagination img{vertical-align:middle;}
+div.pagination .paging-prev{padding:0;margin:0 8px 0 0;border:0;}
+div.pagination .paging-next{padding:0;margin:0 0 0 6px;border:0;}
+
+.table-fixed { table-layout:fixed; }
+.ellipsis {
+	white-space:nowrap;
+	text-overflow:ellipsis;		/* IE, Safari */
+	-o-text-overflow:ellipsis;		/* Opera under 10.7 */
+	overflow:hidden;			/* "overflow" value must be different from "visible" */ 
+	-moz-binding: url('ellipsis.xml#ellipsis');	
+}
+
+.pointer{
+	cursor:pointer;
+}
+.pointer:hover{
+	text-decoration: underline;
+}
+
+.tblPhoto div{
+	float: left;
+ 	margin: 0 0 0 12px;
+	width: 200px;
+	height: 180px;
+	text-align: center;
+	
+}
+
+.tblPhoto div p{
+	margin: 0;
+	padding: 0;
+}
+
+
+/* 회색테이블 td 왼쪽정렬 */
+.tblType{width:100%;margin:0;border:1px solid #aaa}
+.tblType th{height:24px;line-height:24px;padding:0;border-right:1px solid #aaa;border-bottom:1px solid #aaa;background:#f1f1f1;color:#444}
+.tblType th.Gbg{background:#f1f1f1;border-bottom:1px solid #aaa}
+.tblType td{height:24px;line-height:24px;padding:0 5px;border-right:1px solid #aaa;border-bottom:1px solid #aaa;color:#555}
+.tblType td.Profile_img{margin:0;padding:2px}
+.tblType td.Profile_img img{width:100px; height:120px;}
+
+.tblType{ table-layout:fixed; }
+.tblType td { 
+	white-space:nowrap;
+	text-overflow:ellipsis;		/* IE, Safari */
+	-o-text-overflow:ellipsis;		/* Opera under 10.7 */
+	overflow:hidden;			/* "overflow" value must be different from "visible" */ 
+	-moz-binding: url('ellipsis.xml#ellipsis'); 
+}
