@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <projectDescription>
-	<name>lionsclubs</name>
+	<name>bokjuri</name>
 	<comment></comment>
 	<projects>
 	</projects>
@@ -48,7 +48,7 @@
 	</natures>
 	<filteredResources>
 		<filter>
-			<id>1401784310692</id>
+			<id>0</id>
 			<name>src/main/resources/egovframework/spring/com</name>
 			<type>6</type>
 			<matcher>
