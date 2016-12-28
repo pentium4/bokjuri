@@ -71,7 +71,6 @@ public class EgovLoginPolicyFilter implements Filter {
 		//String password = request.getParameter("password");	2011.10.21 보안점검 후속조치
 		String userSe = request.getParameter("userSe");
 		String userIp = "";
-		System.out.println("로그인 사이트 이동2");
 		if (id == null || userSe == null) {
 			((HttpServletResponse) response).sendRedirect(httpRequest.getContextPath() + "/uat/uia/egovLoginUsr.do");
 		}

@@ -25,13 +25,7 @@ public class CommonUtil {
 		String thisSessionYear = String.valueOf(calendar.get(Calendar.YEAR));
 		
 		if(Integer.parseInt("0630") < Integer.parseInt(sd.format(new Date()))){
-			System.out.println(calendar.get(Calendar.YEAR) + 1);
 		}
-		
-		System.out.println("thisSessionYear() : " + thisSessionYear());
-		System.out.println("prevSessionYear() : " + String.valueOf(Integer.parseInt(thisSessionYear()) - 1));
-
-		System.out.println("20140101".substring(4,8));
 		
 		Calendar calendar = Calendar.getInstance();
 		
@@ -39,13 +33,10 @@ public class CommonUtil {
 		int currentDay = calendar.get(calendar.DAY_OF_MONTH);
 		int lastDay = calendar.getActualMaximum(calendar.DATE);
 		
-		System.out.println(lastDay);
-
 		Calendar calendar = Calendar.getInstance();
 		
 		int currentDay = calendar.get(Calendar.DAY_OF_MONTH);
 		int lastDay = calendar.getActualMaximum(Calendar.DATE);
-		System.out.println(lastDay - currentDay);
 		
 		String d = "20140417";
 		
@@ -53,21 +44,13 @@ public class CommonUtil {
 		int month = Integer.parseInt(d.substring(4,6));
 		int day = Integer.parseInt(d.substring(6,8));		
 		
-		System.out.println(year);
-		System.out.println(month);
-		System.out.println(day);
-		
-		System.out.println(thisYear());
 		*/
 		
 		/*
 		String date = new SimpleDateFormat("yyyyMMddHHmmss").format(new Date());
 		
-		System.out.println("CommonUtil.thisYear() + CommonUtil.thisMonth() : " + CommonUtil.thisYear() + CommonUtil.thisMonth());
-		
 		for(int i=0; i<300000; i++){
 			date = new SimpleDateFormat("yyyyMMddHHmmss").format(new Date());
-			System.out.println("date : " + date);
 		}
 		*/
 		

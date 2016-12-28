@@ -64,27 +64,23 @@ public class RssTagManageDao extends EgovComAbstractDAO {
 		    }
 
     	}catch(Exception ex){
-    		System.out.println(ex);	// 2011.10.10 보안점검 후속조치
     	}finally{
     		if(tables != null){
     			try {
     				tables.close();
     			} catch(Exception e) {
-    				System.out.println(e);	// 2011.10.10 보안점검 후속조치
     			}
 			}
     		if(dbmd != null){
     			try {
     				dbmd=null;
 				} catch(Exception e){
-					System.out.println("IGNORE: " + e);	// 2011.10.10 보안점검 후속조치
 				}
 			}
     		if(conn != null){
     			try {
     				conn.close();
 				} catch(Exception e){
-					System.out.println("IGNORE: " + e);	// 2011.10.10 보안점검 후속조치
 				}
 			}
     	}
@@ -137,27 +133,23 @@ public class RssTagManageDao extends EgovComAbstractDAO {
 	        }
 
     	}catch(Exception ex){
-    		System.out.println(ex);	// 2011.10.10 보안점검 후속조치
     	}finally{
     		if(rs != null){
     			try {
     				rs.close();
 				} catch(Exception e){
-					System.out.println("IGNORE: " + e);	// 2011.10.10 보안점검 후속조치
 				}
 			}
     		if(st != null){
     			try{
     				st.close();
     			}catch(Exception e){
-					System.out.println("IGNORE: " + e);	// 2011.10.10 보안점검 후속조치
 				}
 			}
     		if(conn != null){
     			try{
     				conn.close();
 				}catch(Exception e){
-					System.out.println("IGNORE: " + e);	// 2011.10.10 보안점검 후속조치
 				}
 			}
     	}

@@ -91,7 +91,6 @@ public class JfileDownloadView extends AbstractView {
 				try {
 					FileCopyUtils.copy(fin, out);
 				} catch (Exception e) {
-					System.out.println("파일 다운로드 취소");
 				}
 				finally {
 					fin.close();

@@ -16,9 +16,6 @@ public class TagUtils extends TagSupport {
 		// TODO Auto-generated method stub
 
 		String organCode = "K26000";
-		
-		System.out.println(organCode.substring(0,3));
-		System.out.println(organCode.substring(3,6));
 	}
 	
 	/**

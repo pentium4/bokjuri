@@ -270,7 +270,6 @@ public class EgovBndtManageController {
 			                             ModelMap model) throws Exception {
     	
     	int iDiaryTotCnt = egovBndtManageService.selectBndtDiaryTotCnt(bndtManage);
-    	System.out.println("iDiaryTotCnt ="+iDiaryTotCnt);
     	if(iDiaryTotCnt == 0){
 	    	egovBndtManageService.deleteBndtManage(bndtManage);
 	    	status.setComplete();

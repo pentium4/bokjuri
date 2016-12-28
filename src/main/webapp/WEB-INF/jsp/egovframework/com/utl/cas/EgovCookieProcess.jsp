@@ -38,7 +38,6 @@ if(execFlag==null || execFlag.equals("")) {
 <%
 if(execFlag.equals("READY")){
 	// 실행을 위한 화면 준비
-	System.out.println("READY"); 
 %>
 
 <!-- 준비화면  시작-->

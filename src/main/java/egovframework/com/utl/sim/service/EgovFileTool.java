@@ -2065,7 +2065,6 @@ public class EgovFileTool {
 			b_out.close();
 		    } catch (Exception e) {
 			//e.printStackTrace();
-			System.out.println(e);
 		    } finally {
 		    	close(b_out);
 		    }
@@ -3144,7 +3143,6 @@ public class EgovFileTool {
 			try {
 				closable.close();
 			} catch (IOException ignore) {
-				 System.out.println("IGNORE: " + ignore);
 			}
 		}
 	}

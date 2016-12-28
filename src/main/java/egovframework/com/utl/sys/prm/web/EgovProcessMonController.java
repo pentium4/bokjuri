@@ -250,10 +250,8 @@ public class EgovProcessMonController {
 			, ModelMap model
 			) throws Exception {
     	
-		//System.out.println("FileSysNm" + fileSysMntrngVO.getFileSysNm());  	
     	model.addAttribute("processSttus", ProcessMonChecker.getProcessId(processMonVO.getProcessNm()));
     	model.addAttribute("processMonVO", processMonVO);
-    	
   
 		return "egovframework/com/utl/sys/prm/EgovComUtlProcessMonRegist";
 	}

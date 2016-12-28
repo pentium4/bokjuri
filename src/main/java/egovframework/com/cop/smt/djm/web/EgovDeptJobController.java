@@ -303,9 +303,6 @@ public class EgovDeptJobController {
     	}
     	
     	
-    	//System.out.println(deptJobService.selectDeptJobBxOrdr(deptJobBxVO.getDeptId()));
-    	//deptJobBxVO.setIndictOrdr(deptJobService.selectDeptJobBxOrdr(deptJobBxVO.getDeptId()) + 1);
-    	
     	model.addAttribute("indictOrdrValue", deptJobService.selectDeptJobBxOrdr(deptJobBxVO.getDeptId()) + 1);
     	return sLocationUrl; 
 	}

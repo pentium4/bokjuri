@@ -120,9 +120,6 @@ public class EgovHttpMonController {
 		HttpMon vo = egovHttpMonService.selectHttpMonDetail(httpMon);
 		model.addAttribute("result", vo);
 		
-		//System.out.println("SiteUrl============================컨트롤러 파라미터 확인========================>" + vo.getSiteUrl());
-    	//model.addAttribute("siteUrl", HttpMntrngChecker.getPrductStatus(vo.getSiteUrl()));    		
-		
 		return "egovframework/com/utl/sys/htm/EgovComUtlHttpMonDetail";
 	}	
 	
@@ -232,7 +229,6 @@ public class EgovHttpMonController {
 			, ModelMap model
 			) throws Exception {
     	
-		System.out.println("SiteUrl" + httpMonVO.getSiteUrl());  	
     	model.addAttribute("httpSttusCd", HttpMntrngChecker.getPrductStatus(httpMonVO.getSiteUrl()));
     	model.addAttribute("httpMonVO", httpMonVO);
     	

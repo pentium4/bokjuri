@@ -93,13 +93,10 @@ public class EgovComCrossSiteHndlr extends BodyTagSupport {
 									// pooling tag handlers)
 
 		JspWriter out = pageContext.getOut();
-		//System.out.println("EgovComCrossSiteFilter> ============================");
 		try {
 			// print value if available; otherwise, try 'default'
 			if (value != null) {
-				//System.out.println("EgovComCrossSiteFilter> =value");
 				String sWriteEscapedXml = getWriteEscapedXml();
-				//System.out.println("EgovComCrossSiteFilter sWriteEscapedXml>" + sWriteEscapedXml);
 				out.print(sWriteEscapedXml);
 				return SKIP_BODY;
 			} else {
@@ -109,13 +106,11 @@ public class EgovComCrossSiteHndlr extends BodyTagSupport {
 					return EVAL_BODY_BUFFERED;
 				}
 
-				//System.out.println("EgovComCrossSiteFilter def> ="+def);
 
 				// if we do have 'default', print it
 				if (def != null) {
 					// good 'default'
 					out(pageContext, escapeXml, def);
-				//System.out.println("EgovComCrossSiteFilter> ="+def);
 				}
 				return SKIP_BODY;
 			}
@@ -127,7 +122,6 @@ public class EgovComCrossSiteHndlr extends BodyTagSupport {
 	// prints the body if necessary; reports errors
 	public int doEndTag() throws JspException {
 		try {
-			//System.out.println("EgovComCrossSiteFilter ==== doEndTag");
 			if (!needBody){
 				return EVAL_PAGE; // nothing more to do
 			}
@@ -136,8 +130,6 @@ public class EgovComCrossSiteHndlr extends BodyTagSupport {
 			if (bodyContent != null && bodyContent.getString() != null){
 				//String sWriteEscapedXml = getWriteEscapedXml();
 				//out2(pageContext, escapeXml, sWriteEscapedXml.toString());
-				//System.out.println("EgovComCrossSiteFilter> end");
-				//System.out.println("EgovComCrossSiteFilter sWriteEscapedXml > sWriteEscapedXml");
 				out(pageContext, escapeXml, bodyContent.getString().trim());
 
 			}
@@ -275,9 +267,7 @@ public class EgovComCrossSiteHndlr extends BodyTagSupport {
 					//}
 					// add escaped xml
 					//sRtn = sRtn + escaped;
-					//System.out.println(buffer[i]+" :: " + escaped);
 					for (int j = 0; j < escaped.length; j++) {
-						//System.out.println(buffer[i]+" :>: " + escaped[j]);
 						sRtn = sRtn + escaped[j];
 					}
 					//sRtn = sRtn+ escaped.toString();
@@ -341,9 +331,7 @@ public class EgovComCrossSiteHndlr extends BodyTagSupport {
 					//}
 					// add escaped xml
 					//sRtn = sRtn + escaped;
-					//System.out.println(buffer[i]+" :: " + escaped);
 					for (int j = 0; j < escaped.length; j++) {
-						//System.out.println(buffer[i]+" :>: " + escaped[j]);
 						sRtn = sRtn + escaped[j];
 					}
 					//sRtn = sRtn+ escaped.toString();
@@ -384,17 +372,12 @@ public class EgovComCrossSiteHndlr extends BodyTagSupport {
     	egovComCrossSiteHndlr.value = "TRNSMIT";
 
     	String sCrossSiteHndlr = egovComCrossSiteHndlr.getWriteEscapedXml();
-    	//System.out.println("writeEscapedXml " + egovComCrossSiteHndlr.getWriteEscapedXml());
     	/*
-    	System.out.println("sCrossSiteHndlr|"+ sCrossSiteHndlr + "|");
 
     	try{
-    		System.out.println("TRY TEST 1");
     		throw new Exception();
     	}catch(Exception e){
-    		System.out.println("TRY TEST 2");
     	}finally{
-    		System.out.println("TRY TEST 3");
 
     	}
     }

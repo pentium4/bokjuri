@@ -95,7 +95,6 @@ public class EgovSocketClient
             byte[] recvHeader = new byte[4];
 
             if (inStream.read(recvHeader, 0, recvHeader.length) < 4) {
-                //System.out.println("받은 데이터 헤더가 형식에 맞지 않습니다.");
                 dataLength = -1;
             }
 
@@ -115,7 +114,6 @@ public class EgovSocketClient
                 dataLength = -1;
             }
         } catch (IOException e) {
-            //System.out.println("header : " + e);
             dataLength = -1;
         }
 
@@ -199,31 +197,4 @@ public class EgovSocketClient
         outStream.write(data);
         outStream.flush();
     }
-
-    /**
-     * 배포된 파일을 로컬에서 직접테스트시  참조할 수 있는 코드(직접실행시 사용)
-     */
-    /** 2011.10.10 cmd 라인상에서 편의제공을 위해 제공, 필요없을시 삭제하여도 무방함
-    public static void main(String agrs[])
-    {
-        EgovSocketClient lm_oSocketClient = new EgovSocketClient();
-        try
-        {
-        	/*
-        	 * 서비스구분코드|인증서CN|이름|주민번호
-        	 *
-        	 * 인증서 파일 에서 숫자에 해당하는 값:예) SVR1310000001_***.***
-        	 * 1310000001이 인증서CN 값 이다
-        	 */
-    /**
-	        byte[] lm_bResult1 = lm_oSocketClient.execute("12|1310000001|홍길동|6303201063614");
-	        //System.out.println("결과:"+new String(lm_bResult1));
-        }
-        catch(Exception e)
-        {
-        	//e.printStackTrace()
-	    	System.out.println(e);
-        }
-    }
-    */
 }

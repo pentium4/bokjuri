@@ -74,13 +74,9 @@ public class ProxyServer extends Thread {
 
             	try {
                 	serverSocket.setSoTimeout(2000);
-                	System.out.println("client wait......");
-
                 	client = serverSocket.accept();
-
             	} catch (Exception ce)	{
 					    //ce.printStackTrace();
-					    System.out.println(ce);	// 2011.10.10 보안점검 후속조치
 						continue;
 					}
 
@@ -88,7 +84,6 @@ public class ProxyServer extends Thread {
 
             		insertProxyLog();
 
-	            	System.out.println("client connect");
 	                InputStream streamFromClient = client.getInputStream();
 	                OutputStream streamToClient = client.getOutputStream();
 
@@ -96,7 +91,6 @@ public class ProxyServer extends Thread {
 	                    server = new Socket(getSvcIp(), remotePort);
 	                } catch(Exception ex) {
 	                	//ex.printStackTrace();
-	        			System.out.println(ex);	// 2011.10.10 보안점검 후속조치
 	                }
 
 	                InputStream streamFromServer = server.getInputStream();
@@ -114,7 +108,6 @@ public class ProxyServer extends Thread {
 	                    }
 	                } catch (IOException e) {
 	            	    //e.printStackTrace();
-	                	System.out.println(e);	// 2011.10.10 보안점검 후속조치
 	                } finally {
 	                    streamToClient.close();
 	                    if(proxyThread.getIsStop()) {
@@ -128,7 +121,6 @@ public class ProxyServer extends Thread {
         catch (Exception e)
         {
     	    //e.printStackTrace();
-        	System.out.println(e);	// 2011.10.10 보안점검 후속조치
         }
         finally {
 			try
@@ -142,7 +134,6 @@ public class ProxyServer extends Thread {
 			catch (IOException ie)
 			{
 				//ie.printStackTrace();
-				System.out.println(ie);	// 2011.10.10 보안점검 후속조치
 			}
         }
     }
@@ -152,32 +143,18 @@ public class ProxyServer extends Thread {
 		try {
 
     		proxyLog = new ProxyLog();
-    		System.out.println("-------------------------------------------- 1");
     		proxyLog.setProxyId(getThreadName());
-    		System.out.println("-------------------------------------------- 2");
     		proxyLog.setLogId(egovProxyLogIdGnrService.getNextStringId());
-    		System.out.println("-------------------------------------------- 3");
     		if (!EgovWebUtil.isIPAddress((client.getInetAddress().getHostAddress()))) {	// 2011.10.25 보안점검 후속조치
     		    throw new RuntimeException("IP is needed. (" + client.getInetAddress().getHostAddress() + ")");
     		}
     		proxyLog.setClntIp(client.getInetAddress().getHostAddress());
-    		System.out.println("-------------------------------------------- 4");
     		proxyLog.setClntPort(String.valueOf(getLocalPort()));
-    		System.out.println("-------------------------------------------- 5");
     		proxyLog.setFrstRegisterId("SYSTEM");
     		proxyLog.setLastUpdusrId("SYSTEM");
-
-    		System.out.println(proxyLog.getProxyId());
-    		System.out.println(proxyLog.getLogId());
-    		System.out.println(proxyLog.getClntIp());
-    		System.out.println(proxyLog.getClntPort());
-    		System.out.println(proxyLog.getFrstRegisterId());
-    		System.out.println(proxyLog.getLastUpdusrId());
-
     		proxySvcDAO.insertProxyLog(proxyLog);
 
 		} catch(Exception e) {
-			System.out.println("proxyLog Insert Error : "+e);
 		}
     }
 

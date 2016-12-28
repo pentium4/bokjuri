@@ -87,7 +87,6 @@ public class MM3_20ServiceImpl extends AbstractServiceImpl implements MM3_20Serv
 //			message = service.excelUploadProcess(vo, file.getInputStream());
 			
 			String extension = CommonUtil.getExtension(file.getOriginalFilename());
-			System.out.println("extension : " + extension);
 			
 			if("xls".equals(extension)){
 				map = excelService.xlsParser(file.getInputStream());
@@ -97,9 +96,7 @@ public class MM3_20ServiceImpl extends AbstractServiceImpl implements MM3_20Serv
 		}
 		
 		int cells = Integer.parseInt(map.get("cells").toString());
-		//System.out.println("엑셀파일의 셀의 갯수 : " + cells);
 		int limitCells =  vo.getCodeList().size() + 4;
-		//System.out.println("허용되는 셀의 갯수 : " + limitCells);
 
         if(cells != limitCells){
         	return "의무금 부과 항목 갯수가 틀렸습니다.";
@@ -119,8 +116,6 @@ public class MM3_20ServiceImpl extends AbstractServiceImpl implements MM3_20Serv
         	e.printStackTrace();
         	return e.getMessage();
         }
-        System.out.println("pass8");
-        System.out.println("pass excel Upload");
         
         return "1";
 	}

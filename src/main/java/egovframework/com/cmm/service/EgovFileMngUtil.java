@@ -250,7 +250,6 @@ public class EgovFileMngUtil {
 			try {
 			    outs.close();
 			} catch (Exception ignore) {
-			    //System.out.println("IGNORED: " + ignore.getMessage());
 			    LOG.debug("IGNORED: " + ignore.getMessage());
 			}
 		    }
@@ -258,7 +257,6 @@ public class EgovFileMngUtil {
 			try {
 			    fin.close();
 			} catch (Exception ignore) {
-			    //System.out.println("IGNORED: " + ignore.getMessage());
 			    LOG.debug("IGNORED: " + ignore.getMessage());
 			}
 		    }

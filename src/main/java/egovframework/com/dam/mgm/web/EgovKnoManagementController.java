@@ -170,16 +170,12 @@ public class EgovKnoManagementController {
 		LoginVO loginVO = (LoginVO)EgovUserDetailsHelper.getAuthenticatedUser();	    
 	    
 		String sCmd = commandMap.get("cmd") == null ? "": (String)commandMap.get("cmd");
-		System.out.println("cmd>"+sCmd);
 		
 		if (sCmd.equals("")) {
 			
 	        knoManagement.setEmplyrId((String)loginVO.getUniqId());
 			knoManagement = knoManagementService.selectKnoManagement(knoManagement);
 			model.addAttribute("knoManagement", knoManagement);
-			
-			System.out.println("knoManagement>"+knoManagement);
-			System.out.println("knoManagement>"+model.get("knoManagement"));
 			
 			return "egovframework/com/dam/mgm/EgovComDamManagementModify";
 			

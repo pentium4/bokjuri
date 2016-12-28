@@ -64,13 +64,11 @@ public class ProxyThread implements Runnable {
             }
         } catch (IOException e) {
     	    //e.printStackTrace();
-    	    System.out.println(e);	// 2011.10.10 보안점검 후속조치
         } finally {
 			try {
 				streamToServer.close();
 			} catch (IOException ex) {
 				//ex.printStackTrace();
-				System.out.println("IGNORE: " + ex);	// 2011.10.10 보안점검 후속조치
 			}
 		}
     }

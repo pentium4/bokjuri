@@ -28,12 +28,8 @@ public class SM1_04ServiceImpl extends AbstractServiceImpl implements SM1_04Serv
 		LoginVO user = (LoginVO)EgovUserDetailsHelper.getAuthenticatedUser();		
 		if(StringUtils.isEmpty(vo.getOrganCode())) {
 			vo.setOrganCode(user.getSearchOrganCode());
-			System.out.println("pass1");
-			System.out.println("user.getSearchOrganCode() : " + user.getSearchOrganCode());
 		} else {
 			user.setSearchOrganCode(vo.getOrganCode());
-			System.out.println("pass2");
-			System.out.println("vo.getOrganCode() : " + vo.getOrganCode());
 		}
 		
 		return dao.SM1_04(vo);

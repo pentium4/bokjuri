@@ -64,8 +64,6 @@ public class HTMLTagFilterRequestWrapper extends HttpServletRequestWrapper {
 			}
 		}
 		
-		System.out.println("values : " + values);
-		
 		return values;
 	}
 
@@ -104,8 +102,6 @@ public class HTMLTagFilterRequestWrapper extends HttpServletRequestWrapper {
 		}
 		
 		value = strBuff.toString();
-		
-		System.out.println("value : " + value);
 		
 		return value;
 	}

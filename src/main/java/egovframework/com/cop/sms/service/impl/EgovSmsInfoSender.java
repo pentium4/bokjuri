@@ -64,19 +64,16 @@ public class EgovSmsInfoSender {
 	tmp = SMEConfig.getLogLevel();
 	if (tmp != null && !tmp.equals("")) {
 		SMELogger.setLogLevel(tmp);
-		//System.out.println(tmp);
 	}
 
 	tmp = SMEConfig.getLogLayout();
 	if (tmp != null && !tmp.equals("")) {
 		SMELogger.setLogLayout(tmp);
-		//System.out.println(tmp);
 	}
 
 	tmp = SMEConfig.getLogPath();
 	if (tmp != null && !tmp.equals("")) {
 		SMELogger.setLogPath(tmp);
-		//System.out.println(tmp);
 	}
 
 	SMELogger.setUseConsoleLogger(SMEConfig.getUseConsoleLogger());

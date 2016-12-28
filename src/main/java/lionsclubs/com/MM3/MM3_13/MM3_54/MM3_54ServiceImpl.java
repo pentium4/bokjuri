@@ -182,8 +182,6 @@ public class MM3_54ServiceImpl extends AbstractServiceImpl implements MM3_54Serv
 					int spcIndex = 5;
 					for(MM3_54VO spc : listSecretaryPaymentCode){
 						String payment = data.get("data_" + spcIndex++).toString();
-						System.out.println("spc.getGroupCode() : " + spc.getGroupCode());
-						System.out.println("spc.getCode() : " + spc.getCode());
 						if(StringUtils.isNotEmpty(payment)
 								&& !"0".equals(payment)){
 							vo.setPaymentMainCode(spc.getGroupCode());

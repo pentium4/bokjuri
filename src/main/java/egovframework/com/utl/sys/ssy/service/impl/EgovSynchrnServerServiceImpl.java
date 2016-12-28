@@ -94,10 +94,8 @@ public class EgovSynchrnServerServiceImpl extends AbstractServiceImpl implements
 				if(!isLogin) throw new Exception("FTP Client Login Error : \n");
 
 			} catch(SocketException se) {
-				System.out.println(se);
 				throw new Exception(se);
 			} catch(Exception e) {
-				System.out.println(e);
 				throw new Exception(e);
 			}
 
@@ -113,7 +111,6 @@ public class EgovSynchrnServerServiceImpl extends AbstractServiceImpl implements
 				}
 			} catch(Exception e) {
 				//e.printStackTrace();
-				System.out.println(e);	// 2011.10.10 보안점검 후속조치
 		    } finally {
 			    ftpClient.logout();
 			}
@@ -161,7 +158,6 @@ public class EgovSynchrnServerServiceImpl extends AbstractServiceImpl implements
 
 		} catch(Exception e) {
 			//e.printStackTrace();
-			System.out.println(e);	// 2011.10.10 보안점검 후속조치
 	    } finally {
 		    ftpClient.logout();
 		}
@@ -195,7 +191,6 @@ public class EgovSynchrnServerServiceImpl extends AbstractServiceImpl implements
 			ftpClient.retrieveFile(fileNm, outputStream);
 		} catch(Exception e) {
 			//e.printStackTrace();
-			System.out.println(e);	// 2011.10.10 보안점검 후속조치
 		} finally {
 			if(outputStream != null) outputStream.close();
 		}
@@ -346,15 +341,15 @@ public class EgovSynchrnServerServiceImpl extends AbstractServiceImpl implements
 
 	        } catch(IOException ex) {
 	        	//ex.printStackTrace();
-				System.out.println(ex);	// 2011.10.10 보안점검 후속조치
 	        } finally {
-	            if (fis != null) try { fis.close(); } catch(IOException ignore) {System.out.println("IGNORE: " + ignore);}
+	            if (fis != null) try { fis.close(); } catch(IOException ignore) {
+	            	
+	            }
 	        }
 	        ftpClient.logout();
 
 	    } catch(Exception e) {
 	    	//e.printStackTrace();
-			System.out.println(e);	// 2011.10.10 보안점검 후속조치
 	    	upload = false;
 	    }
 
@@ -468,20 +463,17 @@ public class EgovSynchrnServerServiceImpl extends AbstractServiceImpl implements
 
 		} catch (Exception e) {
 		    //e.printStackTrace();
-		    System.out.println(e);	// 2011.10.10 보안점검 후속조치 finally
 		} finally {
             if (bos != null) {
                 try {
                     bos.close();
                 } catch (Exception ignore) {
-                	System.out.println("IGNORE: " + ignore);
                 }
             }
             if (stream != null) {
                 try {
                     stream.close();
                 } catch (Exception ignore) {
-                	System.out.println("IGNORE: " + ignore);
                 }
             }
         }

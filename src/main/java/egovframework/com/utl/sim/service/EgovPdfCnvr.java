@@ -120,7 +120,6 @@ public class EgovPdfCnvr
 			}
 		} catch ( Exception ex ) {
 		    //ex.printStackTrace();
-		    System.out.println(ex);	// 보안점검 후속조치
 			status = false;
 		}
 		// 메소드 종료 Log
@@ -164,14 +163,12 @@ public class EgovPdfCnvr
     		try {
     		    bos.close();
     		} catch (Exception ignore) {
-    		    System.out.println("IGNORE: " + ignore);
     		}
     	    }
     	    if (stream != null) {
     		try {
     		    stream.close();
     		} catch (Exception ignore) {
-    		    System.out.println("IGNORE: " + ignore);
     		}
     	    }
     	}

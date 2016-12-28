@@ -163,7 +163,6 @@ public class MM3_22ServiceImpl extends AbstractServiceImpl implements MM3_22Serv
 			mm322AVO.setItemCode(vo2.getItemCode());
 			mm322AVO.setDollarYN(vo2.getDollarYN());
 			mm322AVO.setPaymentDate(vo2.getPaymentDate());
-			System.out.println("vo2.getPaymentDollar() : " + vo2.getPaymentDollar());
 			mm322AVO.setPaymentDollar(vo2.getPaymentDollar());
 			mm322AVO.setPayment(vo2.getPayment());
 			

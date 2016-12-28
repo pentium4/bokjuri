@@ -260,15 +260,6 @@ public class EgovSmsInfoServiceImpl extends AbstractServiceImpl implements EgovS
 	String text = smsConn.getText();
 	String messageId = smsConn.getMessageId();	// messageId 지정 필요
 	
-	/*
-	System.out.println("------------------------");
-	System.out.println("callTo = " + callTo);
-	System.out.println("callFrom = " + callFrom);
-	System.out.println("callBack = " + callBack);
-	System.out.println("callBackUrl = " + callBackUrl);
-	System.out.println("text = " + text);
-	System.out.println("messageId = " + messageId);
-	*/
 	logger.info("------------------------");
 	logger.info("callTo = " + callTo);
 	logger.info("callFrom = " + callFrom);
@@ -326,15 +317,6 @@ public class EgovSmsInfoServiceImpl extends AbstractServiceImpl implements EgovS
 		String text = smsConn[i].getText();
 		String messageId = smsConn[i].getMessageId();	// messageId 지정 필요
 		
-		/*
-		System.out.println("------------------------");
-		System.out.println("callTo[" + i + "] = " + callTo);
-		System.out.println("callFrom[" + i + "] = " + callFrom);
-		System.out.println("callBack[" + i + "] = " + callBack);
-		System.out.println("callBackUrl[" + i + "] = " + callBackUrl);
-		System.out.println("text =[" + i + "] = " + text);
-		System.out.println("messageId[" + i + "] = " + messageId);
-		*/
 		logger.info("------------------------");
 		logger.info("callTo[" + i + "] = " + callTo);
 		logger.info("callFrom[" + i + "] = " + callFrom);

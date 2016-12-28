@@ -156,11 +156,6 @@ public class MM3_19Controller {
 		List<CODE_INFO> codeList = null;
 		String message = "";
 		
-		//System.out.println("---------dsdsdsds-----------------------------");
-		//System.out.println(request.getParameter("firstOrSecond"));
-		//System.out.println(vo.getFirstOrSecond());
-		//System.out.println("--------------------------------------");
-		
 		if(vo.getThisOrganCode() != null || "".equals(vo.getThisOrganCode())) {
 			// 동적인 컬럼의 정보를 구한다(퇴회사유코드)
 			codeList = service.getCodeList(vo);

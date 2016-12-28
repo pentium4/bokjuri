@@ -34,8 +34,6 @@ public class ThumbNailImageUtil {
 				}
 			} 
 		} catch (Exception e) {
-			System.out.println("err:" + uploadPullPath);
-			//throw new JFileException(e);
 		}
 	}
 }

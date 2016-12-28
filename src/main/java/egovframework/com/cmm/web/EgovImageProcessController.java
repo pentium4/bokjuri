@@ -118,7 +118,6 @@ public class EgovImageProcessController extends HttpServlet {
 				try {
 					bStream.close();
 				} catch (Exception ignore) {
-					//System.out.println("IGNORE: " + ignore);
 					LOG.debug("IGNORE: " + ignore.getMessage());
 				}
 			}
@@ -126,7 +125,6 @@ public class EgovImageProcessController extends HttpServlet {
 				try {
 					in.close();
 				} catch (Exception ignore) {
-					//System.out.println("IGNORE: " + ignore);
 					LOG.debug("IGNORE: " + ignore.getMessage());
 				}
 			}
@@ -134,7 +132,6 @@ public class EgovImageProcessController extends HttpServlet {
 				try {
 					fis.close();
 				} catch (Exception ignore) {
-					//System.out.println("IGNORE: " + ignore);
 					LOG.debug("IGNORE: " + ignore.getMessage());
 				}
 			}

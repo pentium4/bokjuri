@@ -59,15 +59,9 @@ public class MM3_19ServiceImpl extends AbstractServiceImpl implements MM3_19Serv
 		colName.add("6월");
 		colName.add("평생");
 
-		//System.out.println("-------------------------------------------------");
 		for(int i=0; i<vo.getCodeList().size(); i++){
 			colName.add(vo.getCodeList().get(i).getCodeName().toString());
-			//System.out.println("동적추가엑셀컬럼명 : " + vo.getCodeList().get(i).getCodeName().toString());
 		}
-		//System.out.println("-------------------------------------------------");
-
-		//int thisYear = Integer.parseInt(vo.getSessionYear());
-		//int prevYear = thisYear - 1;
 		modelMap.put("excelName", vo.getThisOrganCode() + "클럽제의무금부과(" + vo.getPrevYear() + " - " + vo.getThisYear() + ")_" + date);
 		modelMap.put("colName", colName);
 		modelMap.put("colValue", dao.excelTemplateDownload(vo));
@@ -99,9 +93,7 @@ public class MM3_19ServiceImpl extends AbstractServiceImpl implements MM3_19Serv
 		}
 		
 		int cells = Integer.parseInt(map.get("cells").toString());
-		//System.out.println("엑셀파일의 셀의 갯수 : " + cells);
 		int limitCells =  vo.getCodeList().size() + 5;
-		//System.out.println("허용되는 셀의 갯수 : " + limitCells);
 
         if(cells != limitCells){
         	return "의무금 부과 항목 갯수가 틀렸습니다.";
@@ -142,7 +134,6 @@ public class MM3_19ServiceImpl extends AbstractServiceImpl implements MM3_19Serv
 		int keyIndex = 5;
 		for(int i=0; i<excelColumnKeyArray.length; i++){
 			excelColumnKeyArray[i] = "data_" + keyIndex;
-			//System.out.println("col : " + excelColumnKeyArray[i]);
 			keyIndex++;
 		}
 		
@@ -200,8 +191,6 @@ public class MM3_19ServiceImpl extends AbstractServiceImpl implements MM3_19Serv
 			index++;
 		}
 		
-		//System.out.println("count : " + count);
-		//System.out.println("rowCount : " + rows);
         if(count != rows-1){
         	throw new Exception("입력도중 에러가 발생하였습니다.");
         }		

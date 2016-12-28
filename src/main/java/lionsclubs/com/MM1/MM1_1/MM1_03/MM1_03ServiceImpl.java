@@ -118,19 +118,11 @@ public class MM1_03ServiceImpl extends AbstractServiceImpl implements MM1_03Serv
 	 */
 	@Override
 	public void flagSchedulingUpdate() throws Exception {
-		System.out.println("-----------------------------------------------------------------------");
-		System.out.println("-----------------------------------------------------------------------");
-		System.out.println("----------------- 선임위촉 이력 FLAG 업데이트 START -------------------");
 		String date = new SimpleDateFormat("yyyyMMddHHmmss").format(new Date());
-		System.out.println("date : " + date);
 		
 		batchAppointmentUpdate();
 			
-		System.out.println("-----------------------------------------------------------------------");
-		System.out.println("----------------- 선임위촉 이력 FLAG 업데이트 END ---------------------");
-		System.out.println("-----------------------------------------------------------------------");
 		date = new SimpleDateFormat("yyyyMMddHHmmss").format(new Date());
-		System.out.println("date : " + date);
 	}
 
 	/**

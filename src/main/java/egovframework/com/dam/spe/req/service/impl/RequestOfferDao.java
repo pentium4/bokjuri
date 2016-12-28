@@ -95,14 +95,11 @@ public class RequestOfferDao extends EgovComAbstractDAO {
 	    		Map mapAnsParentsSearch = null;
 	    		String sAnsParents = (String)mapAnsParents.get("knoId");
 	    		
-	    		System.out.println("sAnsParents>" + sAnsParents);
-	    		
 	    		//단말노드 검사
 	    		while(true){
 	    			HashMap hmParam = new HashMap();
 	    			hmParam.put("ansParents", sAnsParents);
 	    			mapAnsParents = (Map)getSqlMapClientTemplate().queryForObject("RequestOffer.selectRequestOfferReplyaAnsParentsSearch", hmParam);
-	    			System.out.println("mapAnsParentsSearch>" + mapAnsParents);
 	    			
 	    			if(mapAnsParents == null){   				
 	    				break;
@@ -119,8 +116,6 @@ public class RequestOfferDao extends EgovComAbstractDAO {
     		if( nSeq != 1){
     			RequestOfferVO.setAnsSeq(nSeq);
     		}
-    		System.out.println("LastSeq>" + nSeq);
-    		
     		update("RequestOffer.updateRequestOfferReply", RequestOfferVO);
     		insert("RequestOffer.insertRequestOfferReply", RequestOfferVO);
     		

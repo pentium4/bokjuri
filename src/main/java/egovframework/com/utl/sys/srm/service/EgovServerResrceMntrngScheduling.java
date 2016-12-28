@@ -100,7 +100,6 @@ public class EgovServerResrceMntrngScheduling {
             for (MBeanAttributeInfo attrInfo : attrInfos) {
             	if(attrInfo.getName().equals("CpuUsage")) serverResrceMntrng.setCpuUseRt(mbs.getAttribute(name, attrInfo.getName()).toString());
             	else if(attrInfo.getName().equals("MemoryUsage")) serverResrceMntrng.setMoryUseRt(mbs.getAttribute(name, attrInfo.getName()).toString());
-            	System.out.println(attrInfo.getName() + " = " + mbs.getAttribute(name, attrInfo.getName()));
             }
             serverResrceMntrng.setSvcSttus("01");
             serverResrceMntrng.setFrstRegisterId(InetAddress.getLocalHost().getHostAddress());
@@ -121,7 +120,6 @@ public class EgovServerResrceMntrngScheduling {
     		ByteArrayOutputStream out = new ByteArrayOutputStream();
     		PrintStream printStream = new PrintStream (out);
     		//e.printStackTrace(printStream);
-		    System.out.println(e);	// 2011.10.10 보안점검 후속조치
 
     		String logInfo = out.toString();
     		byte[] btLogInfo = logInfo.getBytes();
@@ -143,7 +141,6 @@ public class EgovServerResrceMntrngScheduling {
             if (connector != null)
             	try { connector.close();
             	} catch(IOException ie) {
-            		System.out.println(ie);	// 2011.10.10 보안점검 후속조치
             	}
         }
     }
@@ -166,7 +163,6 @@ public class EgovServerResrceMntrngScheduling {
 
 		} catch(Exception e) {
 		    //e.printStackTrace();
-		    System.out.println(e);	// 2011.10.10 보안점검 후속조치
 		}
 	}
 

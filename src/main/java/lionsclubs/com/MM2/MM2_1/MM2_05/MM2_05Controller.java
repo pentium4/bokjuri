@@ -92,7 +92,6 @@ public class MM2_05Controller {
 	public ModelAndView awardInsert(HttpServletRequest request, @ModelAttribute("MM2_05VO") MM2_05VO vo) throws Exception{
 		Map<String, Object> model = new HashMap<String, Object>();
 		
-		System.out.println();
 		String awardDate = vo.getAwardDate();
 		awardDate = awardDate.replaceAll("\\.", "");
 		vo.setAwardDate(awardDate);

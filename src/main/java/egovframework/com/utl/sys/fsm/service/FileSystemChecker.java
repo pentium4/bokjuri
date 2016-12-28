@@ -101,7 +101,6 @@ public class FileSystemChecker{
         		try {
         			fileWriter.close();
         		} catch(Exception ignore) {
-        			System.out.println("IGNORED: " + ignore.getMessage());
         		}
         	}
         }

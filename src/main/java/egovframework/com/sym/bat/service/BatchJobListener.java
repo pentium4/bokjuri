@@ -75,7 +75,6 @@ public class BatchJobListener implements JobListener {
 	 * @see org.quartz.JobListener#jobToBeExecuted(JobExecutionContext jobContext) 
 	 */
 	public void jobToBeExecuted(JobExecutionContext jobContext) {
-		System.out.println("job[" + jobContext.getJobDetail().getName() + "] " + "jobToBeExecuted ");
 		log.debug("job[" + jobContext.getJobDetail().getName() + "] " + "jobToBeExecuted ");
 		BatchResult batchResult = new BatchResult();
 		JobDataMap dataMap = jobContext.getJobDetail().getJobDataMap();

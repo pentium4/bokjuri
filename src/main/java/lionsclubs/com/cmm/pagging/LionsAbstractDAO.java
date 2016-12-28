@@ -30,7 +30,6 @@ public class LionsAbstractDAO extends EgovAbstractDAO{
  	   
     	Field[] fields = clz.getDeclaredFields(); //그 안의 필드를 알아올 수 있다.
     	for(int i = 0; i < fields.length; i++){
-//    		System.out.println(fields[i].getName());
     	}    	
     	
     	Method[] getMethods = clz.getMethods();

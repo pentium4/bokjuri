@@ -77,8 +77,6 @@ public class EgovNoteRecptnServiceImpl extends AbstractServiceImpl
         //받은쪽지함 건수를 조회함
         int nNoteRecptnCnt = (Integer)dao.selectNoteRecptnRelationCnt(noteRecptn);
         
-        System.out.println("nNoteTrnsmitCnt>"+nNoteTrnsmitCnt);
-        System.out.println("nNoteRecptnCnt>"+nNoteRecptnCnt);
         if(nNoteTrnsmitCnt == 1 && nNoteRecptnCnt==1){
         	//받은쪽지/쪽지관리 삭제 처리
         	//dao.deleteNoteRecptnRelation(noteRecptn);

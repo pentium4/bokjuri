@@ -25,7 +25,6 @@ public class SM1_02_AServiceImpl extends AbstractServiceImpl implements SM1_02_A
 	
 	@Override
 	public void insert(SM1_02_AVO vo) throws Exception {
-		System.out.println("vo.getMoreAuthArray() : " + vo.getMoreAuthArray());
 		for(SM1_02_AVO ivo : vo.getMoreAuthArray()){
 			ivo.setInsertName(vo.getInsertName());
 			ivo.setUpdateName(vo.getUpdateName());

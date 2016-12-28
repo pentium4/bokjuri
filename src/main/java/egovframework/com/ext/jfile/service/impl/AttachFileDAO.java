@@ -134,7 +134,6 @@ public class AttachFileDAO extends EgovComAbstractDAO {
 	public void removeAttachFile(final String fileId, final List<Object> fileSeqs) {
 		if(fileSeqs != null) {
 			for(Object o : fileSeqs) {
-				System.out.println("fileSeq : "+o);
 			}
 		}
 		getSqlMapClientTemplate().delete("AttachFileDAO.removeAttachFile", new HashMap<String, Object>(){{
@@ -173,7 +172,6 @@ public class AttachFileDAO extends EgovComAbstractDAO {
 	 */
 	@SuppressWarnings({"serial" })
 	public void updateAttachFileDeleteYn(final String fileId, final Object[] fileSeqs, final String deleteYn) {
-		System.out.println("fileSeqs : " + fileSeqs);
 		if(fileId == null || fileSeqs == null)
 			return;
 		getSqlMapClientTemplate().update("AttachFileDAO.updateAttachFileDeleteYn", new HashMap<String, Object>(){{

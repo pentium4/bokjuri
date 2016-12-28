@@ -272,8 +272,6 @@ public class EgovFileSysMntrngController {
 	 */
     @RequestMapping("/utl/sys/fsm/selectFileSysMg.do")
 	public String selectFileSysMg(@ModelAttribute("fileSysMntrngVO") FileSysMntrngVO fileSysMntrngVO, ModelMap model) throws Exception{
-		//System.out.println("FileSysNm" + fileSysMntrngVO.getFileSysNm());
-    	
     	int totalSpaceFileSys = 0;
     	try{
     		totalSpaceFileSys = FileSystemChecker.totalSpaceGb(fileSysMntrngVO.getFileSysNm());
@@ -334,7 +332,6 @@ public class EgovFileSysMntrngController {
 			}
 			
 			list.set(k, logVO);
-			//System.out.println(list.get(k).getCreatDt());
 		}
 		
 		// 조회시작시

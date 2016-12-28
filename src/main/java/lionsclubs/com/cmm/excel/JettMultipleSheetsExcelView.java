@@ -49,8 +49,6 @@ public class JettMultipleSheetsExcelView extends AbstractExcelView {
 //		beansList.add(map);
 
 		for(Map<String, Object> beans : beansList){
-			System.out.println("templateSheetName : " + beans.get("templateSheetName").toString());
-			System.out.println("sheetName : " + beans.get("sheetName").toString());
 			templateSheetNames.add(beans.get("templateSheetName").toString());
 			sheetNames.add(beans.get("sheetName").toString());
 		}

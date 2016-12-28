@@ -66,9 +66,6 @@ public class LoginController {
     
     @RequestMapping("/login/pcLogin.do")
 	public String pcLogin(Device device, SitePreference sitePreference) throws Exception {
-		System.out.println("sitePreference : " + sitePreference);
-		System.out.println("sitePreference.MOBILE : " + sitePreference.MOBILE);
-		
     	if(EgovUserDetailsHelper.isAuthenticated()) {
     		return "forward:/login/actionMain.do";
     	}        
@@ -78,9 +75,6 @@ public class LoginController {
 	
     @RequestMapping("/m/login/login.do")
 	public String mobileLogin(Device device, SitePreference sitePreference) throws Exception {
-		System.out.println("sitePreference : " + sitePreference);
-		System.out.println("sitePreference.MOBILE : " + sitePreference.MOBILE);
-		
     	if(EgovUserDetailsHelper.isAuthenticated()) {
     		return "forward:/login/actionMain.do";
     	}        
@@ -108,9 +102,6 @@ public class LoginController {
     	}
 
 		String main_page = Globals.MAIN_PAGE;
-		
-		System.out.println("sitePreference : " + sitePreference);
-		System.out.println("sitePreference.MOBILE : " + sitePreference.MOBILE);
 		
 		if(sitePreference == sitePreference.MOBILE){
     		main_page = Globals.MOBILE_MAIN_PAGE;

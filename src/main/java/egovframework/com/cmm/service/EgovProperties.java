@@ -87,7 +87,6 @@ public class EgovProperties{
 				if (fis != null) fis.close();
 			} catch (Exception ex) {
 				//ex.printStackTrace();
-				//System.out.println("IGNORE: " + ex);	// 2011.10.10 보안점검 후속조치
 				Logger.getLogger(EgovProperties.class).debug("IGNORED: " + ex.getMessage());
 			}
 
@@ -122,7 +121,6 @@ public class EgovProperties{
 				if (fis != null) fis.close();
 			} catch (Exception ex) {
 				//ex.printStackTrace();
-				//System.out.println("IGNORE: " + ex);	// 2011.10.10 보안점검 후속조치
 				Logger.getLogger(EgovProperties.class).debug("IGNORED: " + ex.getMessage());
 			}
 
@@ -187,7 +185,6 @@ public class EgovProperties{
 				if (fis != null) fis.close();
 			} catch (Exception ex) {
 				//ex.printStackTrace();
-				//System.out.println("IGNORE: " + ex);	// 2011.10.10 보안점검 후속조치
 				Logger.getLogger(EgovProperties.class).debug("IGNORED: " + ex.getMessage());
 			}
 		}
@@ -235,7 +232,6 @@ public class EgovProperties{
 				if (fis != null) fis.close();
 			} catch (Exception ex) {
 				//ex.printStackTrace();
-				//System.out.println("IGNORE: " + ex);	// 2011.10.10 보안점검 후속조치
 				Logger.getLogger(EgovProperties.class).debug("IGNORED: " + ex.getMessage());
 			}
 		}
@@ -249,7 +245,6 @@ public class EgovProperties{
 	private static void debug(Object obj) {
 		if (obj instanceof java.lang.Exception) {
 			//((Exception)obj).printStackTrace();
-			//System.out.println("DEBUG: " + obj);	// 2011.10.10 보안점검 후속조치
 			Logger.getLogger(EgovProperties.class).debug("IGNORED: " + ((Exception)obj).getMessage());
 		}
 	}

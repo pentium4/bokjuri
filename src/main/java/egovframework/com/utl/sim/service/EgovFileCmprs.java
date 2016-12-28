@@ -206,7 +206,6 @@ public class EgovFileCmprs {
 			try {
 				closable.close();
 			} catch (IOException ignore) {
-				 System.out.println("IGNORE: " + ignore);
 			}
 		}
 	}

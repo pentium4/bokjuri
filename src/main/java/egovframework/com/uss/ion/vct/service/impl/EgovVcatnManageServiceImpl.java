@@ -150,7 +150,6 @@ public class EgovVcatnManageServiceImpl extends AbstractServiceImpl implements E
 	    }
 	    // 휴가구분이 반차인 경우 
 	    else if(vcatnManage.getVcatnSe().equals("02")){
-			System.out.println("insertVcatnManage 8");
 	    	// 연차 휴가 연도 체크
 	    	if(!getVcatnYearSE(vcatnManage)){
 	    		return "09";
@@ -213,21 +212,11 @@ public class EgovVcatnManageServiceImpl extends AbstractServiceImpl implements E
 
 	    if(iTemp == 0){
 	    	sTempMessage =  insertVcatnManage(vcatnManage,vcatnManageVO);
-			System.out.println("updtVcatnManage 4:"+sTempMessage);
 	    	return sTempMessage;
 	    }else{
 	    	sTempMessage = "10";
-			System.out.println("updtVcatnManage 5:"+sTempMessage);
 			return sTempMessage;
 	    }
-/*		
-    	vcatnManage.setBgnde(EgovStringUtil.removeMinusChar(vcatnManage.getBgnde()));
-    	vcatnManage.setEndde(EgovStringUtil.removeMinusChar(vcatnManage.getEndde()));    	
-		vcatnManage.setReqstDe(EgovStringUtil.removeMinusChar(vcatnManage.getReqstDe()));
-		vcatnManageDAO.updtVcatnManage(vcatnManage);
-		
-		 return "01";
-*/
 	}
 
 	/**

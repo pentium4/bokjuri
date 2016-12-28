@@ -120,19 +120,16 @@ public class EgovSmsInfoReceiver extends AbstractServiceImpl implements SMEListe
 	tmp = SMEConfig.getLogLevel();
 	if (tmp != null && !tmp.equals("")) {
 		SMELogger.setLogLevel(tmp);
-		//System.out.println(tmp);
 	}
 
 	tmp = SMEConfig.getLogLayout();
 	if (tmp != null && !tmp.equals("")) {
 		SMELogger.setLogLayout(tmp);
-		//System.out.println(tmp);
 	}
 
 	tmp = SMEConfig.getLogPath();
 	if (tmp != null && !tmp.equals("")) {
 		SMELogger.setLogPath(tmp);
-		//System.out.println(tmp);
 	}
 
 	SMELogger.setUseConsoleLogger(SMEConfig.getUseConsoleLogger());
@@ -150,10 +147,6 @@ public class EgovSmsInfoReceiver extends AbstractServiceImpl implements SMEListe
 		int nRes = rpt.getResult(); //결과코드
 		String doneTime = rpt.getDeliverTime(); //이동통신사 결과처리시간-단말기에 전달된 시간(이동통신사 생성)
 		String netCode = rpt.getDestination(); //이동통신사 정보
-		//System.out.println(rpt);
-
-		//System.out.println("Receiver Number is :" + ((SMEReportImpl)rpt).receiver.activeCount()); // 주석처리
-
 		String resultMsg = "";
 
 		switch (nRes) {
@@ -243,28 +236,12 @@ public class EgovSmsInfoReceiver extends AbstractServiceImpl implements SMEListe
 		}
 
 		if (nRes != SMEMessage.RESULT_SUCCESS) {
-		    //System.out.println("SMSMessage (msgId = " + msgId + ") report = " + rpt.getResult());
-		    /*
-		    System.out.println("MessageId   : " + msgId);
-		    System.out.println("Result      : " + nRes);
-		    System.out.println("Result Msg. : " + resultMsg);
-		    System.out.println("Done Time   : " + doneTime);
-		    System.out.println("Net Code    : " + netCode);
-		    */
 		    LOG.info("MessageId   : " + msgId);
 		    LOG.info("Result      : " + nRes);
 		    LOG.info("Result Msg. : " + resultMsg);
 		    LOG.info("Done Time   : " + doneTime);
 		    LOG.info("Net Code    : " + netCode);
 		} else {
-		    /*
-		    System.out.println("MessageId   : " + msgId);
-		    System.out.println("Result      : " + nRes);
-		    System.out.println("Result Msg. : " + resultMsg);
-		    System.out.println("Done Time   : " + doneTime);
-		    System.out.println("Net Code    : " + netCode);
-		    */
-		    //System.out.println("SMEMessage (msgId = " + msgId + ") report = " + rpt.getResult());
 		    LOG.info("MessageId   : " + msgId);
 		    LOG.info("Result      : " + nRes);
 		    LOG.info("Result Msg. : " + resultMsg);
@@ -290,9 +267,8 @@ public class EgovSmsInfoReceiver extends AbstractServiceImpl implements SMEListe
 		    }
 		}
 	    } else {
-		//System.out.println("SMEReceiver Disconnected!!"); // 주석처리
-		LOG.debug("SMEReceiver Disconnected!!");
-		isConnected = false;
+			LOG.debug("SMEReceiver Disconnected!!");
+			isConnected = false;
 	    }
 	}
     }
@@ -357,8 +333,6 @@ public class EgovSmsInfoReceiver extends AbstractServiceImpl implements SMEListe
      */
     public void execute() {
 	smeConfigPath = EgovProperties.getPathProperty("Globals.SMEConfigPath");
-
-	//System.out.println("EgovSmsInfoReceiver executed...");
 	LOG.debug("EgovSmsInfoReceiver executed...");
 
 	try {

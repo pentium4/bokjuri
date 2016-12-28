@@ -30,7 +30,6 @@ try {
 	session.setAttribute("rstoken",requestToken.getTokenSecret());
 }catch(TwitterException e) {
 	//e.printStackTrace();
-	System.out.println(e.getMessage());		// 2011.10.21 보안점검 후속조치
 }
 out.println("<br>");
 if (requestToken != null) {	// 보안점검 후속조치

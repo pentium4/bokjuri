@@ -198,10 +198,6 @@ public class EgovFileMntrg extends Thread {
             }
 
         } catch (Exception e) {
-            //interrupted = true; // there is no point in continuing
-            //e.printStackTrace();
-            System.out.println(e);	// 2011.10.10 보안점검 후속조치
-            //return;
         }
 
         if (changedList.size()>0) {
@@ -227,7 +223,6 @@ public class EgovFileMntrg extends Thread {
                 Thread.sleep(delay);
             } catch (InterruptedException e) {
                 // no interruption expected
-            	System.out.println("IGNORE: " + e);	// 2011.10.10 보안점검 후속조치
             }
             checkAndConfigure();
         }
@@ -277,28 +272,24 @@ public class EgovFileMntrg extends Thread {
 			result = true;
 		}catch(Exception e){
 			//e.printStackTrace();
-            System.out.println(e);	// 2011.10.10 보안점검 후속조치
-     // 2011.10.10 보안점검 후속조치
+			// 2011.10.10 보안점검 후속조치
 		}finally {
 		    if (br != null) {
 				try {
 				    br.close();
 				} catch (Exception ignore) {
-				    System.out.println("IGNORE: " + ignore);
 				}
 			    }
 			    if (bWriter != null) {
 				try {
 				    bWriter.close();
 				} catch (Exception ignore) {
-				    System.out.println("IGNORE: " + ignore);
 				}
 			    }
 			    if (fWriter != null) {
 				try {
 				    fWriter.close();
 				} catch (Exception ignore) {
-				    System.out.println("IGNORE: " + ignore);
 				}
 			    }
 			}
@@ -343,7 +334,6 @@ public class EgovFileMntrg extends Thread {
 			}
 		}catch(Exception e){
 			//e.printStackTrace();
-            System.out.println(e);	// 2011.10.10 보안점검 후속조치
 		}
 		finally{	// 2011.10.21 보안점검 후속조치
 			if (br != null){

@@ -131,7 +131,6 @@ public class HttpRequestor {
 
 	                out.write( ((StringBuffer)obj[i+1]).toString().getBytes("utf-8") );
 	                out.write(newLineBytes);
-	                //System.out.println("HttpRequestor>" + ((StringBuffer)obj[i+1]).toString().replaceAll("\t","").substring(0,130).toString());
 	            } else {
 	                // 파라미터의 값이 File 이나 NullFile인 경우
 	                if ( obj[i+1] instanceof File) {
@@ -167,7 +166,6 @@ public class HttpRequestor {
 	                    } finally {
 	                        if (is != null) try { is.close(); }
 	                        				catch(IOException ex) {
-	                        					System.out.println("IGNORE: " + ex);	// 2011.10.10 보안점검 후속조치
 	                        					}
 	                    }
 	                }

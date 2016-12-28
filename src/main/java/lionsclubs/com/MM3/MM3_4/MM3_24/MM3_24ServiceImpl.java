@@ -74,7 +74,6 @@ public class MM3_24ServiceImpl extends AbstractServiceImpl implements MM3_24Serv
              }
              formattedNum.append(strNum);
          }catch( Exception e ){
-             System.out.println(e.getMessage());
              result = "error";
         };
      }

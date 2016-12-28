@@ -41,7 +41,6 @@ if(rtoken.equals(oauthToken)){
 		accessToken = twitter.getOAuthAccessToken(oauthToken, rstoken);
 	}catch(TwitterException te) {
 		//out.println("<br>" + te.toString());
-		System.out.println(te);	// 2011.10.10 보안점검 후속조치
 	}
 }
 
@@ -55,7 +54,6 @@ try{
 }catch(Exception e) {
 	//out.println("<br>" + e.toString());
 	//e.printStackTrace();
-	System.out.println(e);	// 2011.10.10 보안점검 후속조치
 }
 
 //========================================================================
@@ -75,7 +73,6 @@ try {
 	String result_msg = status.getText();
 }catch (TwitterException e) {
 	//e.printStackTrace();
-	System.out.println(e);	// 2011.10.10 보안점검 후속조치
 }
 
 out.println("<br>");

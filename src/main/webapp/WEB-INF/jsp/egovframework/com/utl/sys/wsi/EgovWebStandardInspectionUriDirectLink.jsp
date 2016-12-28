@@ -130,7 +130,6 @@ public class HttpRequestor {
 
 	                out.write( ((StringBuffer)obj[i+1]).toString().getBytes("utf-8") );
 	                out.write(newLineBytes);
-	                //System.out.println("HttpRequestor>" + ((StringBuffer)obj[i+1]).toString().replaceAll("\t","").substring(0,130).toString());
 	            } else {
 	                // 파라미터의 값이 File 이나 NullFile인 경우
 	                if ( obj[i+1] instanceof File) {

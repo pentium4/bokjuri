@@ -198,7 +198,6 @@ if(statuses == null){
 </html>
 <%
 }catch(Exception e){
-	System.out.println(e);	// 2011.10.10 보안점검 후속조치
 }finally{
 }
 %>

@@ -51,7 +51,6 @@ public class EgovWebLogInterceptor extends HandlerInterceptorAdapter {
 		
     	/* Authenticated  */
         Boolean isAuthenticated = EgovUserDetailsHelper.isAuthenticated();
-        System.out.println("isAuthenticated.booleanValue() : " + isAuthenticated.booleanValue());
         
     	if(isAuthenticated.booleanValue()) {
     		LoginVO user = (LoginVO)EgovUserDetailsHelper.getAuthenticatedUser();

@@ -256,10 +256,6 @@ public class EgovTwitterController {
     	hmPram.put("frstRegisterId", (String)loginVO.getUniqId());
     	hmPram.put("lastUpdusrId", (String)loginVO.getUniqId());
 
-
-    	System.out.println("EgovTwitterPopupPost>");
-    	System.out.println("selectTwitterAccountCheck>" + egovTwitterTrnsmitService.selectTwitterAccountCheck(hmPram));
-
     	//Consumer key/Consumer secret 키 값 저장 체크시
     	if(sCheckKey.equals("1")){
     		if( egovTwitterTrnsmitService.selectTwitterAccountCheck(hmPram) > 0){

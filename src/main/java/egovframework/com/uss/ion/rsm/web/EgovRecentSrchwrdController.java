@@ -371,8 +371,6 @@ public class EgovRecentSrchwrdController {
        recentSrchwrd.setFrstRegisterId((String)loginVO.getUniqId());
        recentSrchwrd.setLastUpdusrId((String)loginVO.getUniqId());
        
-//       System.out.println("recentSrchwrd.getSrchwrdNm() : "+ recentSrchwrd.getSrchwrdNm());
-       
        //검색어가 없을 시 미저장
        if (!recentSrchwrd.getSrchwrdNm().equals(null) && !recentSrchwrd.getSrchwrdNm().equals("")) {
     	   egovRecentSrchwrdService.insertRecentSrchwrdResult(recentSrchwrd);

@@ -11,7 +11,6 @@ public class DynamicTilesViewIntrceptor extends DynamicTilesView {
 
 	@Override
 	public void setTilesDefinitionName(String tilesDefinitionName) {
-		System.out.println("tilesDefinitionName : " + tilesDefinitionName);
 		super.setTilesDefinitionName(tilesDefinitionName);
 	}
 

@@ -34,8 +34,6 @@ public class MM6_05Controller {
 		
 		vo.setDistrictCode(organService.getDistrictCode(user.getSearchClubCode()));
 		
-		//System.out.println("=========================="+user.getDistrictCode()+"==========================");
-		
 		List<MM6_05VO_MEMBER> memberList = service.selectClubChairManList(vo);
 		model.addAttribute("memberList", memberList);
 		model.addAttribute("yearTitle", String.valueOf(Integer.valueOf(yearCode) - 1) + "-" + yearCode);

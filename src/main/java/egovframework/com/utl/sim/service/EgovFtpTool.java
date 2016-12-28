@@ -143,7 +143,6 @@ public class EgovFtpTool {
 			try {
 				disconnect(ftpClient);
 			} catch (Exception ignore) {
-				 System.out.println("IGNORE: " + ignore);
 			}
 			close(out);
 		}
@@ -206,7 +205,6 @@ public class EgovFtpTool {
 			try {
 				disconnect(ftpClient);
 			} catch (Exception ignore) {
-				System.out.println("IGNORE: " + ignore);
 			}
 			close(out);
 		}
@@ -309,7 +307,6 @@ public class EgovFtpTool {
 			try {
 				disconnect(ftpClient);
 			} catch (Exception ignore) {
-				System.out.println("IGNORE: " + ignore);
 			}
 			close(in);
 		}
@@ -369,7 +366,6 @@ public class EgovFtpTool {
 			try {
 				disconnect(ftpClient);
 			} catch (Exception ignore) {
-				System.out.println("IGNORE: " + ignore);
 			}
 			close(in);
 		}
@@ -527,7 +523,6 @@ public class EgovFtpTool {
 			try {
 				closable.close();
 			} catch (IOException ignore) {
-				 System.out.println("IGNORE: " + ignore);
 			}
 		}
 	}

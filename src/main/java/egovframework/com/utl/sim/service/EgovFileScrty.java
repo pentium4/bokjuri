@@ -81,7 +81,6 @@ public class EgovFileScrty {
 		       } catch (Exception ignore) {
 			   // no-op
 		           //ignore.printStackTrace();
-				   System.out.println("IGNORE: " + ignore);	// 보안점검 후속조치
 		       }
 		   }
 		   if (output != null) {
@@ -90,7 +89,6 @@ public class EgovFileScrty {
 		       } catch (Exception ignore) {
 			   // no-op
 		           //ignore.printStackTrace();
-		           System.out.println("IGNORE: " + ignore);	// 보안점검 후속조치
 		       }
 		   }
 		}
@@ -143,7 +141,6 @@ public class EgovFileScrty {
 		       } catch (Exception ignore) {
 			   // no-op
 		           //ignore.printStackTrace();
-				   System.out.println("IGNORE: " + ignore); // 보안점검 후속조치
 		       }
 		   }
 		   if (output != null) {
@@ -152,7 +149,6 @@ public class EgovFileScrty {
 		       } catch (Exception ignore) {
 			   // no-op
 		    	   //ignore.printStackTrace();
-				   System.out.println("IGNORE: " + ignore); // 보안점검 후속조치
 		       }
 		   }
 		}
@@ -279,20 +275,4 @@ public class EgovFileScrty {
     	
     	return MessageDigest.isEqual(hashValue, Base64.decodeBase64(encoded.getBytes()));
     }
-    
-    /*
-    public static void main(String[] args) {
-    	try {
-    		String password = "abc";
-    		String salt = "def";
-    		
-    		String first = encryptPassword(password, salt.getBytes());
-    		String second = encryptPassword(password, salt.getBytes());
-			System.out.println(password + " => " + first + " : " + checkPassword(password, first, salt.getBytes()));
-			System.out.println(password + " => " + second + " : " + checkPassword(password, second, salt.getBytes()));
-		} catch (Exception ex) {
-			ex.printStackTrace();
-		}
-    }
-    */
 }

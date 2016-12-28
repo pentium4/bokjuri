@@ -152,7 +152,6 @@ public class MM3_19VO extends ComDefaultVO implements Serializable{
 		
 		for(int i=0; i <  codeList.size(); i++){
 			tmpArray[i] += Integer.parseInt(codeList.get(i).getCode());
-			//System.out.println(codeList.get(i).getCode());
 		}
 		
 		Arrays.sort(tmpArray);

@@ -68,7 +68,6 @@ public class SampleController {
 	
 	@RequestMapping(value="/jfile/sample/site/cutdownSessionLimitTime.do")
 	public ModelAndView cutdownSessionLimitTime(HttpServletRequest request) {
-		System.out.println("SampleController.cutdownSessionLimitTime()");
 		ModelAndView modelAndView = new ModelAndView(JSonView.NAME);
 		request.getSession().setMaxInactiveInterval(10);
 		return modelAndView;
