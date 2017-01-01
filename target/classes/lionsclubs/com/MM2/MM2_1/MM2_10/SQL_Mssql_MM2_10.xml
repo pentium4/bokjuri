@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://www.ibatis.com/dtd/sql-map-2.dtd">
-
-<sqlMap namespace="lionsclubs.com.MM2.MM2_1.MM2_10">
-	<typeAlias alias="MM2_10VO" type="lionsclubs.com.MM2.MM2_1.MM2_10.MM2_10VO"/>
-</sqlMap>
