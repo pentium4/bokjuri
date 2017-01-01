@@ -4,7 +4,7 @@
 <head>
 	<meta charset="utf-8" />
 	<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, target-densitydpi=medium-dpi" name="viewport" />
-	<title>국제라이온스협회 업무통합관리시스템</title>
+	<title>복주리 봉사단</title>
 	<script type="text/javascript" src="include/js/jquery-latest.js"></script>
 	<script type="text/javascript" src="include/js/javascript.js"></script>
 	<link rel="stylesheet" type="text/css" href="include/css/default.css" />
@@ -13,7 +13,7 @@
 
 	<!-- 상단 -->
 	<div class="header">
-		<h1><img src="/images/lionsclubs/mobile/logo.png" alt="국제라이온스협회 업무통합관리시스템" /></h1>
+		<h1><img src="/images/lionsclubs/mobile/logo.png" alt="복주리 봉사단" /></h1>
 	</div>
 	<!-- 상단 -->
 

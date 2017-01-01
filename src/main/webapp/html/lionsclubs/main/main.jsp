@@ -5,10 +5,10 @@
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <meta http-equiv="X-UA-Compatible" content="IE=Edge"/>
-<meta name="author" content="국제라이온스협회 업무통합관리시스템" />
+<meta name="author" content="복주리 봉사단" />
 <meta name="ROBOTS" content="NOINDEX,NOFOLLOW" />
-<meta name="keyword" content="국제라이온스협회 업무통합관리시스템" />
-<title>국제라이온스협회 업무통합관리시스템</title>
+<meta name="keyword" content="복주리 봉사단" />
+<title>복주리 봉사단</title>
 <link rel="stylesheet" href="/css/lionsclubs/style.css" type="text/css" />
 <link rel="stylesheet" href="/css/lionsclubs/content_main.css" type="text/css" />
 <script type="text/javascript" src="/js/lionsclubs/javascript.js"></script>

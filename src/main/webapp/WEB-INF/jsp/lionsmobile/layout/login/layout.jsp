@@ -8,10 +8,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="format-detection" content="telephone=no, address=no, email=no" />
 <meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
-<meta name="author" content="국제라이온스협회 업무통합관리시스템" />
+<meta name="author" content="복주리 봉사단" />
 <meta name="ROBOTS" content="NOINDEX,NOFOLLOW" />
-<meta name="keyword" content="국제라이온스협회 업무통합관리시스템" />
-<title>국제라이온스협회 업무통합관리시스템</title>
+<meta name="keyword" content="복주리 봉사단" />
+<title>복주리 봉사단</title>
 <body>
 
 <div data-role="page">

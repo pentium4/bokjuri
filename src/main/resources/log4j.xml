@@ -9,7 +9,7 @@
     </appender>
 
     <logger name="java.sql" additivity="false">
-    	<level value="DEBUG"/>
+    	<level value="ERROR"/>
         <appender-ref ref="console"/>
     </logger>
 

@@ -1,6 +1,6 @@
 <%@ page language="java" contentType="text/html; charset=utf-8" pageEncoding="utf-8"%>
 <div id="header">
-	<h1><a href="../main/main.jsp"><img src="/images/lionsclubs/logo.gif" alt="국제라이온스협회 업무통합관리시스템" /></a></h1>
+	<h1><a href="../main/main.jsp"><img src="/images/lionsclubs/logo.gif" alt="복주리 봉사단" /></a></h1>
 	<div class="top">
 		<div class="topmenu">
 			<div class="top_login">

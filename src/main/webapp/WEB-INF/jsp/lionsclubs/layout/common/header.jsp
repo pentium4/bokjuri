@@ -23,7 +23,7 @@ require(['init'], function () {
 });
 </script>
 <div id="Header">
-	<h1><a href="/main.do"><img src="/images/lionsclubs/logo.gif" alt="국제라이온스협회 업무통합관리시스템" /></a></h1>
+	<h1><a href="/main.do"><img src="/images/lionsclubs/logo.gif" alt="복주리 봉사단" /></a></h1>
 	<div class="topBox">
 		<div class="topmenu">
 			<div class="top_btn">

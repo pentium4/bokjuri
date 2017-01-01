@@ -4,10 +4,10 @@
 <html lang="ko" xml:lang="ko" xmlns="http://www.w3.org/1999/xhtml">
 <head>
 <meta http-equiv="Content-Type" content="text/html;charset=euc-kr"/>
-<meta name="author" content="국제라이온스협회 업무통합관리시스템"/>
+<meta name="author" content="복주리 봉사단"/>
 <meta name="ROBOTS" content="NOINDEX,NOFOLLOW"/>
-<meta name="keyword" content="국제라이온스협회 업무통합관리시스템"/>
-<title>로그인ㅣ국제라이온스협회 업무통합관리시스템</title>
+<meta name="keyword" content="복주리 봉사단"/>
+<title>로그인ㅣ복주리 봉사단</title>
 <link rel="stylesheet" href="/css/lionsclubs/style.css" type="text/css" />
 <script type="text/javascript" src="/js/lionsclubs/javascript.js"></script>
 <script type="text/javascript" src="/js/lionsclubs/script.js"></script>
@@ -17,10 +17,10 @@
 
 
 <div id="loginWrap">
-	<h1><img src="/images/lionsclubs/login_logo.gif" alt="국제라이온스협회 업무통합관리시스템" /></h1>
+	<h1><img src="/images/lionsclubs/login_logo.gif" alt="복주리 봉사단" /></h1>
 	<div class="login">
 		<p class="txt"><img src="/images/lionsclubs/login_title.gif" alt="Member Login" /></p>
-		<p class="txt"><img src="/images/lionsclubs/login_txt.gif" alt="국제라이온스협회 업무통합관리시스템에 오신 것을 환영합니다." /></p>
+		<p class="txt"><img src="/images/lionsclubs/login_txt.gif" alt="복주리 봉사단에 오신 것을 환영합니다." /></p>
 		<div class="loginBox1 clfix">
 			<div class="login_txt">
 				<p>
@@ -51,7 +51,7 @@
 				<dd><a href="/"><img src="/images/lionsclubs/btn_join.gif" alt="회원가입" /></a></dd>
 			</dl>
 		</div><!-- loginBox2 -->
-		<div class="copy">COPYRIGHT(C) 2014 국제라이온스협회 업무통합관리시스템. ALL RIGHTS RESERVED.</div>
+		<div class="copy">COPYRIGHT(C) 2014 복주리 봉사단. ALL RIGHTS RESERVED.</div>
 	</div><!-- login -->
 </div><!-- loginWrap -->
 

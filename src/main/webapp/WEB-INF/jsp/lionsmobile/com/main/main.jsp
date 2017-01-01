@@ -182,7 +182,7 @@ function moveLink(link) {
 <form:form modelAttribute="main" action="/m/main/main.do" data-ajax="false">
 <!-- 상단 -->
 <div class="header">
-	<h1><img src="/images/lionsclubs/mobile/logo.jpg" alt="국제라이온스협회 업무통합관리시스템" /></h1>
+	<h1><img src="/images/lionsclubs/mobile/logo.jpg" alt="복주리 봉사단" /></h1>
 </div>
 <!-- 상단 -->
 
